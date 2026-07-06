@@ -13,6 +13,7 @@ from resiflow.damage_aggregation import total_direct_damage_usd
 from resiflow.geo_runtime import is_conus_albers_alias
 from sioux_falls_fixtures import (
     DEMAND_SCALE,
+    TESTBED,
     build_sioux_falls_dataset,
     build_node_geometries,
     read_reference_nodes,
@@ -160,7 +161,7 @@ def test_sioux_falls_pipeline_scripts_reroute_bridge_bottleneck(tmp_path):
 
 def test_sioux_falls_node_coordinates_match_reference_geojson():
     """TNTP node X/Y must equal the canonical bstabler GeoJSON coordinates (WGS84)."""
-    tntp_nodes = read_tntp_nodes()
+    tntp_nodes = read_tntp_nodes(TESTBED.node_path())
     reference = read_reference_nodes()
 
     assert len(tntp_nodes) == len(reference) == 24

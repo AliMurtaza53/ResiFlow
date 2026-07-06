@@ -1,0 +1,24 @@
+{
+  "testbed_id": "sioux_falls",
+  "description": "TNTP Sioux Falls (24 nodes, 76 links) upcast for ResiFlow pipeline tests",
+  "network_source": "tntp",
+  "data_dir": "tests/data/sioux_falls_tntp",
+  "net_file": "SiouxFalls_net.tntp",
+  "node_file": "SiouxFalls_node.tntp",
+  "trips_file": "SiouxFalls_trips.tntp",
+  "reference_geojson": "SiouxFallsCoordinates.geojson",
+  "node_id_prefix": "sf_",
+  "source_crs": "EPSG:4326",
+  "output_crs": "EPSG:9311",
+  "demand_scale": 0.3,
+  "freight_share_of_passenger": 0.09,
+  "results_variant": "toy_sioux_falls",
+  "flooded_physical_pair": ["10", "15"],
+  "bridge_physical_pairs": [
+    ["10", "15"],
+    ["15", "22"],
+    ["10", "16"],
+    ["8", "16"],
+    ["11", "14"]
+  ]
+}

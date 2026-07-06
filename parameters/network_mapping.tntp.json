@@ -1,0 +1,19 @@
+{
+  "network_source": "tntp",
+  "default_assignment_tier": "arterial",
+  "default_damage_profile": "minor_road",
+  "network_class_to_assignment_tier": {
+    "freeway": "freeway",
+    "arterial": "arterial",
+    "collector": "collector",
+    "local": "arterial",
+    "local_access": "local_access"
+  },
+  "network_class_to_damage_profile": {
+    "freeway": "major_road",
+    "arterial": "minor_road",
+    "collector": "minor_road",
+    "local": "minor_road",
+    "local_access": "minor_road"
+  }
+}

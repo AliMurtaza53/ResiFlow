@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -12,7 +11,16 @@ import pandas as pd
 import rasterio
 from rasterio.features import rasterize
 from rasterio.transform import from_origin
-from shapely.geometry import LineString, Point, box
+from shapely.geometry import LineString, box
+
+from resiflow.demand.tntp import load_tntp_trips, split_freight_passenger
+from resiflow.networks.tntp import (
+    build_node_geometries,
+    read_tntp_links,
+    read_tntp_nodes,
+    read_tntp_trips,
+)
+from resiflow.testbeds import load_testbed
 
 from toy_pipeline_fixtures import (
     FLOOD_DEPTH_M,
@@ -20,27 +28,23 @@ from toy_pipeline_fixtures import (
     copy_parameters,
     pipeline_env,
     run_pipeline_scripts,
+    run_script,
     write_recovery_table,
     write_toy_config,
 )
 
-# TNTP node X/Y are geographic coordinates (bstabler SiouxFallsCoordinates.geojson).
-SOURCE_CRS = "EPSG:4326"
-# Rasterio persists CONUS Albers as EPSG:9311; align link + hazard CRS to avoid
-# Script 2 reprojection shifting geometries off the 10 m flood grid.
-OUTPUT_CRS = "EPSG:9311"
-DATA_DIR = Path(__file__).resolve().parent / "data" / "sioux_falls_tntp"
-REFERENCE_GEOJSON = DATA_DIR / "SiouxFallsCoordinates.geojson"
-DEMAND_SCALE = 0.3
-FREIGHT_SHARE_OF_PASSENGER = 0.09
-FLOODED_PHYSICAL_PAIR = ("10", "15")
-BRIDGE_PHYSICAL_PAIRS = {
-    ("10", "15"),
-    ("15", "22"),
-    ("10", "16"),
-    ("8", "16"),
-    ("11", "14"),
-}
+SNOW_DEPTH_MM = 200.0
+SNOW_SCENARIO_KEY_MM = 150
+
+TESTBED = load_testbed("sioux_falls")
+SOURCE_CRS = TESTBED.source_crs
+OUTPUT_CRS = TESTBED.output_crs
+DATA_DIR = TESTBED.data_dir
+REFERENCE_GEOJSON = DATA_DIR / (TESTBED.reference_geojson or "SiouxFallsCoordinates.geojson")
+DEMAND_SCALE = TESTBED.demand_scale
+FREIGHT_SHARE_OF_PASSENGER = TESTBED.freight_share_of_passenger
+FLOODED_PHYSICAL_PAIR = TESTBED.flooded_physical_pair or ("10", "15")
+BRIDGE_PHYSICAL_PAIRS = {tuple(pair) for pair in TESTBED.bridge_physical_pairs}
 
 
 @dataclass(frozen=True)
@@ -56,102 +60,16 @@ class SiouxFallsSpec:
 
 
 def _node_id(raw: str | int) -> str:
-    return f"sf_{raw}"
+    return TESTBED.node_id_formatter()(raw)
 
 
 def _physical_pair(a: str, b: str) -> tuple[str, str]:
     return tuple(sorted((str(a), str(b))))
 
 
-def read_tntp_nodes(path: Path = DATA_DIR / "SiouxFalls_node.tntp") -> pd.DataFrame:
-    rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.lower().startswith("node"):
-            continue
-        parts = stripped.replace(";", "").split()
-        if len(parts) >= 3:
-            rows.append({"node": parts[0], "x": float(parts[1]), "y": float(parts[2])})
-    if not rows:
-        raise ValueError(f"No nodes parsed from {path}")
-    return pd.DataFrame(rows)
-
-
 def read_reference_nodes(path: Path = REFERENCE_GEOJSON) -> gpd.GeoDataFrame:
     """Load the canonical bstabler Sioux Falls node coordinates (EPSG:4326)."""
     return gpd.read_file(path)
-
-
-def read_tntp_links(path: Path = DATA_DIR / "SiouxFalls_net.tntp") -> pd.DataFrame:
-    rows = []
-    for line in path.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("<") or stripped.startswith("~"):
-            continue
-        parts = stripped.replace(";", "").split()
-        if len(parts) >= 10:
-            rows.append(
-                {
-                    "init_node": parts[0],
-                    "term_node": parts[1],
-                    "capacity": float(parts[2]),
-                    "length": float(parts[3]),
-                    "free_flow_time": float(parts[4]),
-                    "toll": float(parts[8]),
-                    "link_type": parts[9],
-                }
-            )
-    if not rows:
-        raise ValueError(f"No links parsed from {path}")
-    return pd.DataFrame(rows)
-
-
-def read_tntp_trips(path: Path = DATA_DIR / "SiouxFalls_trips.tntp") -> pd.DataFrame:
-    rows = []
-    origin: str | None = None
-    pair_re = re.compile(r"(\d+)\s*:\s*([0-9.]+)")
-    for line in path.read_text(encoding="utf-8").splitlines():
-        stripped = line.strip()
-        if not stripped or stripped.startswith("<"):
-            continue
-        if stripped.lower().startswith("origin"):
-            origin = stripped.split()[1]
-            continue
-        if origin is None:
-            continue
-        for destination, flow_raw in pair_re.findall(stripped):
-            flow = float(flow_raw)
-            if flow > 0.0 and destination != origin:
-                rows.append(
-                    {
-                        "origin_node": _node_id(origin),
-                        "destination_node": _node_id(destination),
-                        "Car21": flow,
-                    }
-                )
-    if not rows:
-        raise ValueError(f"No OD rows parsed from {path}")
-    return pd.DataFrame(rows)
-
-
-def build_node_geometries(nodes: pd.DataFrame) -> dict[str, Point]:
-    """Use TNTP X/Y directly as WGS84 lon/lat.
-
-    The vendored ``SiouxFalls_node.tntp`` X/Y columns are the geographic
-    coordinates published in the bstabler ``SiouxFallsCoordinates.geojson``
-    (EPSG:4326). Returning them unscaled keeps the testbed's spatial
-    representation aligned with the canonical Sioux Falls layout. Callers
-    reproject to the pipeline CRS (``OUTPUT_CRS``) before writing outputs.
-    """
-    coords = nodes[["x", "y"]].to_numpy(dtype=float)
-    span = float(np.ptp(coords, axis=0).max())
-    if span <= 0.0:
-        raise ValueError("Node coordinates have zero extent")
-
-    geometries: dict[str, Point] = {}
-    for row in nodes.itertuples(index=False):
-        geometries[str(row.node)] = Point(float(row.x), float(row.y))
-    return geometries
 
 
 def _road_classification(capacity: float) -> str:
@@ -212,8 +130,8 @@ def write_sioux_falls_damage_workbooks(toy_data_dir: Path) -> None:
 
 
 def write_road_links(toy_data_dir: Path) -> tuple[gpd.GeoDataFrame, SiouxFallsSpec]:
-    nodes = read_tntp_nodes()
-    links = read_tntp_links()
+    nodes = read_tntp_nodes(TESTBED.node_path())
+    links = read_tntp_links(TESTBED.net_path())
     node_geoms = build_node_geometries(nodes)
 
     bridge_pairs = {_physical_pair(*pair) for pair in BRIDGE_PHYSICAL_PAIRS}
@@ -269,7 +187,7 @@ def write_road_links(toy_data_dir: Path) -> tuple[gpd.GeoDataFrame, SiouxFallsSp
     out.parent.mkdir(parents=True, exist_ok=True)
     road_links.to_parquet(out)
 
-    passenger = read_tntp_trips()
+    passenger = read_tntp_trips(TESTBED.trips_path(), node_id_formatter=_node_id)
     scaled_passenger = float(passenger["Car21"].sum()) * DEMAND_SCALE
     scaled_freight = scaled_passenger * FREIGHT_SHARE_OF_PASSENGER
 
@@ -287,7 +205,7 @@ def write_road_links(toy_data_dir: Path) -> tuple[gpd.GeoDataFrame, SiouxFallsSp
 
 
 def write_od_matrices(toy_data_dir: Path) -> None:
-    passenger = read_tntp_trips()
+    passenger = read_tntp_trips(TESTBED.trips_path(), node_id_formatter=_node_id)
     passenger["Car21"] = passenger["Car21"] * DEMAND_SCALE
     passenger_out = (
         toy_data_dir
@@ -378,7 +296,72 @@ def write_hazard_raster(
             dst.write(data.astype("float32"), 1)
 
 
-def build_sioux_falls_dataset(tmp_path: Path) -> tuple[Path, SiouxFallsSpec, gpd.GeoDataFrame]:
+def write_snow_hazard_raster(
+    toy_data_dir: Path,
+    road_links: gpd.GeoDataFrame,
+    flooded_edge_ids: tuple[str, ...],
+    *,
+    resolution_m: float = 10.0,
+    interior_fraction: tuple[float, float] = (0.35, 0.65),
+    peak_depth_mm: float = SNOW_DEPTH_MM,
+) -> None:
+    """Rasterize bridge interior snow depth (mm) for the Sioux Falls snow testbed."""
+    flooded = road_links.loc[road_links["e_id"].isin(flooded_edge_ids)]
+    if flooded.empty:
+        raise ValueError("No flooded Sioux Falls bridge edges found for snow raster")
+
+    minx, miny, maxx, maxy = road_links.total_bounds
+    pad = 500.0
+    minx -= pad
+    miny -= pad
+    maxx += pad
+    maxy += pad
+    width = int(np.ceil((maxx - minx) / resolution_m))
+    height = int(np.ceil((maxy - miny) / resolution_m))
+    transform = from_origin(minx, maxy, resolution_m, resolution_m)
+
+    start_frac, end_frac = interior_fraction
+    shapes = []
+    hazard_buffer_m = resolution_m * 0.5
+    for geom in flooded.geometry:
+        start = geom.interpolate(start_frac, normalized=True)
+        end = geom.interpolate(end_frac, normalized=True)
+        interior = LineString([(start.x, start.y), (end.x, end.y)])
+        shapes.append((interior.buffer(hazard_buffer_m), peak_depth_mm))
+
+    data = rasterize(
+        shapes,
+        out_shape=(height, width),
+        transform=transform,
+        fill=0.0,
+        all_touched=True,
+    )
+    hazard_dir = toy_data_dir / "inputs" / "test_141node_50m"
+    hazard_dir.mkdir(parents=True, exist_ok=True)
+    profile = {
+        "driver": "GTiff",
+        "height": height,
+        "width": width,
+        "count": 1,
+        "dtype": "float32",
+        "crs": OUTPUT_CRS,
+        "transform": transform,
+        "nodata": -9999.0,
+    }
+    for variant in ("base", "low", "high"):
+        with rasterio.open(
+            hazard_dir / f"snow_hazard_141node_{variant}.tif",
+            "w",
+            **profile,
+        ) as dst:
+            dst.write(data.astype("float32"), 1)
+
+
+def build_sioux_falls_dataset(
+    tmp_path: Path,
+    *,
+    hazard: str = "flood",
+) -> tuple[Path, SiouxFallsSpec, gpd.GeoDataFrame]:
     toy_data_dir = tmp_path / "toy_data"
     toy_data_dir.mkdir(parents=True, exist_ok=True)
 
@@ -388,17 +371,43 @@ def build_sioux_falls_dataset(tmp_path: Path) -> tuple[Path, SiouxFallsSpec, gpd
     write_recovery_table(toy_data_dir)
     write_sioux_falls_damage_workbooks(toy_data_dir)
     write_study_area(toy_data_dir, road_links)
-    write_hazard_raster(
-        toy_data_dir,
-        road_links,
-        spec.flooded_edge_ids,
-        resolution_m=10.0,
-    )
+    if hazard == "snow":
+        write_snow_hazard_raster(
+            toy_data_dir,
+            road_links,
+            spec.flooded_edge_ids,
+            resolution_m=10.0,
+        )
+    else:
+        write_hazard_raster(
+            toy_data_dir,
+            road_links,
+            spec.flooded_edge_ids,
+            resolution_m=10.0,
+        )
     config_path = write_toy_config(tmp_path, toy_data_dir)
     return config_path, spec, road_links
 
 
-def sioux_falls_env(tmp_path: Path, config_path: Path) -> dict[str, str]:
+def sioux_falls_env(
+    tmp_path: Path,
+    config_path: Path,
+    *,
+    hazard: str = "flood",
+) -> dict[str, str]:
     env = pipeline_env(tmp_path, config_path, network_name="sioux_falls")
     env["NIRD_TESTBED"] = "1"
+    if hazard == "snow":
+        env["RESIFLOW_HAZARD_TYPE"] = "snow"
     return env
+
+
+def run_snow_pipeline_scripts(env: dict[str, str], *, snow_key_mm: int = SNOW_SCENARIO_KEY_MM) -> None:
+    run_script("1_network_flow_model_revision.py", ["1", "1"], env)
+    run_script("2_intersection_analysis.py", [str(snow_key_mm), "1"], env)
+    run_script("3_damage_analysis.py", [], env)
+    run_script(
+        "4_rerouting_and_recovery_scenario_loop.py",
+        [str(snow_key_mm), "1", "1", "1"],
+        env,
+    )
