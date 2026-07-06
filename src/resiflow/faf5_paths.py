@@ -2,14 +2,15 @@
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
+
+from resiflow.config import get_env
 
 
 def resolve_faf5_data_root(base_path: Path | None = None, repo_root: Path | None = None) -> Path | None:
     """Return the local FAF5 data root when it exists on disk."""
     candidates: list[Path] = []
-    env_root = os.getenv("NIRD_FAF5_DATA_ROOT")
+    env_root = get_env("RESIFLOW_FAF5_DATA_ROOT", "NIRD_FAF5_DATA_ROOT")
     if env_root:
         candidates.append(Path(env_root))
     if base_path is not None:
@@ -17,7 +18,6 @@ def resolve_faf5_data_root(base_path: Path | None = None, repo_root: Path | None
         candidates.append(base_path / "faf5_data")
     if repo_root is not None:
         candidates.append(repo_root / "data" / "faf5_data")
-    # Hardcoded fallbacks last so local sibling paths win in tests and multi-root setups.
     candidates.extend(
         [
             Path.home() / "Desktop" / "data" / "faf5_data",
@@ -52,7 +52,7 @@ def regional_od_candidates(faf5_root: Path) -> list[Path]:
 
 
 def resolve_regional_od_path(faf5_root: Path) -> Path | None:
-    env_path = os.getenv("NIRD_FAF_REGIONAL_OD_PATH")
+    env_path = get_env("RESIFLOW_FAF_REGIONAL_OD_PATH", "NIRD_FAF_REGIONAL_OD_PATH")
     if env_path:
         path = Path(env_path)
         if path.exists():
@@ -104,7 +104,7 @@ def resolve_detailed_county_od_path(
     if explicit:
         path = Path(explicit)
         return path if path.exists() else None
-    env_path = os.getenv("NIRD_FAF5_COUNTY_OD_PATH")
+    env_path = get_env("RESIFLOW_FAF5_COUNTY_OD_PATH", "NIRD_FAF5_COUNTY_OD_PATH")
     if env_path:
         path = Path(env_path)
         if path.exists():

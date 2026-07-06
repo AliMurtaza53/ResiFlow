@@ -1,0 +1,29 @@
+{
+  "network_source": "faf5",
+  "default_assignment_tier": "arterial",
+  "default_damage_profile": "minor_road",
+  "network_class_to_assignment_tier": {
+    "motorway": "freeway",
+    "motorway_link": "freeway",
+    "trunk": "freeway",
+    "primary": "arterial",
+    "secondary": "arterial",
+    "tertiary": "collector",
+    "local": "arterial",
+    "service": "local_access",
+    "unclassified": "local_access",
+    "centroid_connector": "local_access"
+  },
+  "network_class_to_damage_profile": {
+    "motorway": "major_road",
+    "motorway_link": "major_road",
+    "trunk": "major_road",
+    "primary": "major_road",
+    "secondary": "major_road",
+    "tertiary": "minor_road",
+    "local": "minor_road",
+    "service": "minor_road",
+    "unclassified": "minor_road",
+    "centroid_connector": "minor_road"
+  }
+}

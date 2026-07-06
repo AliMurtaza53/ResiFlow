@@ -7,9 +7,9 @@ ahead of the [ResiFlow](https://github.com/AliMurtaza53/ResiFlow) migration.
 
 | Transform | Module (Phase 0) | Output | Consumer |
 |-----------|------------------|--------|----------|
-| Exposure | `nird.exposure.raster_line` | `flood_depth_*` per segment | Script 2, 3 |
-| Operational fragility | `nird.fragility.flood_operational` | `max_speed` | Script 4 |
-| Categorical fragility | `nird.fragility.flood_categorical` | `damage_level_max` | Script 4 recovery |
+| Exposure | `resiflow.exposure.raster_line` | `flood_depth_*` per segment | Script 2, 3 |
+| Operational fragility | `resiflow.fragility.flood_operational` | `max_speed` | Script 4 |
+| Categorical fragility | `resiflow.fragility.flood_categorical` | `damage_level_max` | Script 4 recovery |
 | Asset damage (USD) | Script 3 | C1–C6 fractions | Summaries |
 
 Do **not** collapse these into a single `damage_ratio → capacity` funnel for flood;
@@ -17,7 +17,7 @@ new hazards may use simpler paths when appropriate.
 
 ## LinkDisruptionRecord contract
 
-Canonical per-link row in `nird.disruption.link_record`:
+Canonical per-link row in `resiflow.disruption.link_record`:
 
 - `e_id`, `hazard_type`, `event_id`, `scenario_param`
 - `intensity_primary`, `intensity_unit`
@@ -33,23 +33,33 @@ results/disruption_analysis/<variant>/<depth_key>/links/road_links_<event>.gpq
 results/damage_analysis/<variant>/intersections_<event>_with_damage_values.csv
 ```
 
-## Package layout (Phase 0)
+## Package layout (ResiFlow)
 
 ```text
-src/nird/
+src/resiflow/
+  config.py             # RESIFLOW_* / NIRD_* env aliases
+  hazards/
+    base.py             # HazardSource protocol, HazardEvent, FragilityResult
+    flood.py            # FloodHazardSource raster discovery
+    synthetic.py        # bridge_interior, gaussian_hotspot, snow_band, ...
   disruption/
-    link_record.py    # LinkDisruptionRecord + legacy writer
-    flood.py          # intersections_with_damage, features_with_damage
-    pipeline.py       # run_flood_disruption (Script 2 main)
-    io.py             # validate_output, first_existing
+    link_record.py      # LinkDisruptionRecord + legacy writer
+    build.py            # build_flood_link_disruption
+    flood.py            # intersections_with_damage, features_with_damage
+    pipeline.py         # run_flood_disruption (Script 2 main)
+    io.py               # validate_output, first_existing
   exposure/
-    raster_line.py    # snail raster ∩ linestring sampling
+    raster_line.py      # snail raster ∩ linestring sampling
+    sampler.py          # sample_link_intensity
   fragility/
     flood_operational.py
     flood_categorical.py
+    snow_operational.py
+    snow_categorical.py
 ```
 
-Script 2 is a thin CLI: `run_flood_disruption(depth_key, event_key)`.
+Script 2 is a thin CLI: `run_disruption(scenario_key, event_key)` with
+`RESIFLOW_HAZARD_TYPE=flood` (default) or `snow`.
 
 ## Testbeds
 

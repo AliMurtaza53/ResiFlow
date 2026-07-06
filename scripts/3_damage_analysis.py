@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 
 from resiflow.utils import get_results_variant, load_config
+from resiflow.classification import is_major_road as _is_major_road
 from snail import damages
 
 warnings.simplefilter("ignore")
@@ -105,7 +106,7 @@ def compute_damage_fraction(
     Parameters
     ----------
     road_classification : str
-        The classification of the road, such as "Motorway", "A Road", or "B Road".
+        FAF/OSM road class (motorway, primary, tertiary, local, ...).
     trunk_road : bool
         Specifies whether the road is a trunk road (True) or not (False).
     road_label : str
@@ -125,18 +126,13 @@ def compute_damage_fraction(
         - The computed damage fraction from the second curve.
     """
 
-    if road_label == "tunnel" and (
-        road_classification == "Motorway"
-        or (road_classification == "A Road" and trunk_road)
-    ):
+    major = _is_major_road(road_classification, trunk_road)
+    if road_label == "tunnel" and major:
         C1_damage_fraction = damage_curves["C1"].damage_fraction(flood_depth)
         C2_damage_fraction = damage_curves["C2"].damage_fraction(flood_depth)
         return ("C1", C1_damage_fraction, "C2", C2_damage_fraction)
 
-    elif road_label != "tunnel" and (
-        road_classification == "Motorway"
-        or (road_classification == "A Road" and trunk_road)
-    ):
+    if road_label != "tunnel" and major:
         C3_damage_fraction = damage_curves["C3"].damage_fraction(flood_depth)
         C4_damage_fraction = damage_curves["C4"].damage_fraction(flood_depth)
         return ("C3", C3_damage_fraction, "C4", C4_damage_fraction)
@@ -173,7 +169,7 @@ def compute_damage_values(
     damage_fraction : float
         The fraction of damage to the infrastructure (e.g., 0.5 for 50% damage).
     road_classification : str
-        The classification of the road (e.g., "Motorway", "A Road", "B Road").
+        The classification of the road (e.g., motorway, primary, local).
     form_of_way : str
         The configuration of the road (e.g., "Single Carriageway", "Dual Carriageway").
     urban : int
@@ -226,13 +222,13 @@ def compute_damage_values(
         return min_damage, max_damage
 
     def fallback_asset_label(road_classification: str) -> str:
-        """Map road class to toy asset-cost labels when detailed UK keys are absent."""
+        """Map FAF/OSM road class to toy asset-cost labels."""
         rc = "" if road_classification is None else str(road_classification).strip().lower()
         if rc in {"motorway", "motorway_link", "trunk", "interstate"}:
             return "Interstate"
-        if rc in {"primary", "secondary", "a road", "us route"}:
+        if rc in {"primary", "secondary", "us route"}:
             return "US Route"
-        if rc in {"tertiary", "service", "b road", "state route"}:
+        if rc in {"tertiary", "service", "state route"}:
             return "State Route"
         return "Local"
 
@@ -245,18 +241,22 @@ def compute_damage_values(
 
     elif road_label in ["tunnel", "road"]:
         urban_key = "urb" if urban == 1 else "sub"
-        if road_classification == "Motorway":
+        rc = "" if road_classification is None else str(road_classification).strip().lower()
+        if rc in {"motorway", "motorway_link"}:
             lane_key = "ge8" if lanes >= 8 else "lt8"
             key = f"m_{lane_key}_{urban_key}"
+        elif rc in {"trunk", "primary", "secondary"}:
+            if form_of_way == "Single Carriageway":
+                key = f"asingle_{urban_key}"
+            else:
+                lane_key = "ge6" if lanes >= 6 else "lt6"
+                key = f"abdual_{lane_key}_{urban_key}"
         elif form_of_way == "Single Carriageway":
-            road_type = "a" if road_classification == "A Road" else "b"
-            key = f"{road_type}single_{urban_key}"
-        else:  # Dual Carriageway
+            key = f"bsingle_{urban_key}"
+        else:
             lane_key = "ge6" if lanes >= 6 else "lt6"
-            key = f"abdual_{lane_key}_{urban_key}"
+            key = f"bdual_{lane_key}_{urban_key}"
 
-        # Toy lookup tables may only provide coarse labels (Interstate/US Route/...).
-        # If the detailed UK-style key is missing, fallback to mapped coarse label.
         if key not in damage_values[road_label]:
             key = fallback_asset_label(road_classification)
 
@@ -481,7 +481,7 @@ def format_intersections(
     intersections_gp["flood_depth_river"] = intersections_gp["flood_depth_river"].fillna(0.0)
     intersections_gp["damage_level_surface"] = intersections_gp["damage_level_surface"].fillna("no")
     intersections_gp["damage_level_river"] = intersections_gp["damage_level_river"].fillna("no")
-    # Build a robust attributes frame from road links (supports FAF5 + UK subnetwork)
+    # Build attributes from FAF5 assignment links.
     rl = road_links.copy()
     if "road_label" not in rl.columns:
         if "road_bridge" in rl.columns:
@@ -543,7 +543,7 @@ def main():
                 flow conditions.
         - damage_cost_road_flood.xlsx:
             Excel file containing asset damage values for roads, tunnels, and bridges.
-        - GB_road_links_with_bridges.gpq:
+        - faf5_road_links.gpq:
             GeoDataFrame of road network links with attributes.
         - intersections:
             Output from module 2 containing intersection results with flood depth and
@@ -583,20 +583,15 @@ def main():
     damages_ratio_df = pd.read_excel(damage_ratio_path)
     damage_curves = create_damage_curves(damages_ratio_df)
 
-    # road links: prefer FAF5 for USA runs, fallback to UK subnetwork
     faf5_links_path = first_existing(
         [
             base_path / "networks" / "faf5" / "faf5_road_links.gpq",
             base_path / "inputs" / "networks" / "faf5" / "faf5_road_links.gpq",
         ]
     )
-    gb_subnetwork_path = (
-        base_path / "networks" / "test_subnetwork" / "GB_road_links_with_bridges_subnetwork.gpq"
-    )
-    if faf5_links_path is not None and faf5_links_path.exists():
-        road_links = gpd.read_parquet(faf5_links_path)
-    else:
-        road_links = gpd.read_parquet(gb_subnetwork_path)
+    if faf5_links_path is None:
+        raise FileNotFoundError("Could not find faf5_road_links.gpq under soge_clusters")
+    road_links = gpd.read_parquet(faf5_links_path)
     xls = pd.ExcelFile(damage_cost_path)
     available_sheets = set(xls.sheet_names)
 

@@ -1,0 +1,38 @@
+{
+  "flow_cap_plph": {
+    "freeway": 2400,
+    "arterial": 2200,
+    "collector": 1700,
+    "local_access": 1000
+  },
+  "flow_breakpoint": {
+    "freeway": 1400,
+    "arterial": 1300,
+    "collector": 1100,
+    "local_access": 800
+  },
+  "free_flow_speed": {
+    "freeway": 70.0,
+    "arterial": 60.0,
+    "collector": 55.0,
+    "local_access": 35.0
+  },
+  "urban_speed_cap": {
+    "freeway": 55.0,
+    "arterial": 45.0,
+    "collector": 35.0,
+    "local_access": 30.0
+  },
+  "min_speed_cap": {
+    "freeway": 10.0,
+    "arterial": 8.0,
+    "collector": 7.0,
+    "local_access": 5.0
+  },
+  "congestion_factor": {
+    "freeway": 0.033,
+    "arterial": 0.033,
+    "collector": 0.05,
+    "local_access": 0.05
+  }
+}

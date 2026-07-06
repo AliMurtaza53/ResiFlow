@@ -8,7 +8,7 @@ Current pipeline:
 
 ```text
 FAF5 network/centroids
-  -> scripts/run_va_workflow.py or convert_faf5_to_nird.py
+  -> scripts/run_va_workflow.py or scripts/convert_faf5_network.py
   -> inputs/networks/faf5/faf5_road_links.gpq
   -> inputs/census_datasets/faf5_od_matrix.pq
   -> scripts/1_network_flow_model_revision.py
@@ -18,7 +18,7 @@ New freight path:
 
 ```text
 FAF5 commodity flows + FAF zone/subarea inputs
-  -> nird.freight_od_disaggregation
+  -> resiflow.freight_od_disaggregation
   -> county/subcounty commodity tonnage OD
   -> county/subcounty truck trip OD
   -> assignment-ready OD: origin_node, destination_node, Car21
@@ -26,7 +26,7 @@ FAF5 commodity flows + FAF zone/subarea inputs
   -> scripts/1_network_flow_model_revision.py
 ```
 
-Script 1 and `nird.road_revised.network_flow_model` are not changed. The new module only prepares the OD table that Script 1 already consumes.
+Script 1 and `resiflow.road_revised.network_flow_model` are not changed. The new module only prepares the OD table that Script 1 already consumes.
 
 ## Integration Hooks
 
@@ -58,7 +58,7 @@ streams directly to a total county-to-county matrix and does not use the
 IX/XI/XX/II treatment for smaller state or regional models:
 
 ```powershell
-python -m nird.faf5_conus_county_od `
+python -m resiflow.faf5_conus_county_od `
   --year 2022 `
   --mode truck
 ```

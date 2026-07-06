@@ -91,9 +91,8 @@ Script 1 tuning knobs exposed by the launcher:
 - `-BaselineDbPath <path>`: optional location for Script 1's `baseline.duckdb`.
   Put this on the fastest drive with enough free space if `D:` is a hard drive.
 
-`scripts\2_int_analysis.py` is kept as an alternate Script 2 path. It is not run
-by default to avoid duplicate intersection outputs. Add `-RunAlternateScript2`
-only when deliberately comparing that older path.
+Script 2 (`scripts/2_intersection_analysis.py`) dispatches flood (default) or snow
+when `RESIFLOW_HAZARD_TYPE=snow`. Use the standard Script 2 path for all testbed runs.
 
 ## Primary Numbered Sequence
 

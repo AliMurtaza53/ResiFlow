@@ -76,11 +76,11 @@ python -m src.preprocess.faf5_county_disaggregation ^
   --faf-zone-filter 511,512,513,519
 ```
 
-The reusable implementation is `nird.faf5_county_disaggregation`, so this also works:
+The reusable implementation is `resiflow.faf5_county_disaggregation`, so this also works:
 
 ```powershell
 $env:PYTHONPATH = "src"
-python -m nird.faf5_county_disaggregation --help
+python -m resiflow.faf5_county_disaggregation --help
 ```
 
 With `PYTHONPATH=src`, the shorter wrapper also works:

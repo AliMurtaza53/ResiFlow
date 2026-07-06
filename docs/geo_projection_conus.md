@@ -7,15 +7,15 @@ projection failures.
 
 ## Automatic setup
 
-Importing or running scripts that use [`src/nird/geo_runtime.py`](../src/nird/geo_runtime.py)
+Importing or running scripts that use [`src/resiflow/geo_runtime.py`](../src/resiflow/geo_runtime.py)
 configures GDAL and PROJ from the active Python environment (`sys.prefix`). You do not
-need to set environment variables manually when using the `nird` conda env.
+need to set environment variables manually when using the ResiFlow conda env.
 
 Check the resolved paths on any machine:
 
 ```powershell
-micromamba activate nird
-python -c "from nird.geo_runtime import get_geo_runtime_status; print(get_geo_runtime_status())"
+micromamba activate resiflow
+python -c "from resiflow.geo_runtime import get_geo_runtime_status; print(get_geo_runtime_status())"
 ```
 
 PowerShell launchers dot-source [`scripts/lib/nird_geo_env.ps1`](../scripts/lib/nird_geo_env.ps1)
@@ -26,7 +26,7 @@ to apply the same settings before calling Python.
 1. Create the environment: `micromamba env create -f environment.yaml`
 2. Install the package: `pip install -e .`
 3. Point [`config.json`](../config.json) at your local `soge_clusters` data bundle
-4. Verify geo runtime: `python -c "from nird.geo_runtime import get_geo_runtime_status; print(get_geo_runtime_status())"`
+4. Verify geo runtime: `python -c "from resiflow.geo_runtime import get_geo_runtime_status; print(get_geo_runtime_status())"`
 5. If hazard rasters were copied from another PC, normalize CRS tags:
 
 ```powershell
@@ -53,7 +53,7 @@ python scripts/2_intersection_analysis.py 30 1
 
 | Tool | Purpose |
 | --- | --- |
-| `nird.geo_runtime` | Portable GDAL/PROJ bootstrap, CRS canonicalization, snail-safe grids |
+| `resiflow.geo_runtime` | Portable GDAL/PROJ bootstrap, CRS canonicalization, snail-safe grids |
 | `scripts/normalize_hazard_crs.py` | Rewrite hazard GeoTIFF CRS to EPSG:2163 (metadata-only or warp) |
 | `scripts/generate_va_toy_hazard.py` | Create toy VA hazards with authoritative EPSG tags |
 

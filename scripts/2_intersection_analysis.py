@@ -21,6 +21,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from resiflow.disruption.build import run_disruption
 from resiflow.disruption.pipeline import run_flood_disruption
 from resiflow.exposure.raster_line import (
     clip_features,
@@ -58,8 +59,8 @@ __all__ = [
 
 
 def main(depth_key: int, event_key: str) -> None:
-    """Thin wrapper around the extracted flood disruption pipeline."""
-    run_flood_disruption(depth_key, event_key)
+    """Thin wrapper around hazard-agnostic disruption (flood default, snow via RESIFLOW_HAZARD_TYPE)."""
+    run_disruption(depth_key, event_key)
 
 
 if __name__ == "__main__":

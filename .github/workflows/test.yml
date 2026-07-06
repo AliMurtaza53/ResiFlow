@@ -9,4 +9,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -e ".[dev]"
-      - run: pytest tests/test_disruption_flood_parity.py tests/test_toy_pipeline_disruptions.py tests/test_sioux_falls_pipeline_disruptions.py -v --basetemp .pytest-tmp
+      - run: pytest tests/ -v --basetemp .pytest-tmp

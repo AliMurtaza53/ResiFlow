@@ -51,6 +51,42 @@ def apply_legacy_flood_columns(df: pd.DataFrame, *, depth_key: int, event_id: st
     return out
 
 
+def apply_legacy_snow_columns(
+    df: pd.DataFrame,
+    *,
+    snow_key_mm: int,
+    event_id: str | int,
+) -> pd.DataFrame:
+    """Attach snow hazard metadata while preserving Script 3/4 column names."""
+    out = df.copy()
+    if "snow_depth_max_mm" not in out.columns:
+        out["snow_depth_max_mm"] = 0.0
+    out["snow_depth_max_mm"] = pd.to_numeric(out["snow_depth_max_mm"], errors="coerce").fillna(0.0)
+    out["hazard_type"] = "snow"
+    out["event_id"] = str(event_id)
+    out["scenario_param"] = int(snow_key_mm)
+    out["intensity_primary"] = out["snow_depth_max_mm"]
+    out["intensity_unit"] = "mm_snow"
+    out["flood_depth_max"] = out["snow_depth_max_mm"] / 1000.0
+    if "damage_level_max" in out.columns:
+        out["damage_level_max"] = out["damage_level_max"].fillna("no")
+    return out
+
+
+def intensity_series(df: pd.DataFrame, *, hazard_type: str | None = None) -> pd.Series:
+    """Resolve primary intensity for summaries/viz (meters equivalent)."""
+    if "intensity_primary" in df.columns and df["intensity_primary"].notna().any():
+        values = pd.to_numeric(df["intensity_primary"], errors="coerce").fillna(0.0)
+        if hazard_type == "snow" or (
+            "intensity_unit" in df.columns and df["intensity_unit"].astype(str).str.contains("snow").any()
+        ):
+            return values / 1000.0
+        return values
+    if "snow_depth_max_mm" in df.columns:
+        return pd.to_numeric(df["snow_depth_max_mm"], errors="coerce").fillna(0.0) / 1000.0
+    return pd.to_numeric(df.get("flood_depth_max", 0.0), errors="coerce").fillna(0.0)
+
+
 def records_to_dataframe(records: list[LinkDisruptionRecord]) -> pd.DataFrame:
     rows = []
     for rec in records:

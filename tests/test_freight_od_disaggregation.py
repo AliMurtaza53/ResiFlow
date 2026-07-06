@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 
 from resiflow import freight_od_disaggregation as freight_od
 
@@ -69,6 +70,8 @@ def test_schema_markdown_mentions_assignment_contract():
 
 def test_va_smoke_fixture_runs_from_disk(tmp_path):
     fixture_dir = Path(__file__).parent / "fixtures" / "freight_od_va_smoke"
+    if not (fixture_dir / "faf5_flows.csv").exists():
+        pytest.skip("VA smoke fixture CSVs not bundled in this repo")
     inputs = freight_od.load_input_tables(
         faf_flow_path=fixture_dir / "faf5_flows.csv",
         crosswalk_path=fixture_dir / "crosswalk.csv",

@@ -1,0 +1,7 @@
+{
+  "paths": {
+    "soge_clusters": "C:/path/to/your/data_bundle",
+    "base_path": "C:/path/to/your/data_bundle",
+    "output_path": "results"
+  }
+}

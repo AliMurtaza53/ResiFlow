@@ -3,32 +3,26 @@
 from __future__ import annotations
 
 import logging
-import os
-import re
 import time
-from collections import defaultdict
 from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
 
-from resiflow.disruption.flood import (
-    DAMAGE_LEVEL_DICT,
-    DAMAGE_LEVEL_DICT_REVERSE,
-    features_with_damage,
-    intersections_with_damage,
-)
+from resiflow.disruption.build import build_flood_link_disruption
+from resiflow.disruption.flood import intersections_with_damage
 from resiflow.disruption.io import first_existing, log_summary, validate_output
-from resiflow.disruption.link_record import apply_legacy_flood_columns
 from resiflow.exposure.raster_line import load_analysis_boundary
-from resiflow.fragility.flood_operational import apply_max_speed_to_links
+from resiflow.hazards.flood import FloodHazardSource
 from resiflow.utils import get_results_variant, load_config
 
-def run_flood_disruption(depth_key, event_key, *, base_path=None):
+def run_flood_disruption(depth_key, event_key, *, base_path=None, hazard_source=None):
 
     if base_path is None:
         base_path = Path(load_config()["paths"]["soge_clusters"])
-    raster_path = base_path / "hazards" / "completed"
+    base_path = Path(base_path)
+    if hazard_source is None:
+        hazard_source = FloodHazardSource(base_path)
 
     """
     Run flood disruption analysis on road networks under flood scenarios.
@@ -47,7 +41,7 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None):
     Model Inputs:
         - edge_flows_32p.gpq:
             Base scenario output containing road network simulation results.
-        - GB_road_links_with_bridges.gpq:
+        - faf5_road_links.gpq:
             GeoDataFrame of road network elements with attributes.
         - JBA Flood Map (RASTER):
             Raster data representing flood scenarios.
@@ -104,9 +98,6 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None):
     )
     base_scenario_links = base_scenario_links.loc[:, ~base_scenario_links.columns.duplicated()]
 
-    damage_level_dict = DAMAGE_LEVEL_DICT
-    damage_level_dict_reverse = DAMAGE_LEVEL_DICT_REVERSE
-
     # load analysis boundary (DMV study area preferred)
     analysis_boundary = load_analysis_boundary(base_path)
 
@@ -121,175 +112,12 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None):
             "Could not find faf5_road_links.gpq in standard or toy input paths"
         )
 
-    toy_hazard_dir = base_path / "inputs" / "test_17node"
-    toy_hazard_50m_dir = base_path / "inputs" / "test_141node_50m"
-    toy_hazard_candidates = [
-        # Prefer higher-resolution 50 m VA rasters if available
-        toy_hazard_50m_dir / "va_hazard_class50_141node_base.tif",
-        toy_hazard_50m_dir / "va_hazard_class50_141node_low.tif",
-        toy_hazard_50m_dir / "va_hazard_class50_141node_high.tif",
-        toy_hazard_50m_dir / "va_hazard_class50_141node.tif",
-        # Fall back to 1 km VA rasters
-        base_path / "inputs" / "test_141node" / "va_hazard_class50_141node_base.tif",
-        base_path / "inputs" / "test_141node" / "va_hazard_class50_141node_low.tif",
-        base_path / "inputs" / "test_141node" / "va_hazard_class50_141node_high.tif",
-        base_path / "inputs" / "test_141node" / "va_hazard_class50_141node.tif",
-        # Fall back to Fairfax test rasters
-        toy_hazard_dir / "fairfax_hazard_class50_17node_base.tif",
-        toy_hazard_dir / "fairfax_hazard_class50_17node_low.tif",
-        toy_hazard_dir / "fairfax_hazard_class50_17node_high.tif",
-        toy_hazard_dir / "fairfax_hazard_class50_17node.tif",
-    ]
-    toy_hazard_path = first_existing(toy_hazard_candidates)
-
-    if toy_hazard_path is not None:
-        toy_clip_path = first_existing(
-            [
-                base_path / "study_area" / "fairfax_study_area.gpkg",
-                base_path / "study_area" / "fairfax_study_area.geojson",
-                base_path / "study_area" / "va_study_area.gpkg",
-                base_path / "study_area" / "va_study_area.geojson",
-            ]
+    if hazard_source.is_toy_mode and hazard_source._toy_clip_path is None:
+        logging.warning(
+            "No toy study-area clip file found; falling back to analysis boundary clipping only."
         )
-        if toy_clip_path is None:
-            logging.warning(
-                "No toy study-area clip file found; falling back to analysis boundary clipping only."
-            )
 
-        toy_variant_map = {1: "base", 2: "low", 3: "high"}
-        if event_key.lower() == "all":
-            toy_event_keys = sorted(toy_variant_map)
-        else:
-            try:
-                toy_event_keys = [int(part.strip()) for part in event_key.split(",") if part.strip()]
-            except (TypeError, ValueError):
-                raise ValueError(
-                    "In toy mode, event_key must be one of: 1, 2, 3, all, or a comma-separated list like 2,3"
-                )
-        invalid_event_keys = [key for key in toy_event_keys if key not in toy_variant_map]
-        if invalid_event_keys:
-            raise ValueError(
-                f"Invalid toy-mode event_key(s)={invalid_event_keys}. Use 1=base, 2=low, 3=high, all, or e.g. 2,3."
-            )
-
-        # In toy mode these scenario rasters represent the available flood hazard,
-        # not a separate surface/river pair. Use the generic "flood" label for
-        # clarity; intersections_with_damage mirrors flood_* to river_* for
-        # Script 3/4 compatibility. Set NIRD_TOY_FLOOD_TYPES=surface,river only
-        # for legacy comparison runs.
-        toy_flood_types_raw = os.environ.get("NIRD_TOY_FLOOD_TYPES", "flood")
-        toy_flood_types = [
-            flood_type.strip().lower()
-            for flood_type in toy_flood_types_raw.split(",")
-            if flood_type.strip()
-        ]
-        valid_toy_flood_types = {"surface", "river", "flood"}
-        invalid_toy_flood_types = [
-            flood_type
-            for flood_type in toy_flood_types
-            if flood_type not in valid_toy_flood_types
-        ]
-        if invalid_toy_flood_types:
-            raise ValueError(
-                "NIRD_TOY_FLOOD_TYPES may only contain 'surface', 'river', and/or 'flood'. "
-                f"Got: {invalid_toy_flood_types}"
-            )
-        if not toy_flood_types:
-            raise ValueError("NIRD_TOY_FLOOD_TYPES resolved to no flood types.")
-        event_files_by_key = {}
-        for event_key_num in toy_event_keys:
-            toy_variant = toy_variant_map[event_key_num]
-            selected_tif = first_existing(
-                [
-                    # Prefer 50 m rasters
-                    toy_hazard_50m_dir / f"va_hazard_class50_141node_{toy_variant}.tif",
-                    # Fall back to 1 km VA rasters
-                    base_path / "inputs" / "test_141node" / f"va_hazard_class50_141node_{toy_variant}.tif",
-                    # Fall back to Fairfax 17-node rasters
-                    toy_hazard_dir / f"fairfax_hazard_class50_17node_{toy_variant}.tif",
-                    toy_hazard_path,
-                ]
-            )
-            logging.info(
-                f"Toy hazard raster mode enabled: event_key={event_key_num} ({toy_variant}) -> {selected_tif}"
-            )
-            event_files_by_key[str(event_key_num)] = {
-                flood_type: [str(selected_tif)]
-                for flood_type in toy_flood_types
-            }
-        logging.info(f"Toy flood types enabled: {toy_flood_types}")
-    else:
-        event_files = {flood_type: [] for flood_type in ["surface", "river"]}
-
-    # flood event classification into surface/river flood (non-toy mode only)
-    if toy_hazard_path is None:
-        flood_types = ["surface", "river", "both"]
-        event_files = {flood_type: [] for flood_type in ["surface", "river"]}
-        # Iterate through flood types and process files
-        for flood_type in flood_types:
-            folder_path = raster_path / flood_type
-            if folder_path.exists():
-                for raster_dir in folder_path.rglob(
-                    "Raster"
-                ):  # Search for "Raster" directories
-                    for tif_file in raster_dir.rglob(
-                        "*.tif"
-                    ):  # Find .tif files recursively
-                        # Filter files with "RD" in the name and exclude those with "IE"
-                        if "RD" in tif_file.name and "IE" not in tif_file.name:
-                            if flood_type == "both":
-                                if "FLSW" in tif_file.name:
-                                    target_flood_type = "surface"
-                                elif "FLRF" in tif_file.name:
-                                    target_flood_type = "river"
-                                else:
-                                    continue
-                            else:
-                                target_flood_type = flood_type
-
-                            # Append the file path to the appropriate flood_type list
-                            event_files[target_flood_type].append(str(tif_file))
-
-    event_dict = defaultdict(lambda: defaultdict(list))
-    if toy_hazard_path is not None:
-        for toy_key, toy_event_files in event_files_by_key.items():
-            event_dict[toy_key] = defaultdict(list, toy_event_files)
-    else:
-        for flood_type, list_of_events in event_files.items():
-            for event_path in list_of_events:
-                # Extract event from path structure
-                # Case 1: surface/EventName/Raster/file.tif → parts[-3]="EventName"
-                # Case 2: surface/Raster/file.tif → parts[-3]="surface" → extract from filename
-                path_parts = Path(event_path).parts
-                potential_event_folder = path_parts[-3] if len(path_parts) >= 3 else None
-                
-                if potential_event_folder not in ["surface", "river", "both", "Raster"]:
-                    # It's a meaningful event folder name
-                    event = potential_event_folder
-                else:
-                    # Extract from filename - look for numeric identifiers (year, scenario code, etc.)
-                    filename = Path(event_path).stem  # filename without extension
-                    import re
-                    
-                    # Find all numeric sequences in the filename
-                    numbers = re.findall(r'\d+', filename)
-                    event = None
-                    
-                    # Use first numeric sequence found (typically scenario/year)
-                    if numbers:
-                        for num in numbers:
-                            # Prefer longer numeric sequences (more likely to be a year or meaningful ID)
-                            if len(num) >= 3:  # Changed from hardcoded year check
-                                event = num
-                                break
-                        if not event:
-                            event = numbers[0] if numbers else "default"
-                    else:
-                        # Fallback: use first word-like part of filename
-                        event = filename.split("_")[0]
-                
-                if event:
-                    event_dict[event][flood_type].append(event_path)
+    event_dict = hazard_source.build_event_file_map(event_key)
 
     # analysis
     logging.info(f"[ANALYSIS] Found {len(event_dict)} flood events, filtering for event_key={event_key}")
@@ -297,10 +125,11 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None):
     
     processed_event = False
     for flood_key, v in event_dict.items():
-        if toy_hazard_path is None and flood_key != event_key:
+        if not hazard_source.is_toy_mode and flood_key != event_key:
             logging.info(f"[SKIP] Skipping flood_key={flood_key} (not matching event_key={event_key})")
             continue
         processed_event = True
+        hazard_event = hazard_source.resolve_event(flood_key)
         logging.info(f"[PROCESS] Starting intersection analysis for flood_key={flood_key}")
         print(f"DEBUG: Starting intersection for event {flood_key}...")
         # out path
@@ -333,23 +162,14 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None):
                 logging.info(f"[RASTER] Processing raster: {flood_path}")
                 print(f"DEBUG: Processing raster {Path(flood_path).name}")
                 
-                if toy_hazard_path is not None:
-                    clip_path = toy_clip_path
+                if hazard_source.is_toy_mode:
+                    clip_path = hazard_source._toy_clip_path
                 else:
-                    # clip path
-                    clip_path = Path(
-                        flood_path.replace("Raster", "Vector").replace(".tif", ".shp")
-                    )
-                    clip_path1 = clip_path.with_name(clip_path.name.replace("_RD_", "_VE_"))
-                    clip_path2 = clip_path.with_name(clip_path.name.replace("_RD_", "_PR_"))
-                    if clip_path1.exists():
-                        clip_path = clip_path1
-                    elif clip_path2.exists():
-                        clip_path = clip_path2
-                    else:
+                    clip_path = hazard_source.clip_path_for_raster(flood_path, hazard_event)
+                    if clip_path is None:
                         logging.info(f"[SKIP] Cannot find vector file for: {flood_path}")
-                        print(f"DEBUG: Missing vector clip file")
-                        continue  # Skip further processing for this file
+                        print("DEBUG: Missing vector clip file")
+                        continue
 
                 # intersections
                 logging.info(f"[INTERSECT] Computing intersections for {flood_type}...")
@@ -402,57 +222,15 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None):
 
         # road integrations - reload fresh copy
         logging.info(f"[FEATURES] Computing features_with_damage...")
-        road_links = features_with_damage(
+        road_links = build_flood_link_disruption(
             road_links,
             intersections,
-            damage_level_dict,
-            damage_level_dict_reverse,
+            base_scenario_links,
+            hazard_event=hazard_event,
+            depth_key=depth_key,
         )
         logging.info(f"[FEATURES_OK] Features computed, {len(road_links)} road links")
 
-        # max_speed estimation
-        """
-        Uncertainties of flood depth threshold for road closure (cm): 15, 30, 60
-        """
-        # attach capacity and speed info on D-0
-        # Drop duplicate columns if they exist (from previous iterations)
-        logging.info(f"[SPEED] Computing speed restrictions...")
-        cols_to_drop = ["combined_label", "free_flow_speeds", "initial_flow_speeds", 
-                        "min_flow_speeds", "current_capacity", "current_speed", "current_flow"]
-        cols_to_drop = [c for c in cols_to_drop if c in road_links.columns]
-        if cols_to_drop:
-            road_links = road_links.drop(columns=cols_to_drop)
-        
-        road_links = road_links.merge(
-            base_scenario_links[
-                [
-                    "e_id",
-                    "combined_label",
-                    "free_flow_speeds",
-                    "initial_flow_speeds",
-                    "min_flow_speeds",
-                    "current_capacity",
-                    "current_speed",
-                    "current_flow",
-                ]
-            ],
-            how="left",
-            on="e_id",
-        )
-
-        # Ensure no duplicate columns after merge
-        road_links = road_links.loc[:, ~road_links.columns.duplicated()]
-
-        # Ensure flood depth and speed columns exist and are numeric
-        if "flood_depth_max" not in road_links.columns:
-            road_links["flood_depth_max"] = 0.0
-        road_links["flood_depth_max"] = road_links["flood_depth_max"].fillna(0.0)
-        road_links["free_flow_speeds"] = road_links["free_flow_speeds"].fillna(50.0)
-
-        road_links = apply_max_speed_to_links(road_links, depth_key=depth_key)
-        road_links = apply_legacy_flood_columns(
-            road_links, depth_key=depth_key, event_id=flood_key
-        )
         (out_path / "links").mkdir(parents=True, exist_ok=True)
         links_path = out_path / "links" / f"road_links_{flood_key}.gpq"
         logging.info(f"[SAVE_LINKS] Saving {len(road_links)} road links to {links_path}")

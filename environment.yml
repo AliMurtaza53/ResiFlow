@@ -1,0 +1,21 @@
+# Conda environment for ResiFlow (recommended on Windows for GDAL/rasterio).
+# Create:  conda env create -f environment.yml
+# Update:  conda env update -f environment.yml --prune
+# Activate: conda activate resiflow
+
+name: resiflow
+channels:
+  - conda-forge
+dependencies:
+  - python=3.12
+  - geopandas
+  - rasterio
+  - pyproj
+  - fiona
+  - duckdb
+  - pyarrow
+  - openpyxl
+  - pip
+  - pip:
+      - -e ".[dev]"
+      - nismod-snail

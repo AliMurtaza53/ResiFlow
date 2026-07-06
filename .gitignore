@@ -6,3 +6,20 @@ __pycache__/
 venv/
 dist/
 build/
+
+# Local configuration and secrets
+config.json
+.env
+.env.local
+
+# Run outputs
+results/
+logs/
+*.duckdb
+*.duckdb.wal
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

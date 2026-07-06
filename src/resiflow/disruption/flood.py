@@ -75,7 +75,9 @@ def intersections_with_damage(
     embankment against river flood: 200 cm (motorways/major roads)
     """
     # Determine major roads for embankment adjustment (works for both UK and FAF classifications)
-    is_major_road = intersections['road_classification'].isin(['Motorway', 'A Road', 'motorway', 'motorway_link', 'trunk', 'primary', 'secondary'])
+    is_major_road = intersections["road_classification"].astype(str).str.lower().isin(
+        ["motorway", "motorway_link", "trunk", "primary", "secondary"]
+    )
     
     if flood_type == "surface":
         intersections.loc[is_major_road, "flood_depth_surface"] = (

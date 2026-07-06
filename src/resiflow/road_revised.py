@@ -347,36 +347,10 @@ def compute_costs_for_links(
 def edge_reclassification_func(
     road_links: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Reclassify network edges to "M, A_dual, A_single, B."""
-    if "road_classification" not in road_links.columns:
-        raise ValueError("road_classification column not exists!")
+    """Normalize network classes and assignment tiers for the transport model."""
+    from resiflow.networks import normalize_network_links
 
-    rc_lower = road_links["road_classification"].astype(str).str.lower().fillna("")
-    road_links["combined_label"] = "A_dual"
-
-    # FAF/OSM-style classifications
-    road_links.loc[
-        rc_lower.isin(["motorway", "motorway_link"]), "combined_label"
-    ] = "M"
-    road_links.loc[
-        rc_lower.isin(["trunk", "primary", "secondary"]), "combined_label"
-    ] = "A_dual"
-    road_links.loc[rc_lower.isin(["tertiary"]), "combined_label"] = "A_single"
-    road_links.loc[
-        rc_lower.isin(["service", "unclassified"]), "combined_label"
-    ] = "B"
-
-    # UK-style classifications (override where applicable)
-    road_links.loc[road_links.road_classification == "Motorway", "combined_label"] = "M"
-    road_links.loc[road_links.road_classification == "B Road", "combined_label"] = "B"
-    if "form_of_way" in road_links.columns:
-        road_links.loc[
-            (road_links.road_classification == "A Road")
-            & (road_links.form_of_way == "Single Carriageway"),
-            "combined_label",
-        ] = "A_single"
-
-    return road_links
+    return normalize_network_links(road_links)
 
 
 def edge_initial_speed_func(
@@ -412,12 +386,15 @@ def edge_initial_speed_func(
         initial vehicle operating speed of existing road links
     """
 
-    assert "combined_label" in road_links.columns, "combined_label column not exists!"
+    from resiflow.networks.assignment import map_tier_profile
+
+    assert "assignment_tier" in road_links.columns or "combined_label" in road_links.columns, (
+        "assignment_tier or combined_label column required"
+    )
     assert "urban" in road_links.columns, "urban column not exists!"
 
-    # Per-class default free-flow speed (used as fallback for links without an
-    # observed US network speed). See parameters/free_flow_speed_dict.json.
-    class_free_flow = road_links["combined_label"].map(free_flow_speed_dict)
+    # Per-tier default free-flow speed (fallback for links without observed speeds).
+    class_free_flow = map_tier_profile(road_links, free_flow_speed_dict)
 
     if "free_flow_speeds" not in road_links.columns:
         # US fidelity: prefer observed FAF5 link speeds (mph) when present
@@ -439,15 +416,15 @@ def edge_initial_speed_func(
     # Urban speed restriction: cap free-flow at the urban limit for urban links.
     # Use min() (rather than a hard override) so observed posted speeds cannot
     # exceed the urban cap, while sub-cap class/observed speeds are preserved.
-    urban_cap = road_links["combined_label"].map(urban_flow_speed_dict)
+    urban_cap = map_tier_profile(road_links, urban_flow_speed_dict)
     urban_mask = road_links["urban"] == 1
     road_links.loc[urban_mask, "free_flow_speeds"] = np.minimum(
         pd.to_numeric(road_links.loc[urban_mask, "free_flow_speeds"], errors="coerce"),
         pd.to_numeric(urban_cap[urban_mask], errors="coerce"),
     )
-    road_links["min_flow_speeds"] = road_links.combined_label.map(min_flow_speed_dict)
+    road_links["min_flow_speeds"] = map_tier_profile(road_links, min_flow_speed_dict)
     road_links["initial_flow_speeds"] = road_links["free_flow_speeds"]
-    road_links["breakpoint_flows"] = road_links.combined_label.map(flow_breakpoint_dict)
+    road_links["breakpoint_flows"] = map_tier_profile(road_links, flow_breakpoint_dict)
     if max_flow_speed_dict is not None:
         road_links["max_speeds"] = road_links["e_id"].map(max_flow_speed_dict)
         # if max < min: close the roads
@@ -508,7 +485,9 @@ def edge_init(
         min_flow_speed_dict,
         max_flow_speed_dict,
     )
-    assert "combined_label" in road_links.columns, "combined_label column not exists!"
+    assert "assignment_tier" in road_links.columns or "combined_label" in road_links.columns, (
+        "assignment_tier or combined_label column required"
+    )
     assert (
         "initial_flow_speeds" in road_links.columns
     ), "initial_flow_speeds column not exists!"
@@ -519,8 +498,10 @@ def edge_init(
         per_lane_plph = pd.to_numeric(road_links["flow_cap_plph"], errors="coerce")
         road_links["acc_capacity"] = per_lane_plph * road_links["lanes"] * 24
     else:
+        from resiflow.networks.assignment import map_tier_profile
+
         road_links["acc_capacity"] = (
-            road_links["combined_label"].map(capacity_plph_dict) * road_links["lanes"] * 24
+            map_tier_profile(road_links, capacity_plph_dict) * road_links["lanes"] * 24
         )
     road_links["acc_speed"] = road_links["initial_flow_speeds"]
     # current state mirrors initial state
@@ -537,27 +518,25 @@ def edge_init(
 def update_edge_speed(
     road_links: pd.DataFrame, inplace: bool = True
 ) -> pd.DataFrame | None:
+    from resiflow.networks.assignment import map_tier_profile
+
     acc_flow = road_links["acc_flow"].to_numpy(dtype=float)  # vehicles per day
     vp = acc_flow / 24.0  # vehicles per hour
     initial_speed = road_links["initial_flow_speeds"].to_numpy(dtype=float)
     min_speed = road_links["min_flow_speeds"].to_numpy(dtype=float)
     breakpoint_flow = road_links["breakpoint_flows"].to_numpy(dtype=float)
 
-    # label reduced speed factors
-    factor_map = {
-        "M": 0.033,
-        "A_dual": 0.033,
-        "A_single": 0.05,
-        "B": 0.05,
-        "B_dual": 0.05,
-        "B_single": 0.05,
-    }
-    # map to factors, default 0.0 for labels not in map
-    labels = road_links["combined_label"].astype(
-        object
-    )  # ensure dtype suitable for map
-    factor_series = labels.map(factor_map).fillna(0.0)
-    factor = factor_series.to_numpy(dtype=float)
+    if "congestion_factor" in road_links.columns:
+        factor = pd.to_numeric(road_links["congestion_factor"], errors="coerce").fillna(0.0)
+        factor = factor.to_numpy(dtype=float)
+    else:
+        default_factors = {
+            "freeway": 0.033,
+            "arterial": 0.033,
+            "collector": 0.05,
+            "local_access": 0.05,
+        }
+        factor = map_tier_profile(road_links, default_factors).to_numpy(dtype=float)
 
     # compute reduction only where vp > breakpoint_flow
     excess = vp - breakpoint_flow
@@ -2512,7 +2491,9 @@ def network_flow_model(
     assigned_sumod = 0
     iter_flag = 1
     next_od_id_base = 0
-    max_iterations = int(os.environ.get("NIRD_MAX_FLOW_ITERATIONS", "0"))
+    from resiflow.config import get_env
+
+    max_iterations = int(get_env("RESIFLOW_MAX_FLOW_ITERATIONS", "NIRD_MAX_FLOW_ITERATIONS", "0") or "0")
     min_progress_rel = float(os.environ.get("NIRD_MIN_FLOW_PROGRESS_REL", "1e-6"))
     stagnant_limit = int(os.environ.get("NIRD_STAGNANT_ITERATIONS", "3"))
     stagnant_iterations = 0

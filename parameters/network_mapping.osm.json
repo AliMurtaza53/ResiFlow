@@ -1,0 +1,41 @@
+{
+  "network_source": "osm",
+  "default_assignment_tier": "arterial",
+  "default_damage_profile": "minor_road",
+  "network_class_to_assignment_tier": {
+    "motorway": "freeway",
+    "motorway_link": "freeway",
+    "trunk": "freeway",
+    "trunk_link": "freeway",
+    "primary": "arterial",
+    "primary_link": "arterial",
+    "secondary": "arterial",
+    "secondary_link": "arterial",
+    "tertiary": "collector",
+    "tertiary_link": "collector",
+    "residential": "local_access",
+    "unclassified": "local_access",
+    "living_street": "local_access",
+    "service": "local_access",
+    "track": "local_access",
+    "road": "arterial"
+  },
+  "network_class_to_damage_profile": {
+    "motorway": "major_road",
+    "motorway_link": "major_road",
+    "trunk": "major_road",
+    "trunk_link": "major_road",
+    "primary": "major_road",
+    "primary_link": "major_road",
+    "secondary": "major_road",
+    "secondary_link": "major_road",
+    "tertiary": "minor_road",
+    "tertiary_link": "minor_road",
+    "residential": "minor_road",
+    "unclassified": "minor_road",
+    "living_street": "minor_road",
+    "service": "minor_road",
+    "track": "minor_road",
+    "road": "minor_road"
+  }
+}

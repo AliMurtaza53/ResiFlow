@@ -219,16 +219,10 @@ def cost_func(
 def edge_reclassification_func(
     road_links: pd.DataFrame,
 ) -> pd.DataFrame:
-    """Reclassify network edges to "M, A_dual, A_single, B"."""
-    road_links["combined_label"] = "A_dual"
-    road_links.loc[road_links.road_classification == "Motorway", "combined_label"] = "M"
-    road_links.loc[road_links.road_classification == "B Road", "combined_label"] = "B"
-    road_links.loc[
-        (road_links.road_classification == "A Road")
-        & (road_links.form_of_way == "Single Carriageway"),
-        "combined_label",
-    ] = "A_single"
-    return road_links
+    """Normalize network classes and assignment tiers."""
+    from resiflow.networks import normalize_network_links
+
+    return normalize_network_links(road_links)
 
 
 def edge_initial_speed_func(

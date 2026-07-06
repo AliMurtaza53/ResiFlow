@@ -1,13 +1,11 @@
 """
-Virginia FAF5-to-NIRD workflow.
+Virginia FAF5-to-ResiFlow workflow.
 
 This script starts from the FAF5 GDB, clips the road network to Virginia,
 extracts Virginia centroid connectors, and builds a synthetic OD matrix using
 an inverse-distance model with a 3M trip benchmark.
 
-It reuses the existing converter helpers in `convert_faf5_to_nird.py` and
-`convert_faf5_od_to_nird.py` so the workflow stays aligned with the repo's
-standard conversion logic.
+It reuses `resiflow.preprocess.faf5_network` and `resiflow.preprocess.faf5_od_matrix`.
 """
 
 from __future__ import annotations
@@ -29,9 +27,10 @@ if str(REPO_ROOT) not in sys.path:
 SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
-import convert_faf5_to_nird as links_conv  # noqa: E402
-import convert_faf5_od_to_nird as od_conv  # noqa: E402
+from resiflow.preprocess import faf5_network as links_conv  # noqa: E402
+from resiflow.preprocess import faf5_od_matrix as od_conv  # noqa: E402
 from resiflow import freight_od_disaggregation as freight_od  # noqa: E402
+from resiflow.utils import load_config  # noqa: E402
 
 
 DEFAULT_GDB_PATH = (
@@ -40,13 +39,6 @@ DEFAULT_GDB_PATH = (
 DEFAULT_TARGET_CRS = "EPSG:2163"
 DEFAULT_TOTAL_TRIPS = 3_000_000
 DEFAULT_STATE = "VA"
-
-
-def load_config() -> dict:
-    config_path = REPO_ROOT / "config.json"
-    if not config_path.exists():
-        return {}
-    return json.loads(config_path.read_text())
 
 
 def load_gdb_layers(gdb_path: Path):
@@ -338,7 +330,7 @@ def build_inverse_distance_od(
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Build a Virginia-only FAF5 → NIRD workflow")
+    parser = argparse.ArgumentParser(description="Build a Virginia-only FAF5 → ResiFlow workflow")
     parser.add_argument("--gdb", default=DEFAULT_GDB_PATH, help="Path to FAF5 geodatabase")
     parser.add_argument("--state", default=DEFAULT_STATE, help="State abbreviation to clip to (default: VA)")
     parser.add_argument("--boundary", default=None, help="Optional state boundary file to clip the network")
@@ -393,7 +385,7 @@ def main() -> int:
     # Convert and clip the road network using the existing converter logic.
     # IMPORTANT: Keep class-50 centroid connectors (filter_centroids=False) because
     # they're the attachment points for the OD matrix.
-    nird_links = links_conv.convert_faf5_links_to_nird(
+    nird_links = links_conv.convert_faf5_links(
         links,
         target_crs=DEFAULT_TARGET_CRS,
         filter_centroids=False,
@@ -444,7 +436,7 @@ def main() -> int:
         if args.od_source == "faf5_county_experimental":
             print(f"Dry run: would read county experimental OD from {args.county_od_path}")
         elif use_freight_od:
-            print("Dry run: would build freight OD via nird.freight_od_disaggregation")
+            print("Dry run: would build freight OD via resiflow.freight_od_disaggregation")
             print(f"Dry run: would write freight assignment OD to {freight_od_path}")
         else:
             print(f"Dry run: would write synthetic OD to {od_path}")
@@ -523,7 +515,7 @@ def main() -> int:
     print(f"OD rows: {len(od_df):,}")
     print(f"Total trips: {od_df['Car21'].sum():,.2f}")
 
-    print("Virginia FAF5 → NIRD workflow complete.")
+    print("Virginia FAF5 → ResiFlow workflow complete.")
     return 0
 
 

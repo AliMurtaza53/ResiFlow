@@ -1,19 +1,39 @@
-# US-calibrated transport parameters (reference copies)
+# Network and assignment parameters (reference copies)
 
-These JSON files are **version-controlled reference copies** of the US/HCM-calibrated
-assignment parameters described in
-[`docs/us_calibration_changes_20260627.md`](../docs/us_calibration_changes_20260627.md).
+These JSON files are **version-controlled reference copies** of transport
+assignment parameters and editable network-class mappings.
 
-The numbered scripts load parameters from the **active data root** defined in
-`config.json` (`paths.soge_clusters/parameters/`), which lives outside this repo.
-These copies are kept here so the values are tracked in git. To apply them, copy
-the JSONs into the active data root's `parameters/` folder.
+Scripts load parameters from the **active data root**
+(`config.json` → `paths.soge_clusters/parameters/` or `inputs/parameters/`).
+Copy these files into that folder to apply them in production runs.
 
-Files:
+## Assignment profiles
 
-- `flow_cap_plph_dict.json` — designed capacity (passenger-cars/hour/lane)
-- `flow_breakpoint_dict.json` — flow at which speed begins to drop (pc/h/ln)
-- `free_flow_speed_dict.json` — per-class free-flow speed (mph; fallback behind
-  observed FAF5 link speeds)
-- `urban_speed_cap.json` — urban speed restriction (mph)
-- `min_speed_cap.json` — minimum congested speed floor (mph)
+- `assignment_profiles.json` — canonical tier-keyed profiles:
+  - `flow_cap_plph`, `flow_breakpoint`, `free_flow_speed`, `urban_speed_cap`,
+    `min_speed_cap`, `congestion_factor`
+- Legacy per-file JSONs (`flow_cap_plph_dict.json`, etc.) remain supported;
+  keys `M` / `A_dual` / `A_single` / `B` are coerced to assignment tiers via
+  `resiflow.networks.profiles.coerce_profile_dict`.
+
+Assignment tiers: `freeway`, `arterial`, `collector`, `local_access`.
+
+## Network source mappings
+
+Editable heuristic maps from normalized `network_class` → assignment tier and
+damage profile:
+
+- `network_mapping.faf5.json` — FAF5 / ResiFlow coarse classes
+- `network_mapping.osm.json` — OSM `highway` tags
+
+Override the active source with `RESIFLOW_NETWORK_SOURCE=faf5|osm`.
+
+## Pipeline integration
+
+`resiflow.networks.normalize_network_links()` adds:
+
+- `network_source`, `network_class`, `assignment_tier`, `damage_profile`
+- `combined_label` (legacy alias for Script 4 / older outputs)
+
+Used by Script 1 (baseline assignment), disruption build (merge from base
+scenario), and Script 4 (rerouting breakpoints).

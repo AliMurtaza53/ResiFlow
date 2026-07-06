@@ -1,8 +1,5 @@
 """
-Convert FAF5 Origin-Destination Data to NIRD Format
-
-This script converts FAF5 OD flow data (by FAF zone) to NIRD's
-node-to-node OD matrix format.
+Convert FAF5 regional OD CSV to ResiFlow assignment OD matrix (origin_node, destination_node, Car21).
 
 FAF5 OD Flow Structure:
 - Origin FAF Zone (dms_orig)
@@ -12,7 +9,7 @@ FAF5 OD Flow Structure:
 - Tonnage values by year
 - Value in dollars
 
-NIRD OD Format Required:
+ResiFlow assignment OD format:
 - origin_node: Network node ID
 - destination_node: Network node ID
 - Car21: Flow volume (vehicles or freight units)
@@ -308,20 +305,11 @@ def aggregate_faf5_flows(faf5_od, year='2021', mode_filter='Truck', include_all_
     return od_flows
 
 
-def convert_faf5_od_to_nird(faf5_od_flows, zone_to_node_mapping):
-    """
-    Convert FAF5 zone-to-zone flows to NIRD node-to-node OD matrix.
-    
-    Args:
-        faf5_od_flows: DataFrame with aggregated zone-to-zone flows
-        zone_to_node_mapping: Dictionary mapping FAF zone -> network node
-        
-    Returns:
-        DataFrame in NIRD OD format
-    """
-    print("\nConverting FAF5 OD to NIRD format...")
-    
-    nird_od = []
+def convert_faf5_od_matrix(faf5_od_flows, zone_to_node_mapping):
+    """Convert FAF5 zone-to-zone flows to assignment OD matrix rows."""
+    print("\nConverting FAF5 OD to assignment format...")
+
+    assignment_od = []
     skipped = 0
     
     for idx, row in faf5_od_flows.iterrows():
@@ -343,35 +331,26 @@ def convert_faf5_od_to_nird(faf5_od_flows, zone_to_node_mapping):
         # Convert tonnage to vehicles
         vehicles = convert_tonnage_to_vehicles(tonnage)
         
-        nird_od.append({
+        assignment_od.append({
             'origin_node': origin_node,
             'destination_node': dest_node,
             'Car21': vehicles,
             'tonnage': tonnage  # Keep original tonnage for reference
         })
     
-    nird_od_df = pd.DataFrame(nird_od)
+    assignment_od_df = pd.DataFrame(assignment_od)
     
-    print(f"  Converted {len(nird_od_df)} OD pairs")
+    print(f"  Converted {len(assignment_od_df)} OD pairs")
     if skipped > 0:
         print(f"  Skipped {skipped} pairs due to missing zone mappings")
-    print(f"  Total vehicles: {nird_od_df['Car21'].sum():,.0f}")
+    print(f"  Total vehicles: {assignment_od_df['Car21'].sum():,.0f}")
     
-    return nird_od_df
+    return assignment_od_df
 
 
-def validate_nird_od(od_df, network_nodes):
-    """
-    Validate that OD matrix nodes exist in the network.
-    
-    Args:
-        od_df: NIRD OD matrix DataFrame
-        network_nodes: GeoDataFrame with network nodes
-        
-    Returns:
-        Boolean indicating if validation passed
-    """
-    print("\nValidating NIRD OD matrix...")
+def validate_assignment_od(od_df, network_nodes):
+    """Validate that OD matrix nodes exist in the network."""
+    print("\nValidating assignment OD matrix...")
     
     node_ids = set(network_nodes['node_id'].values)
     origin_nodes = set(od_df['origin_node'].values)
@@ -389,84 +368,70 @@ def validate_nird_od(od_df, network_nodes):
         return True
 
 
-def main():
-    """Main OD conversion workflow."""
-    
-    # Configuration - UPDATE THESE PATHS
-    FAF5_OD_PATH = r"C:\Users\alimu\Downloads\FAF5.7.1\FAF5.7.1.csv"
-    FAF_ZONES_PATH = None  # Optional - use None to rely on centroid nodes
-    NETWORK_NODES_PATH = r"C:\Users\alimu\NIRD_Data\soge_clusters\networks\faf5\faf5_road_nodes.gpq"
-    CENTROID_NODES_PATH = r"C:\Users\alimu\NIRD_Data\soge_clusters\networks\faf5\faf5_centroid_nodes.gpq"  # From link conversion
-    OUTPUT_DIR = Path(r"C:\Users\alimu\NIRD_Data\soge_clusters\census_datasets")
-    
-    # Analysis parameters
-    ANALYSIS_YEAR = '2021'  # Options: '2017'-'2024', '2030', '2035', '2040', '2045', '2050'
-    MODE_FILTER = 'Truck'   # Options: 'Truck', 'Rail', 'Water', 'Air', 'Multiple', 'Pipeline', 'Other', or None for all
-    
-    # Create output directory
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    
-    print("=" * 80)
-    print("FAF5 OD to NIRD OD Matrix Conversion")
-    print("=" * 80)
-    
-    # Step 1-2: Aggregate flows (truck mode, specified year) using chunked CSV read
-    faf5_od_agg = aggregate_faf5_flows(
-        FAF5_OD_PATH,
-        year=ANALYSIS_YEAR,
-        mode_filter=MODE_FILTER
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry: convert FAF5 regional OD CSV to assignment OD parquet."""
+    import argparse
+
+    from resiflow.faf5_paths import resolve_faf5_data_root, resolve_regional_od_path
+    from resiflow.utils import load_config
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--faf5-od", help="Path to FAF5.7.1 CSV (default: resolve from FAF5 data root)")
+    parser.add_argument("--network-nodes", help="Path to faf5_road_nodes.gpq")
+    parser.add_argument("--centroid-nodes", help="Path to faf5_centroid_nodes.gpq")
+    parser.add_argument("--faf-zones", help="Optional FAF zone geometries if centroids missing")
+    parser.add_argument(
+        "--output",
+        help="Output parquet path (default: <soge_clusters>/census_datasets/faf5_od_matrix.pq)",
     )
-    
-    # Step 3: Load network nodes
-    print(f"\nLoading network nodes from: {NETWORK_NODES_PATH}")
-    network_nodes = gpd.read_parquet(NETWORK_NODES_PATH)
-    print(f"  Loaded {len(network_nodes)} network nodes")
-    
-    # Step 4: Map FAF zones to network nodes
-    # Try using centroid nodes first (if available from link conversion)
-    if Path(CENTROID_NODES_PATH).exists():
-        print(f"Found centroid nodes file: {CENTROID_NODES_PATH}")
+    parser.add_argument("--year", default="2021")
+    parser.add_argument("--mode", default="Truck")
+    args = parser.parse_args(argv)
+
+    config = load_config()
+    base_path = Path(config["paths"]["soge_clusters"])
+    faf5_root = resolve_faf5_data_root(base_path)
+    faf5_od_path = Path(args.faf5_od) if args.faf5_od else resolve_regional_od_path(faf5_root) if faf5_root else None
+    if faf5_od_path is None or not Path(faf5_od_path).exists():
+        raise FileNotFoundError("Could not resolve FAF5 OD CSV; pass --faf5-od")
+
+    network_nodes_path = Path(
+        args.network_nodes or base_path / "networks" / "faf5" / "faf5_road_nodes.gpq"
+    )
+    centroid_nodes_path = Path(
+        args.centroid_nodes or base_path / "networks" / "faf5" / "faf5_centroid_nodes.gpq"
+    )
+    output_path = Path(args.output or base_path / "census_datasets" / "faf5_od_matrix.pq")
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    print("=" * 80)
+    print("FAF5 OD to ResiFlow assignment matrix conversion")
+    print("=" * 80)
+
+    faf5_od_agg = aggregate_faf5_flows(str(faf5_od_path), year=args.year, mode_filter=args.mode)
+    network_nodes = gpd.read_parquet(network_nodes_path)
+
+    if centroid_nodes_path.exists():
         zone_to_node = map_faf_zones_to_network_nodes(
             network_nodes=network_nodes,
-            centroid_nodes_path=CENTROID_NODES_PATH
+            centroid_nodes_path=str(centroid_nodes_path),
         )
-    elif FAF_ZONES_PATH is not None:
-        # Fall back to using FAF zone geometries
-        print(f"Centroid nodes not found, using FAF zone geometries")
-        faf_zones = load_faf_zone_centroids(FAF_ZONES_PATH)
-        zone_to_node = map_faf_zones_to_network_nodes(
-            faf_zones=faf_zones,
-            network_nodes=network_nodes
-        )
+    elif args.faf_zones:
+        faf_zones = load_faf_zone_centroids(args.faf_zones)
+        zone_to_node = map_faf_zones_to_network_nodes(faf_zones=faf_zones, network_nodes=network_nodes)
     else:
-        raise ValueError("Must provide either CENTROID_NODES_PATH or FAF_ZONES_PATH for zone mapping")
-    
-    # Step 5: Convert to NIRD format
-    nird_od = convert_faf5_od_to_nird(faf5_od_agg, zone_to_node)
-    
-    # Step 6: Validate
-    validate_nird_od(nird_od, network_nodes)
-    
-    # Step 7: Save
-    output_path = OUTPUT_DIR / "faf5_od_matrix.pq"
-    print(f"\nSaving NIRD OD matrix to: {output_path}")
-    nird_od.to_parquet(output_path, index=False)
-    print(f"✓ Saved {len(nird_od)} OD pairs")
-    
-    # Summary statistics
-    print("\n" + "=" * 80)
-    print("Conversion Summary")
-    print("=" * 80)
-    print(f"Analysis year: {ANALYSIS_YEAR}")
-    print(f"Mode: {MODE_FILTER}")
-    print(f"Total OD pairs: {len(nird_od):,}")
-    print(f"Total daily vehicles: {nird_od['Car21'].sum():,}")
-    print(f"Total annual tonnage: {nird_od['tonnage'].sum():,.0f} thousand tons")
-    print(f"Avg daily vehicles per OD: {nird_od['Car21'].mean():.1f}")
-    print(f"Max daily vehicles for single OD: {nird_od['Car21'].max():,}")
-    
-    return nird_od
+        raise ValueError("Provide --centroid-nodes or --faf-zones for zone mapping")
+
+    assignment_od = convert_faf5_od_matrix(faf5_od_agg, zone_to_node)
+    validate_assignment_od(assignment_od, network_nodes)
+    assignment_od.to_parquet(output_path, index=False)
+    print(f"Saved {len(assignment_od)} OD pairs to {output_path}")
+    return 0
+
+
+convert_faf5_od_to_nird = convert_faf5_od_matrix
+validate_nird_od = validate_assignment_od
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

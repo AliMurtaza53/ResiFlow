@@ -12,11 +12,13 @@ import geopandas as gpd  # type: ignore
 import duckdb
 
 from resiflow.utils import get_results_variant, load_config
-from resiflow.combined_od import (
-    load_combined_assignment_od,
+from resiflow.demand import (
+    align_od_node_dtype,
+    demand_spec_from_env,
+    load_assignment_demand,
     passenger_od_disabled,
-    resolve_passenger_od_path,
 )
+from resiflow.networks import load_assignment_profiles, normalize_network_links
 import resiflow.road_revised as func
 
 import logging
@@ -88,17 +90,12 @@ def main(
             "Could not find parameter folder. Checked base_path/parameters and base_path/inputs/parameters"
         )
 
-    # model parameters
-    with open(params_root / "flow_breakpoint_dict.json", "r") as f:
-        flow_breakpoint_dict = json.load(f)
-    with open(params_root / "flow_cap_plph_dict.json", "r") as f:
-        flow_capacity_dict = json.load(f)
-    with open(params_root / "free_flow_speed_dict.json", "r") as f:
-        free_flow_speed_dict = json.load(f)
-    with open(params_root / "min_speed_cap.json", "r") as f:
-        min_speed_dict = json.load(f)
-    with open(params_root / "urban_speed_cap.json", "r") as f:
-        urban_speed_dict = json.load(f)
+    profiles = load_assignment_profiles(params_root)
+    flow_breakpoint_dict = profiles["flow_breakpoint"]
+    flow_capacity_dict = profiles["flow_cap_plph"]
+    free_flow_speed_dict = profiles["free_flow_speed"]
+    min_speed_dict = profiles["min_speed_cap"]
+    urban_speed_dict = profiles["urban_speed_cap"]
     logging.info(flow_capacity_dict)
 
     # network links -> network links with bridges (SUBNETWORK)
@@ -111,18 +108,20 @@ def main(
     if road_links_path is None:
         raise FileNotFoundError("Could not find faf5_road_links.gpq in standard or toy input paths")
     road_link_file = gpd.read_parquet(road_links_path)
+    road_link_file = normalize_network_links(road_link_file, params_root=str(params_root))
 
-    # od matrix (2021)
-    od_path = first_existing(
-        [
-            base_path / "census_datasets" / "faf5_od_matrix.pq",
-            base_path / "inputs" / "census_datasets" / "faf5_od_matrix.pq",
-            base_path / "inputs" / "test_17node" / "faf5_od_matrix_17x17_test.pq",
-        ]
+    demand_result = load_assignment_demand(base_path, demand_spec_from_env(base_path))
+    od_node_2021 = demand_result.assignment_od.copy()
+    od_flow_col = "Car21"
+    logging.info(
+        "Assignment demand (%s): freight=%.3f passenger=%.3f total=%.3f",
+        demand_result.stats.get("source", "faf5_parquet"),
+        demand_result.stats.get("freight_flow", 0.0),
+        demand_result.stats.get("passenger_flow", 0.0),
+        demand_result.stats.get("combined_flow", 0.0),
     )
-    if od_path is None:
-        raise FileNotFoundError("Could not find FAF5 OD matrix in standard or toy input paths")
-    od_node_2021 = pd.read_parquet(od_path)
+    if passenger_od_disabled():
+        logging.info("Passenger OD not configured; using freight-only assignment demand.")
 
     if sample_stride > 1:
         logging.info(f"For testing, sampling every {sample_stride} flows")
@@ -131,34 +130,6 @@ def main(
     if sample_od_n > 0:
         logging.info(f"For testing, taking first {sample_od_n:,} OD rows")
         od_node_2021 = od_node_2021.head(sample_od_n)
-
-    od_flow_col = "Car21" if "Car21" in od_node_2021.columns else (
-        "flow" if "flow" in od_node_2021.columns else None
-    )
-    if od_flow_col is None:
-        raise ValueError("OD matrix must contain either 'Car21' or 'flow' column")
-
-    passenger_path = (
-        None
-        if passenger_od_disabled()
-        else os.environ.get("NIRD_PASSENGER_OD_PATH") or resolve_passenger_od_path(base_path)
-    )
-    if passenger_path is not None:
-        od_node_2021, od_stats = load_combined_assignment_od(
-            od_node_2021,
-            passenger_path=passenger_path,
-            freight_flow_col=od_flow_col,
-        )
-        od_flow_col = "Car21"
-        logging.info(
-            "Combined freight+passenger OD: freight=%.3f passenger=%.3f total=%.3f from %s",
-            od_stats["freight_flow"],
-            od_stats["passenger_flow"],
-            od_stats["combined_flow"],
-            passenger_path,
-        )
-    else:
-        logging.info("Passenger OD not configured; using freight-only assignment demand.")
 
     # Smoke-test cap: when sampling, also bound the *combined* OD so passenger demand
     # (merged in full above) does not blow the row count back up. Random sample keeps a
@@ -172,17 +143,7 @@ def main(
     od_node_2021[od_flow_col] = pd.to_numeric(
         od_node_2021[od_flow_col], errors="coerce"
     ).fillna(0.0)
-    node_dtype = road_link_file["from_id"].dtype
-    if pd.api.types.is_integer_dtype(node_dtype):
-        od_node_2021["origin_node"] = pd.to_numeric(
-            od_node_2021["origin_node"], errors="raise"
-        ).astype(node_dtype)
-        od_node_2021["destination_node"] = pd.to_numeric(
-            od_node_2021["destination_node"], errors="raise"
-        ).astype(node_dtype)
-    else:
-        od_node_2021["origin_node"] = od_node_2021["origin_node"].astype(node_dtype)
-        od_node_2021["destination_node"] = od_node_2021["destination_node"].astype(node_dtype)
+    od_node_2021 = align_od_node_dtype(od_node_2021, road_link_file)
     total_flow = od_node_2021[od_flow_col].sum()
     self_pair_flow = od_node_2021.loc[
         od_node_2021["origin_node"] == od_node_2021["destination_node"],

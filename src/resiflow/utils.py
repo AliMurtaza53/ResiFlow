@@ -101,9 +101,11 @@ def extract_gdf_values_containing_nodes(
 
 
 def load_config(config_path: Optional[str] = None) -> Dict[str, Dict[str, str]]:
-    """Read config.json"""
+    """Read config.json (RESIFLOW_CONFIG_PATH or NIRD_CONFIG_PATH)."""
+    from resiflow.config import config_path as resolved_config_path
+
     if config_path is None:
-        config_path = os.environ.get("NIRD_CONFIG_PATH")
+        config_path = resolved_config_path()
     if config_path is None:
         config_path = os.path.join(
             os.path.dirname(__file__), "..", "..", "config.json"
@@ -116,8 +118,9 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Dict[str, str]]:
 
 def get_results_variant(default: str = "revision") -> str:
     """Return the active results subdirectory name for experiment runs."""
-    variant = os.environ.get("NIRD_RESULTS_VARIANT", default).strip()
-    return variant or default
+    from resiflow.config import results_variant
+
+    return results_variant(default)
 
 
 def create_network_from_nodes_and_edges(

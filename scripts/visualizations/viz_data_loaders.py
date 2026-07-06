@@ -30,7 +30,7 @@ def resolve_input_od_matrix_path(input_root: Path) -> Path:
         input_root / "census_datasets" / "faf5_od_matrix.pq",
         input_root / "inputs" / "census_datasets" / "faf5_od_matrix.pq",
     ]
-    env_path = os.getenv("NIRD_FAF5_OD_MATRIX_PATH")
+    env_path = os.getenv("RESIFLOW_FAF5_OD_MATRIX_PATH") or os.getenv("NIRD_FAF5_OD_MATRIX_PATH")
     if env_path:
         candidates.insert(0, Path(env_path))
     for path in candidates:
@@ -185,8 +185,21 @@ def _direct_damage_usd_from_cost_row(row: dict[str, float], damage_df: pd.DataFr
     return 0.0
 
 
+def _intensity_depth_m(links: pd.DataFrame) -> pd.Series:
+    """Primary hazard intensity in meters (flood depth or snow mm converted)."""
+    from resiflow.disruption.link_record import intensity_series
+
+    hazard = None
+    if "hazard_type" in links.columns and links["hazard_type"].notna().any():
+        hazard = str(links["hazard_type"].dropna().iloc[0])
+    return intensity_series(links, hazard_type=hazard)
+
+
 def _disruption_link_metrics(links: pd.DataFrame) -> dict[str, int | float]:
+    intensity_m = _intensity_depth_m(links)
     flood_depth = _numeric_series(links, "flood_depth_max")
+    if intensity_m.sum() > 0 and flood_depth.sum() == 0:
+        flood_depth = intensity_m
     max_speed = _numeric_series(links, "max_speed", default=999.0)
     damage_level = links.get("damage_level_max", pd.Series(dtype=object)).astype(str).str.lower()
     flooded = int((flood_depth > 0).sum())
@@ -289,7 +302,7 @@ def summarize_single_scenario(
     if passenger_post.exists():
         post = pd.read_parquet(passenger_post)
         flow_col = next((c for c in ("acc_flow", "flow") if c in post.columns), None)
-        flood_depth = _numeric_series(links, "flood_depth_max") if not links.empty else pd.Series(dtype=float)
+        flood_depth = _intensity_depth_m(links) if not links.empty else pd.Series(dtype=float)
         if flow_col and not links.empty and "e_id" in post.columns:
             flooded_ids = links.loc[flood_depth > 0, "e_id"].astype(str)
             flooded_flow_delta = float(

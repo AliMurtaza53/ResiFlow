@@ -25,6 +25,9 @@ from collections import defaultdict
 
 import resiflow.road_revised as func
 from resiflow.combined_od import resolve_passenger_od_path
+from resiflow.demand import load_assignment_demand, demand_spec_from_env
+from resiflow.networks import load_assignment_profiles, normalize_network_links
+from resiflow.networks.assignment import map_tier_profile
 from resiflow.utils import get_results_variant, load_config, get_flow_on_edges
 import duckdb
 import os
@@ -448,19 +451,18 @@ def main(
     db_path.parent.mkdir(parents=True, exist_ok=True)
     logging.info(f"Database path is: {db_path}")
 
-    # Load network parameters
-    breakpoint_path = first_existing(
+    params_root = first_existing(
         [
-            base_path / "parameters" / "flow_breakpoint_dict.json",
-            base_path / "inputs" / "parameters" / "flow_breakpoint_dict.json",
+            base_path / "parameters",
+            base_path / "inputs" / "parameters",
         ]
     )
-    if breakpoint_path is None:
+    if params_root is None:
         raise FileNotFoundError(
-            "Could not find flow_breakpoint_dict.json in standard or toy parameter paths"
+            "Could not find parameter folder. Checked base_path/parameters and base_path/inputs/parameters"
         )
-    with open(breakpoint_path, "r") as f:
-        flow_breakpoint_dict = json.load(f)
+    profiles = load_assignment_profiles(params_root)
+    flow_breakpoint_dict = profiles["flow_breakpoint"]
 
     # Load recovery scenarios
     (
@@ -557,6 +559,8 @@ def main(
         / f"road_links_{flood_key}.gpq"
     )
     road_links["e_id"] = road_links["e_id"].astype(str)
+    if "assignment_tier" not in road_links.columns:
+        road_links = normalize_network_links(road_links, params_root=str(params_root))
 
     # Wire to script-3 outputs (direct damage table by event)
     damage_by_edge, direct_damage_total = load_event_damage_from_script3(base_path, flood_key)
@@ -577,9 +581,7 @@ def main(
         road_links["road_label"] = "road"
         if "road_bridge" in road_links.columns:
             road_links.loc[road_links["road_bridge"].astype(str).str.lower() == "yes", "road_label"] = "bridge"
-    road_links["breakpoint_flows"] = road_links["combined_label"].map(
-        flow_breakpoint_dict
-    )
+    road_links["breakpoint_flows"] = map_tier_profile(road_links, flow_breakpoint_dict)
     initial_road_links_cols = road_links.columns
     flooded_edges = set(
         road_links.loc[road_links["damage_level_max"] != "no", "e_id"].astype(str)
@@ -650,38 +652,40 @@ def main(
         ].reset_index(drop=True)
 
     base_disrupted_candidates = disrupted_candidates.copy()
-    passenger_od_df = None
-    freight_od_df = None
-    if os.environ.get("NIRD_ENABLE_PASSENGER_REROUTING", "0").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-    }:
-        passenger_path = os.environ.get("NIRD_PASSENGER_OD_PATH") or resolve_passenger_od_path(base_path)
-        if passenger_path and Path(passenger_path).exists():
-            passenger_od_df = pd.read_parquet(passenger_path)
-            logging.info("Loaded passenger assignment OD from %s (%s rows)", passenger_path, len(passenger_od_df))
-        else:
-            logging.warning("Passenger rerouting enabled but passenger OD path not found.")
-
-    for freight_candidate in (
-        base_path / "inputs" / "census_datasets" / "faf5_od_matrix.pq",
-        base_path / "census_datasets" / "faf5_od_matrix.pq",
-    ):
-        if freight_candidate.exists():
-            freight_od_df = pd.read_parquet(freight_candidate)
-            logging.info("Loaded freight assignment OD from %s (%s rows)", freight_candidate, len(freight_od_df))
-            break
+    demand_result = load_assignment_demand(base_path, demand_spec_from_env(base_path))
+    passenger_od_df = demand_result.passenger_od
+    freight_od_df = demand_result.freight_od
+    if passenger_od_df is not None:
+        logging.info("Loaded passenger assignment OD (%s rows)", len(passenger_od_df))
+    if freight_od_df is not None:
+        logging.info("Loaded freight assignment OD (%s rows)", len(freight_od_df))
+    elif demand_result.assignment_od is not None:
+        freight_od_df = demand_result.assignment_od
+        logging.info(
+            "Using combined assignment OD as freight overlay (%s rows)",
+            len(freight_od_df),
+        )
 
     if freight_od_df is not None:
         freight_candidates = overlay_assignment_flows(base_disrupted_candidates, freight_od_df)
     else:
         freight_candidates = base_disrupted_candidates.copy()
+
     reroute_modes: list[tuple[str, pd.DataFrame]] = [("freight", freight_candidates)]
-    if passenger_od_df is not None:
+    if os.environ.get("NIRD_ENABLE_PASSENGER_REROUTING", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    } and passenger_od_df is not None:
         reroute_modes.append(
             ("passenger", overlay_passenger_flows(base_disrupted_candidates, passenger_od_df))
         )
+    elif os.environ.get("NIRD_ENABLE_PASSENGER_REROUTING", "0").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }:
+        logging.warning("Passenger rerouting enabled but passenger OD not found.")
 
     out_path = (
         base_path.parent

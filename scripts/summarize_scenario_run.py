@@ -30,9 +30,10 @@ def _first_existing(paths: list[Path]) -> Path | None:
 def resolve_results_root(explicit: str | None) -> Path:
     if explicit:
         return Path(explicit)
-    env = os.getenv("NIRD_RESULTS_ROOT")
-    if env:
-        return Path(env)
+    for key in ("RESIFLOW_RESULTS_ROOT", "NIRD_RESULTS_ROOT"):
+        env = os.getenv(key)
+        if env:
+            return Path(env)
     for candidate in (
         REPO_ROOT / "results",
         REPO_ROOT / "sandbox" / "results",
@@ -46,9 +47,10 @@ def resolve_results_root(explicit: str | None) -> Path:
 def resolve_variant(results_root: Path, explicit: str | None) -> str:
     if explicit:
         return explicit
-    env = os.getenv("NIRD_RESULTS_VARIANT")
-    if env:
-        return env
+    for key in ("RESIFLOW_RESULTS_VARIANT", "NIRD_RESULTS_VARIANT"):
+        env = os.getenv(key)
+        if env:
+            return env
     base = results_root / "base_scenario"
     if base.exists():
         variants = sorted(p.name for p in base.iterdir() if p.is_dir())

@@ -1,8 +1,8 @@
 """
-Convert FAF5 Network Data to NIRD Format
+Convert FAF5 network geodatabase layers to ResiFlow assignment GeoParquet.
 
-This script converts FAF5 (Freight Analysis Framework) geodatabase format
-to NIRD-compatible GeoParquet format based on actual FAF5 schema.
+This module converts FAF5 (Freight Analysis Framework) geodatabase format
+to the ResiFlow-compatible link schema used by Scripts 1–4.
 
 FAF5 Link Schema (as of V2021.05):
 - ID: Link identifier
@@ -23,7 +23,7 @@ from pathlib import Path
 import fiona
 
 
-# Road classification mapping: FAF5 Class -> NIRD coarse road_classification
+# Road classification mapping: FAF5 Class -> coarse road_classification
 CLASS_MAPPING = {
     # Legacy/simple FAF class codes seen in early test files.
     1: 'motorway',           # Interstate
@@ -55,7 +55,7 @@ CLASS_MAPPING = {
 }
 
 # Detailed FAF5 road-class labels for reporting / plotting.
-# These are preserved separately from the coarse NIRD categories above.
+# These are preserved separately from the coarse assignment categories above.
 DETAIL_CLASS_MAPPING = {
     1: 'Interstate',
     2: 'Principal Arterial - Freeways and Expressways',
@@ -276,22 +276,14 @@ def filter_centroid_connectors(faf5_links):
         return faf5_links
 
 
-def convert_faf5_links_to_nird(faf5_links, target_crs='EPSG:2163', filter_centroids=True, 
-                                states=None, boundary_gdf=None):
-    """
-    Convert FAF5 link GeoDataFrame to NIRD format.
-    
-    Args:
-        faf5_links: GeoDataFrame with FAF5 link data
-        target_crs: Target coordinate reference system (default: US Albers Equal Area)
-                   Use 'EPSG:27700' for UK, 'EPSG:2163' for continental US
-        filter_centroids: If True, remove Class==50 centroid connector links
-        states: Optional string or list of state abbreviations to filter to (e.g., 'VA' or ['VA', 'MD'])
-        boundary_gdf: Optional GeoDataFrame with polygon boundary to clip to
-    
-    Returns:
-        GeoDataFrame in NIRD format
-    """
+def convert_faf5_links(
+    faf5_links,
+    target_crs="EPSG:9311",
+    filter_centroids=True,
+    states=None,
+    boundary_gdf=None,
+):
+    """Convert FAF5 link GeoDataFrame to the ResiFlow assignment link schema."""
     # Apply geographic filters first
     if states is not None:
         faf5_links = filter_by_states(faf5_links, states)
@@ -303,41 +295,41 @@ def convert_faf5_links_to_nird(faf5_links, target_crs='EPSG:2163', filter_centro
     if filter_centroids:
         faf5_links = filter_centroid_connectors(faf5_links)
     
-    print(f"\nConverting {len(faf5_links)} FAF5 links to NIRD format...")
-    
-    nird_links = gpd.GeoDataFrame()
-    
+    print(f"\nConverting {len(faf5_links)} FAF5 links to ResiFlow assignment format...")
+
+    assignment_links = gpd.GeoDataFrame()
+
     # 1. Edge ID
-    nird_links['e_id'] = faf5_links['ID'].astype(str)
-    print(f"  ✓ e_id: {len(nird_links['e_id'].unique())} unique links")
-    
+    assignment_links["e_id"] = faf5_links["ID"].astype(str)
+    print(f"  ✓ e_id: {len(assignment_links['e_id'].unique())} unique links")
+
     # 2. Extract node connectivity
-    from_ids, to_ids, nodes = extract_node_connectivity(faf5_links, 'ID')
-    nird_links['from_id'] = from_ids
-    nird_links['to_id'] = to_ids
+    from_ids, to_ids, nodes = extract_node_connectivity(faf5_links, "ID")
+    assignment_links["from_id"] = from_ids
+    assignment_links["to_id"] = to_ids
     print(f"  ✓ from_id/to_id: {len(nodes)} nodes")
     
     # 3. Geometry - reproject if needed
-    nird_links['geometry'] = faf5_links.geometry
+    assignment_links['geometry'] = faf5_links.geometry
     if faf5_links.crs != target_crs:
         print(f"  Reprojecting from {faf5_links.crs} to {target_crs}...")
-        nird_links = nird_links.set_crs(faf5_links.crs, allow_override=True)
-        nird_links = nird_links.to_crs(target_crs)
+        assignment_links = assignment_links.set_crs(faf5_links.crs, allow_override=True)
+        assignment_links = assignment_links.to_crs(target_crs)
     else:
-        nird_links = nird_links.set_crs(target_crs)
+        assignment_links = assignment_links.set_crs(target_crs)
     
     # 4. Length - convert miles to meters
     if 'LENGTH' in faf5_links.columns:
-        nird_links['length'] = faf5_links['LENGTH'] * 1609.34
+        assignment_links['length'] = faf5_links['LENGTH'] * 1609.34
     else:
         # Calculate from geometry
-        nird_links['length'] = nird_links.geometry.length
-    print(f"  ✓ length: {nird_links['length'].min():.1f} to {nird_links['length'].max():.1f} meters")
+        assignment_links['length'] = assignment_links.geometry.length
+    print(f"  ✓ length: {assignment_links['length'].min():.1f} to {assignment_links['length'].max():.1f} meters")
     
     # 5. Road classification - preserve both coarse and detailed labels
     if 'Class' in faf5_links.columns:
-        nird_links['road_classification_coarse'] = faf5_links['Class'].map(CLASS_MAPPING)
-        nird_links['road_classification_coarse'] = nird_links['road_classification_coarse'].fillna('unclassified')
+        assignment_links['road_classification_coarse'] = faf5_links['Class'].map(CLASS_MAPPING)
+        assignment_links['road_classification_coarse'] = assignment_links['road_classification_coarse'].fillna('unclassified')
 
         detailed_from_desc = None
         if 'Class_Description' in faf5_links.columns:
@@ -348,62 +340,63 @@ def convert_faf5_links_to_nird(faf5_links, target_crs='EPSG:2163', filter_centro
         if detailed_from_desc is not None:
             detailed = detailed.fillna(detailed_from_class)
 
-        nird_links['road_classification_detail'] = detailed.fillna(nird_links['road_classification_coarse'])
+        assignment_links['road_classification_detail'] = detailed.fillna(assignment_links['road_classification_coarse'])
     else:
-        nird_links['road_classification_coarse'] = 'unclassified'
-        nird_links['road_classification_detail'] = 'unclassified'
+        assignment_links['road_classification_coarse'] = 'unclassified'
+        assignment_links['road_classification_detail'] = 'unclassified'
 
     # Keep the historical column name for downstream compatibility.
-    nird_links['road_classification'] = nird_links['road_classification_coarse']
+    assignment_links['road_classification'] = assignment_links['road_classification_coarse']
+    assignment_links['network_source'] = 'faf5'
 
-    print(f"  ✓ road_classification_coarse: {nird_links['road_classification_coarse'].nunique()} types")
-    print(f"  ✓ road_classification_detail: {nird_links['road_classification_detail'].nunique()} types")
+    print(f"  ✓ road_classification_coarse: {assignment_links['road_classification_coarse'].nunique()} types")
+    print(f"  ✓ road_classification_detail: {assignment_links['road_classification_detail'].nunique()} types")
     
     # 6. Lanes - take maximum of both directions
     if 'AB_Lanes' in faf5_links.columns and 'BA_Lanes' in faf5_links.columns:
-        nird_links['lanes'] = faf5_links[['AB_Lanes', 'BA_Lanes']].max(axis=1)
+        assignment_links['lanes'] = faf5_links[['AB_Lanes', 'BA_Lanes']].max(axis=1)
     elif 'AB_Lanes' in faf5_links.columns:
-        nird_links['lanes'] = faf5_links['AB_Lanes']
+        assignment_links['lanes'] = faf5_links['AB_Lanes']
     else:
-        nird_links['lanes'] = DEFAULTS['lanes']
+        assignment_links['lanes'] = DEFAULTS['lanes']
     
     # Fill missing lanes with default
-    nird_links['lanes'] = nird_links['lanes'].fillna(DEFAULTS['lanes']).astype(int)
-    print(f"  ✓ lanes: {nird_links['lanes'].min()} to {nird_links['lanes'].max()}")
+    assignment_links['lanes'] = assignment_links['lanes'].fillna(DEFAULTS['lanes']).astype(int)
+    print(f"  ✓ lanes: {assignment_links['lanes'].min()} to {assignment_links['lanes'].max()}")
     
     # 7. Urban classification - based on Urban_Code
     if 'Urban_Code' in faf5_links.columns:
         # 99999 typically indicates rural areas in FAF5
-        nird_links['urban'] = (faf5_links['Urban_Code'] != 99999).astype(int)
+        assignment_links['urban'] = (faf5_links['Urban_Code'] != 99999).astype(int)
     else:
-        nird_links['urban'] = 0  # Default to rural
-    print(f"  ✓ urban: {nird_links['urban'].sum()} urban, {(~nird_links['urban'].astype(bool)).sum()} rural")
+        assignment_links['urban'] = 0  # Default to rural
+    print(f"  ✓ urban: {assignment_links['urban'].sum()} urban, {(~assignment_links['urban'].astype(bool)).sum()} rural")
     
     # 8. Average width - estimated from lanes
-    nird_links['averageWidth'] = nird_links['lanes'] * DEFAULTS['meters_per_lane']
+    assignment_links['averageWidth'] = assignment_links['lanes'] * DEFAULTS['meters_per_lane']
     
     # 9. Toll cost - check toll fields
     if 'Toll_Type' in faf5_links.columns:
         # If Toll_Type is not null, we could estimate cost, but default to 0
-        nird_links['average_toll_cost'] = DEFAULTS['average_toll_cost']
+        assignment_links['average_toll_cost'] = DEFAULTS['average_toll_cost']
     else:
-        nird_links['average_toll_cost'] = DEFAULTS['average_toll_cost']
+        assignment_links['average_toll_cost'] = DEFAULTS['average_toll_cost']
     
     # 10. Bridge indicator - default to 'no'
-    nird_links['road_bridge'] = DEFAULTS['road_bridge']
+    assignment_links['road_bridge'] = DEFAULTS['road_bridge']
     
     # 11. Optional: Copy useful attributes
     optional_columns = ['Road_Name', 'STATE', 'County_Name', 'FAFZONE', 
                        'Speed_Limit', 'AB_FinalSpeed', 'BA_FinalSpeed']
     for col in optional_columns:
         if col in faf5_links.columns:
-            nird_links[col] = faf5_links[col]
+            assignment_links[col] = faf5_links[col]
     
     # Report summary
-    print(f"\n✓ Conversion complete: {len(nird_links)} links")
-    print(f"  Road types: {dict(nird_links['road_classification'].value_counts())}")
+    print(f"\n✓ Conversion complete: {len(assignment_links)} links")
+    print(f"  Road types: {dict(assignment_links['road_classification'].value_counts())}")
     
-    return nird_links
+    return assignment_links
 
 
 def create_node_geodataframe(nodes_dict, crs='EPSG:2163'):
@@ -432,8 +425,8 @@ def create_node_geodataframe(nodes_dict, crs='EPSG:2163'):
     return nodes_gdf
 
 
-def validate_nird_network(links_gdf):
-    """Validate that the converted network has all required NIRD columns."""
+def validate_assignment_network(links_gdf):
+    """Validate that converted links have required assignment columns."""
     required_cols = ['from_id', 'to_id', 'e_id', 'geometry', 'length', 
                      'lanes', 'road_classification', 'average_toll_cost', 
                      'urban', 'averageWidth', 'road_bridge']
@@ -448,129 +441,102 @@ def validate_nird_network(links_gdf):
         return True
 
 
-def main():
-    """Main conversion workflow."""
-    
-    # Configuration
-    FAF5_GDB_PATH = r"C:\Users\alimu\Desktop\Github\FAF5_Model_Highway_Network\Networks\Geodatabase Format\FAF5Network.gdb"
-    OUTPUT_DIR = Path(r"C:\Users\alimu\NIRD_Data\soge_clusters\networks\faf5")
-    TARGET_CRS = 'EPSG:2163'  # US Albers Equal Area projection
-    
-    # Geographic filtering options (optional)
-    FILTER_STATES = None  # e.g., 'VA' or ['VA', 'MD', 'DC'] or None for all states
-    BOUNDARY_FILE = None  # e.g., r"C:\Path\To\study_area.shp" or None for no clipping
-    
-    # Create output directory
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-    
-    # Step 1: List available layers
-    print("=" * 80)
-    print("FAF5 to NIRD Network Conversion")
-    print("=" * 80)
-    
-    layers = list_gdb_layers(FAF5_GDB_PATH)
-    
-    # Step 2: Read FAF5 links (adjust layer name as needed)
-    link_layer = "FAF5_Links"  # FAF5 layer name
-    node_layer = "FAF5_Nodes"  # Node layer
-    
-    print(f"\nReading layer: {link_layer}")
-    faf5_links = gpd.read_file(FAF5_GDB_PATH, layer=link_layer)
-    
-    print(f"  Read {len(faf5_links)} links")
-    print(f"  CRS: {faf5_links.crs}")
-    print(f"  Columns: {list(faf5_links.columns)}")
-    
-    # Also read nodes to identify centroids
-    print(f"\nReading layer: {node_layer}")
-    try:
-        faf5_nodes = gpd.read_file(FAF5_GDB_PATH, layer=node_layer)
-        print(f"  Read {len(faf5_nodes)} nodes")
-        
-        # Check for centroid information
-        if 'Centroid' in faf5_nodes.columns:
-            centroid_count = (faf5_nodes['Centroid'] == 1).sum()
-            print(f"  Found {centroid_count} centroid nodes (FAF zone centroids)")
-            print(f"  Found {len(faf5_nodes) - centroid_count} real network nodes")
-        
-        # Save centroid nodes for zone mapping
-        centroid_nodes_path = OUTPUT_DIR / "faf5_centroid_nodes.gpq"
-        if 'Centroid' in faf5_nodes.columns:
-            centroids = faf5_nodes[faf5_nodes['Centroid'] == 1].copy()
-            centroids.to_parquet(centroid_nodes_path)
-            print(f"  ✓ Saved {len(centroids)} centroid nodes to: {centroid_nodes_path}")
-    except Exception as e:
-        print(f"  Warning: Could not read nodes layer: {e}")
-        faf5_nodes = None
-    
-    # Step 3: Load optional boundary for clipping
-    boundary_gdf = None
-    if BOUNDARY_FILE is not None:
-        print(f"\nLoading boundary file: {BOUNDARY_FILE}")
-        boundary_gdf = gpd.read_file(BOUNDARY_FILE)
-        print(f"  Loaded boundary with {len(boundary_gdf)} polygon(s)")
-        print(f"  Boundary CRS: {boundary_gdf.crs}")
-    
-    # Step 4: Convert to NIRD format (with optional filters)
-    nird_links = convert_faf5_links_to_nird(
-        faf5_links, 
-        target_crs=TARGET_CRS,
-        states=FILTER_STATES,
-        boundary_gdf=boundary_gdf
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry: convert FAF5 GDB links to assignment GeoParquet."""
+    import argparse
+
+    from resiflow.config import get_env
+    from resiflow.geo_runtime import CONUS_TARGET_CRS
+    from resiflow.utils import load_config
+
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--gdb", required=True, help="Path to FAF5Network.gdb")
+    parser.add_argument(
+        "--output-dir",
+        help="Output directory for faf5_road_links.gpq (default: <soge_clusters>/networks/faf5)",
     )
-    
-    # Step 5: Validate
-    validate_nird_network(nird_links)
-    
-    # Step 6: Save to GeoParquet
-    # Create descriptive filename based on filters
-    if FILTER_STATES is not None:
-        states_str = '_'.join(FILTER_STATES) if isinstance(FILTER_STATES, list) else FILTER_STATES
+    parser.add_argument("--target-crs", default=CONUS_TARGET_CRS)
+    parser.add_argument("--states", help="Comma-separated state abbreviations to filter")
+    parser.add_argument("--boundary", help="Optional boundary vector for clipping")
+    parser.add_argument("--keep-centroids", action="store_true", help="Keep Class==50 connectors")
+    parser.add_argument("--link-layer", default="FAF5_Links")
+    parser.add_argument("--node-layer", default="FAF5_Nodes")
+    args = parser.parse_args(argv)
+
+    config = load_config()
+    base_path = Path(config["paths"]["soge_clusters"])
+    output_dir = Path(args.output_dir) if args.output_dir else base_path / "networks" / "faf5"
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    gdb_path = Path(args.gdb)
+    if not gdb_path.exists():
+        raise FileNotFoundError(gdb_path)
+
+    print("=" * 80)
+    print("FAF5 to ResiFlow network conversion")
+    print("=" * 80)
+    list_gdb_layers(str(gdb_path))
+
+    faf5_links = gpd.read_file(gdb_path, layer=args.link_layer)
+    boundary_gdf = gpd.read_file(args.boundary) if args.boundary else None
+    states = [part.strip() for part in args.states.split(",") if part.strip()] if args.states else None
+
+    try:
+        faf5_nodes = gpd.read_file(gdb_path, layer=args.node_layer)
+        centroid_nodes_path = output_dir / "faf5_centroid_nodes.gpq"
+        if "Centroid" in faf5_nodes.columns:
+            centroids = faf5_nodes[faf5_nodes["Centroid"] == 1].copy()
+            centroids.to_parquet(centroid_nodes_path)
+            print(f"Saved {len(centroids)} centroid nodes to {centroid_nodes_path}")
+    except Exception as exc:
+        print(f"Warning: could not read/write centroid nodes: {exc}")
+
+    assignment_links = convert_faf5_links(
+        faf5_links,
+        target_crs=args.target_crs,
+        filter_centroids=not args.keep_centroids,
+        states=states,
+        boundary_gdf=boundary_gdf,
+    )
+    validate_assignment_network(assignment_links)
+
+    if states:
+        states_str = "_".join(states)
         output_filename = f"faf5_road_links_{states_str}.gpq"
-    elif BOUNDARY_FILE is not None:
+    elif args.boundary:
         output_filename = "faf5_road_links_clipped.gpq"
     else:
         output_filename = "faf5_road_links.gpq"
-    
-    output_path = OUTPUT_DIR / output_filename
-    print(f"\nSaving to: {output_path}")
-    nird_links.to_parquet(output_path)
-    print(f"✓ Saved {len(nird_links)} links")
-    
-    # Optional: Save nodes as well
-    # Note: Extract from original links to get correct connectivity
-    # (after filtering, some nodes may be disconnected)
-    nodes_output_filename = output_filename.replace('_links', '_nodes')
-    nodes_output_path = OUTPUT_DIR / nodes_output_filename
-    
-    # Create nodes from the filtered network
+
+    output_path = output_dir / output_filename
+    assignment_links.to_parquet(output_path)
+    print(f"Saved {len(assignment_links)} links to {output_path}")
+
     from shapely.geometry import Point
-    node_coords = set()
-    for geom in nird_links.geometry:
-        # Handle both LineString and MultiLineString
-        if geom.geom_type == 'MultiLineString':
-            for line in geom.geoms:
-                coords = list(line.coords)
-                if len(coords) > 0:
-                    node_coords.add((round(coords[0][0], 6), round(coords[0][1], 6)))
-                    node_coords.add((round(coords[-1][0], 6), round(coords[-1][1], 6)))
-        else:
-            coords = list(geom.coords)
-            if len(coords) > 0:
+
+    node_coords: set[tuple[float, float]] = set()
+    for geom in assignment_links.geometry:
+        lines = geom.geoms if geom.geom_type == "MultiLineString" else [geom]
+        for line in lines:
+            coords = list(line.coords)
+            if coords:
                 node_coords.add((round(coords[0][0], 6), round(coords[0][1], 6)))
                 node_coords.add((round(coords[-1][0], 6), round(coords[-1][1], 6)))
-    
-    nodes_data = [{'node_id': i, 'geometry': Point(x, y)} for i, (x, y) in enumerate(node_coords)]
-    nodes_gdf = gpd.GeoDataFrame(nodes_data, crs=TARGET_CRS)
+
+    nodes_gdf = gpd.GeoDataFrame(
+        [{"node_id": i, "geometry": Point(x, y)} for i, (x, y) in enumerate(node_coords)],
+        crs=args.target_crs,
+    )
+    nodes_output_path = output_dir / output_filename.replace("_links", "_nodes")
     nodes_gdf.to_parquet(nodes_output_path)
-    print(f"✓ Saved {len(nodes_gdf)} nodes to: {nodes_output_path}")
-    
-    print("\n" + "=" * 80)
-    print("Conversion complete!")
-    print("=" * 80)
-    
-    return nird_links
+    print(f"Saved {len(nodes_gdf)} nodes to {nodes_output_path}")
+    return 0
+
+
+# Backward-compatible aliases for legacy imports.
+convert_faf5_links_to_nird = convert_faf5_links
+validate_nird_network = validate_assignment_network
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
