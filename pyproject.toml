@@ -1,0 +1,73 @@
+[project]
+name = "resiflow"
+version = "0.1.1"
+authors = [
+    { name = "Tom Russell", email = "tom.russell@ouce.ox.ac.uk" },
+    { name = "Raghav Pant", email = "raghav.pant@ouce.ox.ac.uk" },
+    { name = "Yue Li", email = "yue.li@ouce.ox.ac.uk" },
+]
+description = "ResiFlow transport resilience framework"
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "igraph",
+    "geopandas",
+    "networkx",
+    "numpy",
+    "pandas",
+    "scipy",
+    "shapely",
+    "snkit",
+    "tqdm"
+]
+
+[project.optional-dependencies]
+dev = [
+    "black",
+    "ruff",
+    "mypy",
+    "pandas-stubs",
+    "pre-commit",
+    "pytest",
+    "pytest-cov",
+    "types-tqdm"
+]
+docs = ["sphinx", "m2r2"]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[project.urls]
+"Homepage" = "https://github.com/AliMurtaza53/ResiFlow"
+"Bug Tracker" = "https://github.com/AliMurtaza53/ResiFlow/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+src = ["src"]
+line-length = 120
+
+[tool.mypy]
+exclude = ['venv', '.venv', 'build', 'docs', 'scripts', 'tests', 'code_copies']
+
+[[tool.mypy.overrides]]
+module = [
+    "geopandas",
+    "igraph",
+    "networkx",
+    "scipy.*",
+    "shapely.*",
+    "skmob.*",
+    "snkit"
+]
+ignore_missing_imports = true
