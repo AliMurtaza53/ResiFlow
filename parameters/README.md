@@ -12,9 +12,10 @@ Copy these files into that folder to apply them in production runs.
 - `assignment_profiles.json` — canonical tier-keyed profiles:
   - `flow_cap_plph`, `flow_breakpoint`, `free_flow_speed`, `urban_speed_cap`,
     `min_speed_cap`, `congestion_factor`
-- Legacy per-file JSONs (`flow_cap_plph_dict.json`, etc.) remain supported;
-  keys `M` / `A_dual` / `A_single` / `B` are coerced to assignment tiers via
-  `resiflow.networks.profiles.coerce_profile_dict`.
+- Older data bundles may still ship per-profile JSON files (`flow_cap_plph_dict.json`,
+  etc.) with UK-style keys (`M` / `A_dual` / `A_single` / `B`). When
+  `assignment_profiles.json` is absent, `load_assignment_profiles()` reads those
+  files and coerces keys to assignment tiers via `coerce_profile_dict`.
 
 Assignment tiers: `freeway`, `arterial`, `collector`, `local_access`.
 

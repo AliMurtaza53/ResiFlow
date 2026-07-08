@@ -190,10 +190,6 @@ def copy_parameters(toy_data_dir: Path, *, flow_cap_plph: int = 1) -> None:
         "network_mapping.faf5.json",
         "network_mapping.osm.json",
         "network_mapping.tntp.json",
-        "flow_breakpoint_dict.json",
-        "free_flow_speed_dict.json",
-        "min_speed_cap.json",
-        "urban_speed_cap.json",
     ):
         shutil.copy2(PARAMETERS_SRC / name, dest / name)
     cap_value = int(flow_cap_plph)
@@ -203,22 +199,10 @@ def copy_parameters(toy_data_dir: Path, *, flow_cap_plph: int = 1) -> None:
         "collector": cap_value,
         "local_access": cap_value,
     }
-    (dest / "flow_cap_plph_dict.json").write_text(
-        json.dumps(
-            {
-                "M": cap_value,
-                "A_dual": cap_value,
-                "A_single": cap_value,
-                "B": cap_value,
-            }
-        ),
-        encoding="utf-8",
-    )
     profiles_path = dest / "assignment_profiles.json"
-    if profiles_path.exists():
-        profiles = json.loads(profiles_path.read_text(encoding="utf-8"))
-        profiles["flow_cap_plph"] = tier_caps
-        profiles_path.write_text(json.dumps(profiles, indent=2), encoding="utf-8")
+    profiles = json.loads(profiles_path.read_text(encoding="utf-8"))
+    profiles["flow_cap_plph"] = tier_caps
+    profiles_path.write_text(json.dumps(profiles, indent=2), encoding="utf-8")
 
 
 def write_recovery_table(toy_data_dir: Path) -> None:

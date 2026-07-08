@@ -39,7 +39,6 @@ Scripts read from `config.json` → `paths.soge_clusters` (also `base_path`):
   parameters/
     assignment_profiles.json                 # copy from repo parameters/
     network_mapping.faf5.json
-    flow_breakpoint_dict.json                # legacy fallbacks supported
     ...
   inputs/test_141node_50m/                   # hazard rasters (toy or production)
 ```

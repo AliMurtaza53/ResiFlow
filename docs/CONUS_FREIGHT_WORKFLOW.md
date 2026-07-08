@@ -25,11 +25,8 @@ D:\NIRD_Data\soge_clusters
     faf5_road_links.gpq
     faf5_road_nodes.gpq
   parameters\
-    flow_breakpoint_dict.json
-    flow_cap_plph_dict.json
-    free_flow_speed_dict.json
-    min_speed_cap.json
-    urban_speed_cap.json
+    assignment_profiles.json
+    network_mapping.faf5.json
   inputs\test_141node_50m\
     va_hazard_class50_141node_base.tif
     va_hazard_class50_141node_low.tif
