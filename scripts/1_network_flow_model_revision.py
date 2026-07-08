@@ -126,7 +126,9 @@ def main(
     if sample_stride > 1:
         logging.info(f"For testing, sampling every {sample_stride} flows")
         od_node_2021 = od_node_2021.iloc[::sample_stride]
-    sample_od_n = int(os.environ.get("NIRD_SAMPLE_OD_N", "0"))
+    sample_od_n = int(
+        os.environ.get("RESIFLOW_SAMPLE_OD_N", os.environ.get("NIRD_SAMPLE_OD_N", "0"))
+    )
     if sample_od_n > 0:
         logging.info(f"For testing, taking first {sample_od_n:,} OD rows")
         od_node_2021 = od_node_2021.head(sample_od_n)

@@ -3352,9 +3352,19 @@ def network_flow_model(
 
         # update remain od using DuckDB
         logging.info("Updating remain_od for iteration %s...", iter_flag)
-        assignment_table = (
-            "temp_flow_matrix" if create_full_temp_flow_matrix else "temp_od_assignment"
-        )
+        assignment_table = None
+        for candidate_table in ("temp_od_assignment", "temp_flow_matrix"):
+            try:
+                conn.execute(f"SELECT 1 FROM {candidate_table} LIMIT 1").fetchone()
+                assignment_table = candidate_table
+                break
+            except Exception:
+                continue
+        if assignment_table is None:
+            raise RuntimeError(
+                "No assignment temp table was created before remain_od update; "
+                "expected temp_od_assignment or temp_flow_matrix."
+            )
         conn.execute(
             f"""
             CREATE OR REPLACE TEMP TABLE remain_od_updated AS

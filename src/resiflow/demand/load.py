@@ -151,6 +151,42 @@ def demand_stats(
     }
 
 
+def sample_od_n_from_env() -> int:
+    """Return smoke-test OD row cap from RESIFLOW_SAMPLE_OD_N / NIRD_SAMPLE_OD_N."""
+    raw = get_env("RESIFLOW_SAMPLE_OD_N", "NIRD_SAMPLE_OD_N", "0") or "0"
+    try:
+        return max(0, int(raw))
+    except ValueError:
+        return 0
+
+
+def apply_sample_od_n(
+    od: pd.DataFrame,
+    sample_od_n: int | None = None,
+    *,
+    random_state: int = 42,
+) -> pd.DataFrame:
+    """Match Script 1 smoke sampling: cap combined OD to the first N rows."""
+    cap = sample_od_n if sample_od_n is not None else sample_od_n_from_env()
+    if cap <= 0 or len(od) <= cap:
+        return od
+    out = od.head(cap).copy()
+    if len(out) > cap:
+        out = out.sample(n=cap, random_state=random_state).reset_index(drop=True)
+    return out
+
+
+def restrict_od_to_pairs(
+    od: pd.DataFrame | None,
+    pairs: pd.DataFrame,
+) -> pd.DataFrame | None:
+    """Keep only OD rows whose origin/destination appear in ``pairs``."""
+    if od is None or od.empty:
+        return od
+    keys = pairs[["origin_node", "destination_node"]].drop_duplicates()
+    return od.merge(keys, on=["origin_node", "destination_node"], how="inner")
+
+
 def align_od_node_dtype(od: pd.DataFrame, road_links) -> pd.DataFrame:
     """Cast OD node IDs to match link endpoint dtype."""
     out = od.copy()

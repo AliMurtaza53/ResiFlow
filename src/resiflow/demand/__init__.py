@@ -15,9 +15,12 @@ from resiflow.demand.combine import (
 )
 from resiflow.demand.load import (
     align_od_node_dtype,
+    apply_sample_od_n,
     demand_spec_from_env,
     load_assignment_demand,
     resolve_freight_od_path,
+    restrict_od_to_pairs,
+    sample_od_n_from_env,
 )
 from resiflow.demand.tntp import load_tntp_trips, split_freight_passenger
 
@@ -27,6 +30,9 @@ __all__ = [
     "DemandLoadResult",
     "DemandSpec",
     "align_od_node_dtype",
+    "apply_sample_od_n",
+    "restrict_od_to_pairs",
+    "sample_od_n_from_env",
     "combine_freight_passenger_od",
     "demand_spec_from_env",
     "load_assignment_demand",

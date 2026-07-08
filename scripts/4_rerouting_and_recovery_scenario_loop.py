@@ -25,7 +25,13 @@ from collections import defaultdict
 
 import resiflow.road_revised as func
 from resiflow.combined_od import resolve_passenger_od_path
-from resiflow.demand import load_assignment_demand, demand_spec_from_env
+from resiflow.demand import (
+    load_assignment_demand,
+    demand_spec_from_env,
+    apply_sample_od_n,
+    restrict_od_to_pairs,
+    sample_od_n_from_env,
+)
 from resiflow.networks import load_assignment_profiles, normalize_network_links
 from resiflow.networks.assignment import map_tier_profile
 from resiflow.utils import get_results_variant, load_config, get_flow_on_edges
@@ -655,6 +661,19 @@ def main(
     demand_result = load_assignment_demand(base_path, demand_spec_from_env(base_path))
     passenger_od_df = demand_result.passenger_od
     freight_od_df = demand_result.freight_od
+    sample_od_n = sample_od_n_from_env()
+    if sample_od_n > 0 and demand_result.assignment_od is not None:
+        sampled_pairs = apply_sample_od_n(demand_result.assignment_od.copy(), sample_od_n)[
+            ["origin_node", "destination_node"]
+        ]
+        freight_od_df = restrict_od_to_pairs(freight_od_df, sampled_pairs)
+        passenger_od_df = restrict_od_to_pairs(passenger_od_df, sampled_pairs)
+        logging.info(
+            "Smoke OD cap=%s: restricted overlay demand to %s freight rows and %s passenger rows",
+            sample_od_n,
+            0 if freight_od_df is None else len(freight_od_df),
+            0 if passenger_od_df is None else len(passenger_od_df),
+        )
     if passenger_od_df is not None:
         logging.info("Loaded passenger assignment OD (%s rows)", len(passenger_od_df))
     if freight_od_df is not None:
@@ -672,19 +691,19 @@ def main(
         freight_candidates = base_disrupted_candidates.copy()
 
     reroute_modes: list[tuple[str, pd.DataFrame]] = [("freight", freight_candidates)]
-    if os.environ.get("NIRD_ENABLE_PASSENGER_REROUTING", "0").strip().lower() in {
+    passenger_reroute_enabled = os.environ.get(
+        "RESIFLOW_ENABLE_PASSENGER_REROUTING",
+        os.environ.get("NIRD_ENABLE_PASSENGER_REROUTING", "0"),
+    ).strip().lower() in {
         "1",
         "true",
         "yes",
-    } and passenger_od_df is not None:
+    }
+    if passenger_reroute_enabled and passenger_od_df is not None:
         reroute_modes.append(
             ("passenger", overlay_passenger_flows(base_disrupted_candidates, passenger_od_df))
         )
-    elif os.environ.get("NIRD_ENABLE_PASSENGER_REROUTING", "0").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-    }:
+    elif passenger_reroute_enabled:
         logging.warning("Passenger rerouting enabled but passenger OD not found.")
 
     out_path = (
