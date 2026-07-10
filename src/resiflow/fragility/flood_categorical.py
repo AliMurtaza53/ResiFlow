@@ -73,6 +73,28 @@ def compute_damage_level_on_flooded_roads(
             return "extensive"
         return "severe"
 
+    if fldType == "coastal":
+        # PLACEHOLDER — confirm with advisor: surge/velocity-style thresholds (cm).
+        if major:
+            if depth < 40:
+                return "no"
+            if depth < 90:
+                return "minor"
+            if depth < 180:
+                return "moderate"
+            if depth < 500:
+                return "extensive"
+            return "severe"
+        if depth < 30:
+            return "no"
+        if depth < 80:
+            return "minor"
+        if depth < 150:
+            return "moderate"
+        if depth < 400:
+            return "extensive"
+        return "severe"
+
     logging.info("Unknown flood type: %s", fldType)
     return "no"
 
@@ -115,6 +137,20 @@ def compute_damage_levels_on_flooded_roads_vectorized(
         result.loc[faf_minor_mask & (depth_cm >= 50) & (depth_cm < 200)] = "moderate"
         result.loc[faf_minor_mask & (depth_cm >= 200) & (depth_cm < 600)] = "extensive"
         result.loc[faf_minor_mask & (depth_cm >= 600)] = "severe"
+    elif fldType == "coastal":
+        # PLACEHOLDER — confirm with advisor: mirrors scalar coastal thresholds (cm).
+        faf_major_mask = faf_mask & major_faf
+        faf_minor_mask = faf_mask & ~major_faf
+        result.loc[faf_major_mask & (depth_cm < 40)] = "no"
+        result.loc[faf_major_mask & (depth_cm >= 40) & (depth_cm < 90)] = "minor"
+        result.loc[faf_major_mask & (depth_cm >= 90) & (depth_cm < 180)] = "moderate"
+        result.loc[faf_major_mask & (depth_cm >= 180) & (depth_cm < 500)] = "extensive"
+        result.loc[faf_major_mask & (depth_cm >= 500)] = "severe"
+        result.loc[faf_minor_mask & (depth_cm < 30)] = "no"
+        result.loc[faf_minor_mask & (depth_cm >= 30) & (depth_cm < 80)] = "minor"
+        result.loc[faf_minor_mask & (depth_cm >= 80) & (depth_cm < 150)] = "moderate"
+        result.loc[faf_minor_mask & (depth_cm >= 150) & (depth_cm < 400)] = "extensive"
+        result.loc[faf_minor_mask & (depth_cm >= 400)] = "severe"
     else:
         logging.info("Unknown flood type: %s", fldType)
 

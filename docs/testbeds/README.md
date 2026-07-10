@@ -1,6 +1,6 @@
 # Canonical routing disruption testbeds
 
-Three reproducible networks exercise the full NIRD pipeline (Scripts 1–4) in pytest
+Three reproducible networks exercise the full ResiFlow pipeline (Scripts 1–4) in pytest
 temporary directories. Each testbed validates hazard exposure, operational disruption,
 direct damage, and freight/passenger rerouting on a known topology.
 
@@ -9,6 +9,7 @@ direct damage, and freight/passenger rerouting on a known topology.
 | [Canonical parallel](canonical_parallel.md) | `toy_three_parallel` | 3 parallel links n1→n2 | Exact golden reroute costs onto `e_mid` |
 | [Braess](braess.md) | `toy_braess` | Classic Braess diamond | Partial-edge flood; reroute onto `e_13` |
 | [Sioux Falls](sioux_falls.md) | `toy_sioux_falls` | TNTP 24-node / 76-link network | Bridge 10–15 flood; realism-mode calibration |
+| [Multihazard Sioux Falls](multihazard_sioux_falls.md) | `toy_sioux_falls_multihazard` | Same topology + synthetic raster suite | Cross-hazard rerouting / damage panels |
 
 ## Run all testbed E2E tests
 

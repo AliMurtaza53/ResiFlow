@@ -14,9 +14,11 @@ if str(VIZ_DIR) not in sys.path:
     sys.path.insert(0, str(VIZ_DIR))
 
 from viz_data_loaders import (  # noqa: E402
+    build_multihazard_summary_table,
     build_scenario_summary_table,
     is_testbed_variant,
     list_available_flood_keys,
+    validate_multihazard_summary,
 )
 
 
@@ -69,6 +71,12 @@ def main() -> int:
         help="Comma-separated flood event IDs (default: all available)",
     )
     parser.add_argument(
+        "--multihazard",
+        action="store_true",
+        help="Summarize all registered multihazard scenarios (unique scenario_param per hazard)",
+    )
+    parser.add_argument("--event-key", type=int, default=1, help="Event id for multihazard mode")
+    parser.add_argument(
         "--csv-out",
         help="Optional path to write the summary table as CSV",
     )
@@ -76,32 +84,48 @@ def main() -> int:
 
     results_root = resolve_results_root(args.results_root)
     variant = resolve_variant(results_root, args.variant)
-    flood_keys = None
-    if args.flood_keys:
-        flood_keys = [int(part.strip()) for part in args.flood_keys.split(",") if part.strip()]
+    if args.multihazard:
+        summary = build_multihazard_summary_table(
+            results_root,
+            variant,
+            event_key=int(args.event_key),
+        )
+        try:
+            validate_multihazard_summary(summary, results_root=results_root, variant=variant)
+        except FileNotFoundError as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
+        label = f"Multihazard summary | variant={variant} | event={args.event_key}"
     else:
-        flood_keys = list_available_flood_keys(results_root, variant, args.depth_key)
+        flood_keys = None
+        if args.flood_keys:
+            flood_keys = [int(part.strip()) for part in args.flood_keys.split(",") if part.strip()]
+        else:
+            flood_keys = list_available_flood_keys(results_root, variant, args.depth_key)
 
-    summary = build_scenario_summary_table(
-        results_root,
-        variant,
-        args.depth_key,
-        flood_keys=flood_keys or None,
-    )
+        summary = build_scenario_summary_table(
+            results_root,
+            variant,
+            args.depth_key,
+            flood_keys=flood_keys or None,
+        )
+        label = f"Scenario QA summary | variant={variant} | depth={args.depth_key}"
     if summary.empty:
         print(
             f"No scenario outputs found under {results_root} "
-            f"(variant={variant}, depth={args.depth_key})."
+            f"(variant={variant})."
         )
         return 1
 
     testbed = is_testbed_variant(variant)
     unit_hint = "KUSD (testbed)" if testbed else "MUSD (production-scale)"
-    print(f"Scenario QA summary | variant={variant} | depth={args.depth_key} | units={unit_hint}")
+    print(label + f" | units={unit_hint}")
     print(f"Results root: {results_root}")
     print("")
 
     display_cols = [
+        "hazard_label",
+        "scenario_param",
         "flood_key",
         "link_count",
         "flooded_links",

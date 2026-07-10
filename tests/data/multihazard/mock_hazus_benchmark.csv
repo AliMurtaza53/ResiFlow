@@ -1,0 +1,7 @@
+event_id,hazard_type,direct_damage_usd_mock,notes
+1,flood_surface,1250.0,FAKE benchmark fixture — not real HAZUS output
+1,flood_river,980.0,FAKE benchmark fixture
+1,flood_coastal,1100.0,FAKE benchmark fixture
+1,earthquake,850.0,FAKE benchmark fixture
+1,landslide,720.0,FAKE benchmark fixture
+1,winter_storm,640.0,FAKE benchmark fixture

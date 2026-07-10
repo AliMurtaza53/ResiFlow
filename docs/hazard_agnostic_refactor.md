@@ -29,8 +29,8 @@ via `apply_legacy_flood_columns()`.
 ## Frozen downstream paths
 
 ```text
-results/disruption_analysis/<variant>/<depth_key>/links/road_links_<event>.gpq
-results/damage_analysis/<variant>/intersections_<event>_with_damage_values.csv
+results/disruption_analysis/<variant>/<scenario_param>/links/road_links_<event>.gpq
+results/damage_analysis/<variant>/<scenario_param>/intersections_<event>_with_damage_values.csv
 ```
 
 ## Package layout (ResiFlow)

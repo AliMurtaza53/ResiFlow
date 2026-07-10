@@ -28,6 +28,7 @@ def test_parse_hazard_config_defaults() -> None:
     assert cfg["hazard_type"] == "flood"
     assert cfg["event_id"] == "2"
     assert cfg["scenario_param"] == 30
+    assert cfg["closure_threshold"] == 30
     assert cfg["source"] == "synthetic:bridge_interior"
 
 

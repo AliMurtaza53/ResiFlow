@@ -75,10 +75,16 @@ class CategoricalFragility(Protocol):
 
 def parse_hazard_config(entry: dict[str, Any]) -> dict[str, Any]:
     """Normalize a hazards.json event entry."""
+    scenario_param = int(entry.get("scenario_param", entry.get("depth_key", 30)))
+    closure = entry.get("closure_threshold")
+    if closure is None:
+        closure = entry.get("depth_key") or entry.get("snow_key_mm") or entry.get("ice_key_mm")
     return {
         "hazard_type": str(entry.get("hazard_type", "flood")),
         "event_id": str(entry.get("event_id", "1")),
-        "scenario_param": int(entry.get("scenario_param", entry.get("depth_key", 30))),
+        "scenario_param": scenario_param,
+        "closure_threshold": int(closure) if closure is not None else scenario_param,
+        "hazard_subtype": entry.get("hazard_subtype") or entry.get("flood_subtype"),
         "source": str(entry.get("source", "raster")),
     }
 

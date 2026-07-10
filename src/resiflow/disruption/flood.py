@@ -97,6 +97,11 @@ def intersections_with_damage(
         intersections["road_label"] if "road_label" in intersections.columns else pd.Series("", index=intersections.index),
         intersections[f"flood_depth_{flood_type}"],
     )
+    if flood_type == "coastal":
+        intersections["flood_depth_surface"] = intersections["flood_depth_coastal"]
+        intersections["damage_level_surface"] = intersections["damage_level_coastal"]
+        intersections["flood_depth_river"] = 0.0
+        intersections["damage_level_river"] = "no"
     if flood_type == "flood":
         # Keep a clear generic flood label in Script 2 outputs while mirroring to
         # river_* for Script 3/4, which still consume the historical schema.
@@ -141,6 +146,8 @@ def features_with_damage(
         intersections["flood_depth_max"] = intersections.flood_depth_flood
     elif "flood_depth_river" in intersections.columns:
         intersections["flood_depth_max"] = intersections.flood_depth_river
+    elif "flood_depth_coastal" in intersections.columns:
+        intersections["flood_depth_max"] = intersections.flood_depth_coastal
     else:
         logging.info("Error: flood depth columns are missing!")
         sys.exit()
@@ -174,8 +181,14 @@ def features_with_damage(
             damage_level_dict
         )
         intersections["damage_level_max"] = intersections.damage_level_river
+    elif "damage_level_coastal" in intersections.columns:
+        intersections["damage_level_coastal"] = intersections["damage_level_coastal"].map(
+            damage_level_dict
+        )
+        intersections["damage_level_max"] = intersections.damage_level_coastal
     else:
         logging.info("Error: damage level columns are missing!")
+        intersections["damage_level_max"] = damage_level_dict["no"]
 
     intersections_gp = intersections.groupby("e_id", as_index=False).agg(
         {
