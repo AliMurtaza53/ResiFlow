@@ -1,12 +1,16 @@
-"""Script 2: intersection analysis for road links and flood rasters.
+"""Script 2: intersection analysis for road links and hazard rasters.
 
-`depth_key` controls how flood depth is translated into disruption:
+``scenario_param`` (CLI arg 1) is the unique output-path key under
+``disruption_analysis/<variant>/<scenario_param>/``. Operational fragility
+thresholds (flood depth cm, snow mm, etc.) are resolved from ``hazards.json``,
+``RESIFLOW_SCENARIO_PARAM``, or env hazard type — and may differ from
+``scenario_param`` for multihazard comparison runs.
 
-- depths below `depth_key` keep a positive speed, reduced by a quadratic penalty
-- depths at or above `depth_key` reduce speed to zero
+Legacy single-hazard runs: when no manifest matches, ``scenario_param`` also
+serves as the closure threshold (e.g. ``30`` cm flood depth).
 
-`event_key` selects the hazard scenario variant (1=base, 2=low, 3=high).
-Use `all` or a comma-separated list such as `2,3` to process multiple toy
+``event_key`` selects the hazard scenario variant (1=base, 2=low, 3=high).
+Use ``all`` or a comma-separated list such as ``2,3`` to process multiple toy
 events in one process.
 """
 
@@ -58,9 +62,9 @@ __all__ = [
 ]
 
 
-def main(depth_key: int, event_key: str) -> None:
+def main(scenario_param: int, event_key: str) -> None:
     """Thin wrapper around hazard-agnostic disruption (flood default, snow via RESIFLOW_HAZARD_TYPE)."""
-    run_disruption(depth_key, event_key)
+    run_disruption(scenario_param, event_key)
 
 
 if __name__ == "__main__":
@@ -75,8 +79,8 @@ if __name__ == "__main__":
     try:
         depth_key = sys.argv[1]
         event_key = sys.argv[2]
-        print(f"CLI Args: depth_key={depth_key}, event_key={event_key}")
-        logging.info(f"Script 2 starting with depth_key={depth_key}, event_key={event_key}")
+        print(f"CLI Args: scenario_param={depth_key}, event_key={event_key}")
+        logging.info(f"Script 2 starting with scenario_param={depth_key}, event_key={event_key}")
         main(int(depth_key), str(event_key))
         elapsed = time.time() - start_time
         print("=" * 60)

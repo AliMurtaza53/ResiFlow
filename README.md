@@ -1,6 +1,31 @@
 # ResiFlow
 
-Hazard-agnostic transport resilience framework (forked from [DAFNI-NIRD](https://github.com/nismod/DAFNI-NIRD)). Models baseline network assignment, hazard exposure, operational disruption, direct damage, and freight/passenger rerouting.
+Hazard-agnostic transport resilience framework derived from [DAFNI-NIRD](https://github.com/nismod/DAFNI-NIRD). ResiFlow keeps the four-script NIRD workflow (baseline assignment → hazard disruption → direct damage → rerouting/recovery) but refactors disruption around a shared link contract, adds freight + passenger OD, and ships pytest testbeds that run without a CONUS data bundle.
+
+**For reviewers coming from NIRD:** start with [`docs/PIPELINE_OVERVIEW.md`](docs/PIPELINE_OVERVIEW.md) (script flow and outputs), then [`docs/hazard_agnostic_refactor.md`](docs/hazard_agnostic_refactor.md) (what changed and why). Run the testbed suite below — no `config.json` or FAF5 inputs required.
+
+| Branch | Purpose |
+|--------|---------|
+| [`main`](https://github.com/AliMurtaza53/ResiFlow/tree/main) | Stable refactor: hazard-agnostic disruption, Sioux Falls / toy testbeds, CONUS smoke tooling |
+| [`feature/sioux-falls-multihazard`](https://github.com/AliMurtaza53/ResiFlow/tree/feature/sioux-falls-multihazard) | WIP: multihazard Sioux Falls testbed, unique scenario keys, cost-comparison panels (not merged to `main`) |
+
+## Quick start (reviewers)
+
+```powershell
+git clone https://github.com/AliMurtaza53/ResiFlow.git
+cd ResiFlow
+conda env create -f environment.yml   # or: pip install -e ".[dev]" && pip install nismod-snail
+conda activate resiflow
+pytest tests/test_toy_pipeline_disruptions.py tests/test_sioux_falls_pipeline_disruptions.py tests/test_scenario_registry.py -v --basetemp .pytest-tmp
+```
+
+Full testbed E2E (includes ~5 min multihazard on the feature branch):
+
+```powershell
+pytest tests/test_toy_pipeline_disruptions.py tests/test_sioux_falls_pipeline_disruptions.py -v --basetemp .pytest-tmp
+# feature branch only:
+pytest tests/test_multihazard_pipeline_sioux_falls.py -v --basetemp .pytest-tmp
+```
 
 ## Install
 
@@ -71,9 +96,17 @@ python scripts/4_rerouting_and_recovery_scenario_loop.py 30 1 1 1
 
 **Snow disruption:** `RESIFLOW_HAZARD_TYPE=snow` and pass snow depth (mm) as Script 2's first argument.
 
-**CONUS freight workflow:** [`docs/CONUS_FREIGHT_WORKFLOW.md`](docs/CONUS_FREIGHT_WORKFLOW.md)  
-**LODES passenger:** [`docs/lodes_passenger_module.md`](docs/lodes_passenger_module.md)  
-**FAF5 OD build:** [`docs/FREIGHT_OD_DISAGGREGATION.md`](docs/FREIGHT_OD_DISAGGREGATION.md)
+## Documentation map
+
+| Doc | Audience |
+|-----|----------|
+| [`docs/PIPELINE_OVERVIEW.md`](docs/PIPELINE_OVERVIEW.md) | Script-by-script flow, inputs/outputs |
+| [`docs/hazard_agnostic_refactor.md`](docs/hazard_agnostic_refactor.md) | Disruption refactor design |
+| [`docs/testbeds/README.md`](docs/testbeds/README.md) | Toy / Sioux Falls pytest testbeds |
+| [`docs/CONUS_FREIGHT_WORKFLOW.md`](docs/CONUS_FREIGHT_WORKFLOW.md) | Full CONUS data bundle + launcher |
+| [`docs/PERFORMANCE_CONUS.md`](docs/PERFORMANCE_CONUS.md) | CONUS runtime bottlenecks and mitigations |
+| [`docs/lodes_passenger_module.md`](docs/lodes_passenger_module.md) | LODES passenger OD |
+| [`docs/FREIGHT_OD_DISAGGREGATION.md`](docs/FREIGHT_OD_DISAGGREGATION.md) | FAF5 freight OD build |
 
 Summarize a completed run:
 
@@ -93,6 +126,7 @@ pytest tests/ -v --basetemp .pytest-tmp
 |---------|------|
 | Three-parallel, Braess, Sioux Falls | [`docs/testbeds/README.md`](docs/testbeds/README.md) |
 | TNTP adapter + UE benchmark | [`docs/testbeds/tntp_adapter.md`](docs/testbeds/tntp_adapter.md) |
+| Multihazard Sioux Falls (feature branch) | [`docs/testbeds/multihazard_sioux_falls.md`](docs/testbeds/multihazard_sioux_falls.md) |
 
 Compare BPR user equilibrium vs ResiFlow cap-constrained assignment (Sioux Falls):
 
@@ -106,7 +140,7 @@ python scripts/compare_ue_capconstrained.py --testbed sioux_falls
 |--------|------|
 | `resiflow.networks` | Link normalization, FAF5/OSM/TNTP adapters, assignment tiers |
 | `resiflow.demand` | Freight + passenger OD loading and merge |
-| `resiflow.hazards` | Hazard-agnostic event sources |
+| `resiflow.hazards` | Hazard-agnostic event sources + scenario registry (feature branch) |
 | `resiflow.disruption` | Operational disruption pipeline |
 | `resiflow.assignment` | BPR UE benchmark (TNTP testbeds) |
 | `resiflow.testbeds` | Registered TNTP / toy testbed JSON specs |
@@ -119,7 +153,7 @@ pytest tests/ -v --basetemp .pytest-tmp
 ruff check src tests
 ```
 
-Do not commit `config.json`, `.env`, local databases, or `.pytest-tmp/` (see `.gitignore`).
+Do not commit `config.json`, `.env`, local databases, `results/`, or `.pytest-tmp/` (see `.gitignore`).
 
 ## Attribution
 

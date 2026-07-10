@@ -428,8 +428,14 @@ def disruption_dir(tmp_path: Path, env: dict[str, str], depth_key: int = 30) -> 
     return tmp_path / "results" / "disruption_analysis" / results_variant(env) / str(depth_key)
 
 
-def damage_dir(tmp_path: Path, env: dict[str, str]) -> Path:
-    return tmp_path / "results" / "damage_analysis" / results_variant(env)
+def damage_dir(tmp_path: Path, env: dict[str, str], scenario_param: int = 30) -> Path:
+    return (
+        tmp_path
+        / "results"
+        / "damage_analysis"
+        / results_variant(env)
+        / str(scenario_param)
+    )
 
 
 def reroute_dir(tmp_path: Path, env: dict[str, str], depth_key: int = 30, event_key: int = 1) -> Path:

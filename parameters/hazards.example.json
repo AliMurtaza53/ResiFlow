@@ -2,15 +2,63 @@
   "events": [
     {
       "hazard_type": "flood",
+      "hazard_subtype": "flood_surface",
       "event_id": "1",
-      "scenario_param": 30,
+      "scenario_param": 301,
+      "closure_threshold": 30,
+      "source": "raster"
+    },
+    {
+      "hazard_type": "flood",
+      "hazard_subtype": "flood_river",
+      "event_id": "1",
+      "scenario_param": 302,
+      "closure_threshold": 30,
+      "source": "raster"
+    },
+    {
+      "hazard_type": "flood",
+      "hazard_subtype": "flood_coastal",
+      "event_id": "1",
+      "scenario_param": 303,
+      "closure_threshold": 30,
+      "source": "raster"
+    },
+    {
+      "hazard_type": "earthquake",
+      "event_id": "1",
+      "scenario_param": 401,
+      "closure_threshold": 25,
+      "source": "raster"
+    },
+    {
+      "hazard_type": "landslide",
+      "event_id": "1",
+      "scenario_param": 501,
+      "closure_threshold": 100,
+      "source": "raster"
+    },
+    {
+      "hazard_type": "winter_storm",
+      "event_id": "1",
+      "scenario_param": 601,
+      "closure_threshold": 100,
       "source": "raster"
     },
     {
       "hazard_type": "snow",
       "event_id": "1",
-      "scenario_param": 150,
+      "scenario_param": 701,
+      "closure_threshold": 150,
       "source": "synthetic:snow_band"
+    },
+    {
+      "hazard_type": "flood",
+      "event_id": "1",
+      "scenario_param": 30,
+      "closure_threshold": 30,
+      "source": "raster",
+      "label": "flood_legacy"
     }
   ],
   "synthetic": {

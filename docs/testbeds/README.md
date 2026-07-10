@@ -1,6 +1,6 @@
 # Canonical routing disruption testbeds
 
-Three reproducible networks exercise the full NIRD pipeline (Scripts 1–4) in pytest
+Three reproducible networks exercise the full ResiFlow pipeline (Scripts 1–4) in pytest
 temporary directories. Each testbed validates hazard exposure, operational disruption,
 direct damage, and freight/passenger rerouting on a known topology.
 

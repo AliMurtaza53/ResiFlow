@@ -240,6 +240,63 @@ def _isolation_metrics(reroute_dir: Path, scenario_id: int = 1) -> dict[str, flo
     return out
 
 
+def _scenario_artifact_paths(
+    results_root: Path,
+    *,
+    variant: str,
+    depth_key: int,
+    flood_key: int,
+) -> dict[str, Path]:
+    """Canonical pipeline artifacts for one scenario (unique scenario_param paths)."""
+    disruption_links = (
+        results_root
+        / "disruption_analysis"
+        / variant
+        / str(depth_key)
+        / "links"
+        / f"road_links_{flood_key}.gpq"
+    )
+    damage_primary = (
+        results_root
+        / "damage_analysis"
+        / variant
+        / str(depth_key)
+        / f"intersections_{flood_key}_with_damage_values.csv"
+    )
+    damage_legacy = (
+        results_root
+        / "damage_analysis"
+        / variant
+        / f"intersections_{flood_key}_with_damage_values.csv"
+    )
+    reroute_dir = results_root / "rerouting_analysis" / variant / str(depth_key) / str(flood_key)
+    return {
+        "disruption_links": disruption_links,
+        "damage_csv": damage_primary if damage_primary.exists() else damage_legacy,
+        "freight_cost": reroute_dir / "cost_matrix_by_scenario.csv",
+        "passenger_cost": reroute_dir / "cost_matrix_passenger_by_scenario.csv",
+    }
+
+
+def scenario_outputs_present(
+    results_root: Path,
+    *,
+    variant: str,
+    depth_key: int,
+    flood_key: int,
+) -> tuple[bool, list[str]]:
+    """True when disruption links or reroute cost matrices exist on disk."""
+    paths = _scenario_artifact_paths(
+        results_root,
+        variant=variant,
+        depth_key=depth_key,
+        flood_key=flood_key,
+    )
+    missing = [name for name, path in paths.items() if not path.exists()]
+    has_data = paths["disruption_links"].exists() or paths["freight_cost"].exists()
+    return has_data, missing
+
+
 def summarize_single_scenario(
     results_root: Path,
     *,
@@ -250,20 +307,23 @@ def summarize_single_scenario(
     recovery_day: int = 1,
 ) -> dict[str, float | int | str]:
     """Collect headline QA metrics for one hazard scenario."""
-    disruption_links_path = (
-        results_root
-        / "disruption_analysis"
-        / variant
-        / str(depth_key)
-        / "links"
-        / f"road_links_{flood_key}.gpq"
+    artifacts = _scenario_artifact_paths(
+        results_root,
+        variant=variant,
+        depth_key=depth_key,
+        flood_key=flood_key,
     )
-    damage_path = results_root / "damage_analysis" / variant / f"intersections_{flood_key}_with_damage_values.csv"
-    reroute_dir = (
-        results_root / "rerouting_analysis" / variant / str(depth_key) / str(flood_key)
+    has_data, missing = scenario_outputs_present(
+        results_root,
+        variant=variant,
+        depth_key=depth_key,
+        flood_key=flood_key,
     )
-    freight_cost_path = reroute_dir / "cost_matrix_by_scenario.csv"
-    passenger_cost_path = reroute_dir / "cost_matrix_passenger_by_scenario.csv"
+    disruption_links_path = artifacts["disruption_links"]
+    damage_path = artifacts["damage_csv"]
+    freight_cost_path = artifacts["freight_cost"]
+    passenger_cost_path = artifacts["passenger_cost"]
+    reroute_dir = freight_cost_path.parent
 
     links = pd.read_parquet(disruption_links_path) if disruption_links_path.exists() else pd.DataFrame()
     damage_df = pd.read_csv(damage_path) if damage_path.exists() else pd.DataFrame()
@@ -326,6 +386,8 @@ def summarize_single_scenario(
         "combined_total_usd": combined_total,
         "passenger_flooded_edge_flow": flooded_flow_delta,
         **isolation,
+        "data_present": has_data,
+        "missing_outputs": ",".join(missing),
     }
     row["direct_damage_display"] = format_cost(direct_damage_usd, variant=variant)
     row["rerouting_cost_freight_display"] = format_cost(rerouting_freight, variant=variant)
@@ -344,6 +406,18 @@ def list_available_flood_keys(results_root: Path, variant: str, depth_key: int) 
         if tail.isdigit():
             flood_ids.append(int(tail))
     return sorted(set(flood_ids))
+
+
+def list_available_scenario_params(results_root: Path, variant: str) -> list[int]:
+    """List scenario_param folders under disruption_analysis for a variant."""
+    disrupt_root = results_root / "disruption_analysis" / variant
+    if not disrupt_root.exists():
+        return []
+    params: list[int] = []
+    for path in disrupt_root.iterdir():
+        if path.is_dir() and path.name.isdigit():
+            params.append(int(path.name))
+    return sorted(params)
 
 
 def build_scenario_summary_table(
@@ -366,6 +440,169 @@ def build_scenario_summary_table(
         for flood_key in keys
     ]
     return pd.DataFrame(rows)
+
+
+MULTIHAZARD_PANEL_ORDER: tuple[tuple[str, str | None, str], ...] = (
+    ("flood", "flood_surface", "Flood surface"),
+    ("flood", "flood_river", "Flood river"),
+    ("flood", "flood_coastal", "Flood coastal"),
+    ("earthquake", None, "Earthquake"),
+    ("landslide", None, "Landslide"),
+    ("winter_storm", None, "Winter storm"),
+)
+
+
+def build_multihazard_summary_table(
+    results_root: Path,
+    variant: str,
+    *,
+    event_key: int = 1,
+    scenario_specs: tuple[tuple[str, str | None, str], ...] | None = None,
+) -> pd.DataFrame:
+    """One row per registered multihazard scenario (unique scenario_param paths)."""
+    from resiflow.hazards.scenario_registry import HazardScenario, lookup_scenario_by_env
+
+    specs = scenario_specs or MULTIHAZARD_PANEL_ORDER
+    rows: list[dict[str, float | int | str]] = []
+    env_backup = {
+        "RESIFLOW_HAZARD_TYPE": os.environ.get("RESIFLOW_HAZARD_TYPE"),
+        "RESIFLOW_FLOOD_SUBTYPE": os.environ.get("RESIFLOW_FLOOD_SUBTYPE"),
+    }
+    try:
+        for hazard_type, flood_subtype, label in specs:
+            if hazard_type == "snow":
+                os.environ["RESIFLOW_HAZARD_TYPE"] = "snow"
+                os.environ.pop("RESIFLOW_FLOOD_SUBTYPE", None)
+            elif hazard_type == "flood":
+                os.environ.pop("RESIFLOW_HAZARD_TYPE", None)
+                if flood_subtype:
+                    os.environ["RESIFLOW_FLOOD_SUBTYPE"] = flood_subtype
+                else:
+                    os.environ.pop("RESIFLOW_FLOOD_SUBTYPE", None)
+            else:
+                os.environ["RESIFLOW_HAZARD_TYPE"] = hazard_type
+                os.environ.pop("RESIFLOW_FLOOD_SUBTYPE", None)
+
+            scenario: HazardScenario | None = lookup_scenario_by_env()
+            if scenario is None:
+                continue
+            row = summarize_single_scenario(
+                results_root,
+                variant=variant,
+                depth_key=int(scenario.scenario_param),
+                flood_key=int(event_key),
+            )
+            row["hazard_type"] = hazard_type
+            row["hazard_subtype"] = flood_subtype or ""
+            row["hazard_label"] = label
+            row["scenario_param"] = int(scenario.scenario_param)
+            row["panel_row"] = "floods" if hazard_type == "flood" else "other"
+            rows.append(row)
+    finally:
+        for key, value in env_backup.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
+
+    if not rows:
+        return pd.DataFrame()
+    return pd.DataFrame(rows)
+
+
+def validate_multihazard_summary(
+    summary: pd.DataFrame,
+    *,
+    results_root: Path,
+    variant: str,
+) -> int:
+    """Return count of scenarios with on-disk outputs; raise if none found."""
+    if summary.empty:
+        raise FileNotFoundError(
+            f"No multihazard scenarios resolved for variant={variant} under {results_root}."
+        )
+    if "data_present" not in summary.columns:
+        return len(summary)
+
+    present = int(summary["data_present"].fillna(False).astype(bool).sum())
+    if present == 0:
+        raise FileNotFoundError(
+            f"No pipeline outputs found under {results_root} for variant={variant}.\n"
+            "Generate them first:\n"
+            "  python scripts/testbed/run_multihazard_sioux_falls.py\n"
+            "(default output: results/multihazard_panel/)\n"
+            "Avoid storing panel results under .pytest-tmp/ — pytest deletes that folder "
+            "when run with --basetemp .pytest-tmp."
+        )
+
+    missing_labels = summary.loc[~summary["data_present"].fillna(False), "hazard_label"].tolist()
+    if missing_labels:
+        import warnings
+
+        warnings.warn(
+            f"Partial multihazard outputs: missing data for {missing_labels}. "
+            "Re-run run_multihazard_sioux_falls.py or check scenario_param folders.",
+            stacklevel=2,
+        )
+    return present
+
+
+def plot_multihazard_cost_panels(
+    summary: pd.DataFrame,
+    *,
+    variant: str | None = None,
+):
+    """Two-row cluster chart: floods (top), other hazards (bottom).
+
+    Each hazard cluster has a direct bar and a stacked indirect bar
+    (freight + passenger rerouting costs).
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    if summary.empty:
+        raise ValueError("multihazard summary is empty")
+
+    resolved_variant = variant or (
+        str(summary["variant"].iloc[0]) if "variant" in summary.columns else ""
+    )
+    floods = summary.loc[summary["panel_row"] == "floods"].reset_index(drop=True)
+    other = summary.loc[summary["panel_row"] == "other"].reset_index(drop=True)
+
+    fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharey=True)
+
+    def _draw_row(ax, subdf: pd.DataFrame, title: str) -> None:
+        if subdf.empty:
+            ax.set_visible(False)
+            return
+        labels = subdf["hazard_label"].astype(str).tolist()
+        x = np.arange(len(labels))
+        bar_w = 0.35
+        direct = pd.to_numeric(subdf["direct_damage_usd"], errors="coerce").fillna(0.0)
+        freight = pd.to_numeric(subdf["rerouting_cost_freight_usd"], errors="coerce").fillna(0.0)
+        passenger = pd.to_numeric(subdf["rerouting_cost_passenger_usd"], errors="coerce").fillna(0.0)
+        ax.bar(x - bar_w / 2, direct, bar_w, label="Direct", color="#54a24b")
+        ax.bar(x + bar_w / 2, freight, bar_w, label="Indirect (freight)", color="#f58518")
+        ax.bar(
+            x + bar_w / 2,
+            passenger,
+            bar_w,
+            bottom=freight,
+            label="Indirect (passenger)",
+            color="#4c78a8",
+        )
+        ax.set_xticks(x)
+        ax.set_xticklabels(labels, rotation=12, ha="right")
+        ax.set_title(title)
+        ax.set_ylabel("USD")
+        ax.legend(loc="upper right", fontsize=8)
+
+    _draw_row(axes[0], floods, "Flood subtypes")
+    _draw_row(axes[1], other, "Other hazards")
+    unit_hint = "KUSD-scale testbed" if is_testbed_variant(resolved_variant) else "USD"
+    fig.suptitle(f"Direct vs indirect costs by hazard ({unit_hint})", fontsize=13)
+    fig.tight_layout()
+    return fig, axes
 
 
 def resolve_county_od_path(input_root: Path) -> Path | None:

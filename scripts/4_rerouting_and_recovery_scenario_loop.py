@@ -376,7 +376,11 @@ def load_scenarios(base_path: Path) -> Tuple[Dict, Dict]:
     return (bridge_recovery_dict, road_recovery_dict, scenarios, conditions)
 
 
-def load_event_damage_from_script3(base_path: Path, flood_key: int) -> Tuple[pd.DataFrame, float]:
+def load_event_damage_from_script3(
+    base_path: Path,
+    scenario_param: int | str,
+    event_key: int | str,
+) -> Tuple[pd.DataFrame, float]:
     """Load script-3 event damage CSV and aggregate per-edge damage level.
 
     Returns
@@ -385,15 +389,32 @@ def load_event_damage_from_script3(base_path: Path, flood_key: int) -> Tuple[pd.
         - DataFrame with columns ["e_id", "damage_level_max", "road_label"]
         - total direct damage (sum of all *_damage_value_mean columns)
     """
+    variant = get_results_variant()
+    event_stem = f"intersections_{event_key}"
     damage_csv = (
         base_path.parent
         / "results"
         / "damage_analysis"
-        / get_results_variant()
-        / f"intersections_{flood_key}_with_damage_values.csv"
+        / variant
+        / str(scenario_param)
+        / f"{event_stem}_with_damage_values.csv"
+    )
+    legacy_damage_csv = (
+        base_path.parent
+        / "results"
+        / "damage_analysis"
+        / variant
+        / f"{event_stem}_with_damage_values.csv"
     )
     if not damage_csv.exists():
-        logging.warning(f"Script-3 damage output not found for event {flood_key}: {damage_csv}")
+        damage_csv = legacy_damage_csv
+    if not damage_csv.exists():
+        logging.warning(
+            "Script-3 damage output not found for scenario=%s event=%s: %s",
+            scenario_param,
+            event_key,
+            damage_csv,
+        )
         return pd.DataFrame(columns=["e_id", "damage_level_max", "road_label"]), 0.0
 
     damage_df = pd.read_csv(damage_csv, low_memory=False)
@@ -437,8 +458,11 @@ def load_event_damage_from_script3(base_path: Path, flood_key: int) -> Tuple[pd.
     damage_by_edge = damage_by_edge[["e_id", "damage_level_max", "road_label"]]
 
     logging.info(
-        f"Loaded script-3 damages for event {flood_key}: edges={len(damage_by_edge)}, "
-        f"direct_damage_total={direct_damage_total:.2f}"
+        "Loaded script-3 damages for scenario=%s event=%s: edges=%s, direct_damage_total=%.2f",
+        scenario_param,
+        event_key,
+        len(damage_by_edge),
+        direct_damage_total,
     )
     return damage_by_edge, direct_damage_total
 
@@ -569,7 +593,9 @@ def main(
         road_links = normalize_network_links(road_links, params_root=str(params_root))
 
     # Wire to script-3 outputs (direct damage table by event)
-    damage_by_edge, direct_damage_total = load_event_damage_from_script3(base_path, flood_key)
+    damage_by_edge, direct_damage_total = load_event_damage_from_script3(
+        base_path, depth_key, flood_key
+    )
     direct_damage_total_musd = direct_damage_total / 1_000_000.0
     if len(damage_by_edge) > 0:
         if "damage_level_max" in road_links.columns:

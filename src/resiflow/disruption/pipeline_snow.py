@@ -44,7 +44,14 @@ def _load_base_scenario_links(base_path: Path) -> gpd.GeoDataFrame:
     return base_scenario_links.loc[:, ~base_scenario_links.columns.duplicated()]
 
 
-def run_snow_disruption(snow_key_mm, event_key, *, base_path=None, hazard_source=None) -> None:
+def run_snow_disruption(
+    scenario_param,
+    event_key,
+    *,
+    closure_threshold: int | None = None,
+    base_path=None,
+    hazard_source=None,
+) -> None:
     """Run snow disruption analysis; outputs use legacy Script 3/4 paths."""
     if base_path is None:
         base_path = Path(load_config()["paths"]["soge_clusters"])
@@ -53,7 +60,14 @@ def run_snow_disruption(snow_key_mm, event_key, *, base_path=None, hazard_source
         hazard_source = SnowHazardSource(base_path)
 
     event_key = str(event_key).strip()
-    logging.info("[SNOW START] snow_key_mm=%s, event_key=%s", snow_key_mm, event_key)
+    snow_key_mm = int(closure_threshold if closure_threshold is not None else scenario_param)
+    path_key = int(scenario_param)
+    logging.info(
+        "[SNOW START] scenario_param=%s closure_threshold=%s mm, event_key=%s",
+        path_key,
+        snow_key_mm,
+        event_key,
+    )
 
     base_scenario_links = _load_base_scenario_links(base_path)
     analysis_boundary = load_analysis_boundary(base_path)
@@ -79,7 +93,7 @@ def run_snow_disruption(snow_key_mm, event_key, *, base_path=None, hazard_source
             / "results"
             / "disruption_analysis"
             / get_results_variant()
-            / str(snow_key_mm)
+            / str(path_key)
         )
         road_links = gpd.read_parquet(road_links_path)
         intersections = gpd.GeoDataFrame(columns=["e_id", "length", "index_i", "index_j"])
@@ -137,14 +151,20 @@ def run_snow_disruption(snow_key_mm, event_key, *, base_path=None, hazard_source
             intersections,
             base_scenario_links,
             hazard_event=hazard_event,
-            snow_key_mm=int(snow_key_mm),
+            scenario_param=path_key,
+            closure_threshold=snow_key_mm,
         )
         (out_path / "links").mkdir(parents=True, exist_ok=True)
         links_path = out_path / "links" / f"road_links_{snow_event_id}.gpq"
         road_links.to_parquet(links_path)
         validate_output(links_path, road_links, "road_links")
         log_summary("road_links", road_links)
-        logging.info("[SNOW COMPLETE] event_key=%s snow_key_mm=%s", event_key, snow_key_mm)
+        logging.info(
+            "[SNOW COMPLETE] event_key=%s scenario_param=%s closure_threshold=%s",
+            event_key,
+            path_key,
+            snow_key_mm,
+        )
 
     if not processed_event:
         logging.warning(

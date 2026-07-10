@@ -47,6 +47,7 @@ def run_intensity_disruption(
     scenario_key: int,
     event_key: str,
     *,
+    closure_threshold: int | None = None,
     hazard_label: str,
     hazard_source,
     intersections_fn: Callable,
@@ -142,12 +143,18 @@ def run_intensity_disruption(
         intersections.to_parquet(intersections_path)
         validate_output(intersections_path, intersections, "intersections")
 
+        build_kwargs: dict = {
+            "hazard_event": hazard_event,
+            "scenario_param": int(scenario_key),
+            "scenario_key": int(scenario_key),
+        }
+        if closure_threshold is not None and hazard_label == "winter_storm":
+            build_kwargs["closure_threshold"] = int(closure_threshold)
         road_links = build_link_fn(
             road_links,
             intersections,
             base_scenario_links,
-            hazard_event=hazard_event,
-            scenario_key=int(scenario_key),
+            **build_kwargs,
         )
         (out_path / "links").mkdir(parents=True, exist_ok=True)
         links_path = out_path / "links" / f"road_links_{hazard_event_id}.gpq"

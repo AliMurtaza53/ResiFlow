@@ -15,6 +15,7 @@ def run_winter_storm_disruption(
     scenario_key: int,
     event_key: str,
     *,
+    closure_threshold: int | None = None,
     base_path=None,
     hazard_source=None,
 ) -> None:
@@ -26,6 +27,7 @@ def run_winter_storm_disruption(
     run_intensity_disruption(
         scenario_key,
         event_key,
+        closure_threshold=closure_threshold,
         hazard_label="winter_storm",
         hazard_source=hazard_source,
         intersections_fn=intersections_with_winter_storm,

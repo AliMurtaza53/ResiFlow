@@ -690,9 +690,16 @@ def main():
 
     for intersections_path in intersections_list:
         flood_key = intersections_path.stem
-        out_path = base_path.parent / "results" / "damage_analysis" / results_variant
+        scenario_param = intersections_path.parent.parent.name
+        out_path = (
+            base_path.parent
+            / "results"
+            / "damage_analysis"
+            / results_variant
+            / str(scenario_param)
+        )
 
-        print(f"Calculate damages for {flood_key}...")
+        print(f"Calculate damages for scenario={scenario_param} event={flood_key}...")
         # format intersections
         intersections = pd.read_parquet(intersections_path)
         intersections = format_intersections(intersections, road_links)

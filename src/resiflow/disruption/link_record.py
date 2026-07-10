@@ -38,12 +38,19 @@ class LinkDisruptionRecord:
         )
 
 
-def apply_legacy_flood_columns(df: pd.DataFrame, *, depth_key: int, event_id: str | int) -> pd.DataFrame:
+def apply_legacy_flood_columns(
+    df: pd.DataFrame,
+    *,
+    depth_key: int,
+    event_id: str | int,
+    scenario_param: int | None = None,
+) -> pd.DataFrame:
     """Attach canonical hazard metadata while preserving Script 3/4 flood column names."""
     out = df.copy()
+    out_path_key = int(scenario_param if scenario_param is not None else depth_key)
     out["hazard_type"] = "flood"
     out["event_id"] = str(event_id)
-    out["scenario_param"] = int(depth_key)
+    out["scenario_param"] = out_path_key
     out["intensity_primary"] = pd.to_numeric(out.get("flood_depth_max", 0.0), errors="coerce").fillna(0.0)
     out["intensity_unit"] = "m_depth"
     if "damage_level_max" in out.columns:
@@ -80,6 +87,7 @@ def apply_legacy_snow_columns(
     *,
     snow_key_mm: int,
     event_id: str | int,
+    scenario_param: int | None = None,
 ) -> pd.DataFrame:
     """Attach snow hazard metadata while preserving Script 3/4 column names."""
     out = df.copy()
@@ -88,7 +96,7 @@ def apply_legacy_snow_columns(
     out["snow_depth_max_mm"] = pd.to_numeric(out["snow_depth_max_mm"], errors="coerce").fillna(0.0)
     out["hazard_type"] = "snow"
     out["event_id"] = str(event_id)
-    out["scenario_param"] = int(snow_key_mm)
+    out["scenario_param"] = int(scenario_param if scenario_param is not None else snow_key_mm)
     out["intensity_primary"] = out["snow_depth_max_mm"]
     out["intensity_unit"] = "mm_snow"
     out["flood_depth_max"] = out["snow_depth_max_mm"] / 1000.0

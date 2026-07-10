@@ -22,6 +22,7 @@ from resiflow.fragility.flood_operational import apply_max_speed_to_links
 from resiflow.fragility.landslide_operational import apply_max_speed_to_links as apply_ls_max_speed
 from resiflow.fragility.snow_operational import apply_max_speed_to_links as apply_snow_max_speed
 from resiflow.hazards.base import HazardEvent
+from resiflow.hazards.scenario_registry import HazardScenario
 from resiflow.disruption.snow import (
     DAMAGE_LEVEL_DICT as SNOW_DAMAGE_LEVEL_DICT,
     DAMAGE_LEVEL_DICT_REVERSE as SNOW_DAMAGE_LEVEL_DICT_REVERSE,
@@ -65,9 +66,18 @@ def build_flood_link_disruption(
     base_scenario_links: gpd.GeoDataFrame,
     *,
     hazard_event: HazardEvent,
-    depth_key: int,
+    scenario_param: int,
+    closure_threshold: int | None = None,
+    depth_key: int | None = None,
 ) -> gpd.GeoDataFrame:
     """Merge exposure + dual fragility into legacy-compatible road_links output."""
+    threshold = int(
+        closure_threshold
+        if closure_threshold is not None
+        else depth_key
+        if depth_key is not None
+        else scenario_param
+    )
     links = features_with_damage(
         road_links,
         intersections,
@@ -92,10 +102,11 @@ def build_flood_link_disruption(
     links["flood_depth_max"] = links["flood_depth_max"].fillna(0.0)
     links["free_flow_speeds"] = links["free_flow_speeds"].fillna(50.0)
 
-    links = apply_max_speed_to_links(links, depth_key=depth_key)
+    links = apply_max_speed_to_links(links, depth_key=threshold)
     return apply_legacy_flood_columns(
         links,
-        depth_key=depth_key,
+        depth_key=threshold,
+        scenario_param=int(scenario_param),
         event_id=hazard_event.event_id,
     )
 
@@ -106,9 +117,18 @@ def build_snow_link_disruption(
     base_scenario_links: gpd.GeoDataFrame,
     *,
     hazard_event: HazardEvent,
-    snow_key_mm: int,
+    scenario_param: int,
+    closure_threshold: int | None = None,
+    snow_key_mm: int | None = None,
 ) -> gpd.GeoDataFrame:
     """Merge snow exposure + dual fragility into legacy-compatible road_links output."""
+    threshold = int(
+        closure_threshold
+        if closure_threshold is not None
+        else snow_key_mm
+        if snow_key_mm is not None
+        else scenario_param
+    )
     links = features_with_snow(
         road_links,
         intersections,
@@ -129,10 +149,11 @@ def build_snow_link_disruption(
     links = links.loc[:, ~links.columns.duplicated()]
     links["free_flow_speeds"] = links["free_flow_speeds"].fillna(50.0)
 
-    links = apply_snow_max_speed(links, snow_key_mm=snow_key_mm)
+    links = apply_snow_max_speed(links, snow_key_mm=threshold)
     return apply_legacy_snow_columns(
         links,
-        snow_key_mm=snow_key_mm,
+        snow_key_mm=threshold,
+        scenario_param=int(scenario_param),
         event_id=hazard_event.event_id,
     )
 
@@ -143,8 +164,10 @@ def build_earthquake_link_disruption(
     base_scenario_links: gpd.GeoDataFrame,
     *,
     hazard_event: HazardEvent,
-    scenario_key: int,
+    scenario_param: int,
+    scenario_key: int | None = None,
 ) -> gpd.GeoDataFrame:
+    path_key = int(scenario_key if scenario_key is not None else scenario_param)
     links = features_with_earthquake(road_links, intersections)
     cols_to_drop = [c for c in _ASSIGNMENT_STATE_COLS if c in links.columns]
     if cols_to_drop:
@@ -159,7 +182,7 @@ def build_earthquake_link_disruption(
         hazard_type="earthquake",
         intensity_unit="g_pga",
         intensity_col="pga_max_g",
-        scenario_param=scenario_key,
+        scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
     out["flood_depth_max"] = out["intensity_primary"] * 0.5
@@ -172,8 +195,10 @@ def build_landslide_link_disruption(
     base_scenario_links: gpd.GeoDataFrame,
     *,
     hazard_event: HazardEvent,
-    scenario_key: int,
+    scenario_param: int,
+    scenario_key: int | None = None,
 ) -> gpd.GeoDataFrame:
+    path_key = int(scenario_key if scenario_key is not None else scenario_param)
     links = features_with_landslide(road_links, intersections)
     cols_to_drop = [c for c in _ASSIGNMENT_STATE_COLS if c in links.columns]
     if cols_to_drop:
@@ -188,7 +213,7 @@ def build_landslide_link_disruption(
         hazard_type="landslide",
         intensity_unit="mm_displacement",
         intensity_col="landslide_max_mm",
-        scenario_param=scenario_key,
+        scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
     out["flood_depth_max"] = out["landslide_max_mm"] / 1000.0
@@ -201,11 +226,15 @@ def build_winter_storm_link_disruption(
     base_scenario_links: gpd.GeoDataFrame,
     *,
     hazard_event: HazardEvent,
-    scenario_key: int,
+    scenario_param: int,
+    closure_threshold: int | None = None,
+    scenario_key: int | None = None,
 ) -> gpd.GeoDataFrame:
     from resiflow.disruption.winter_storm import features_with_winter_storm
     from resiflow.fragility.winter_storm_operational import apply_max_speed_to_links as apply_ws_max_speed
 
+    path_key = int(scenario_key if scenario_key is not None else scenario_param)
+    ice_threshold = int(closure_threshold if closure_threshold is not None else path_key)
     links = features_with_winter_storm(road_links, intersections)
     cols_to_drop = [c for c in _ASSIGNMENT_STATE_COLS if c in links.columns]
     if cols_to_drop:
@@ -214,13 +243,13 @@ def build_winter_storm_link_disruption(
     links = links.merge(base_scenario_links[merge_cols], how="left", on="e_id")
     links = links.loc[:, ~links.columns.duplicated()]
     links["free_flow_speeds"] = links["free_flow_speeds"].fillna(50.0)
-    links = apply_ws_max_speed(links, ice_key_mm=int(scenario_key))
+    links = apply_ws_max_speed(links, ice_key_mm=ice_threshold)
     out = apply_legacy_intensity_columns(
         links,
         hazard_type="winter_storm",
         intensity_unit="mm_ice",
         intensity_col="winter_storm_max_mm",
-        scenario_param=scenario_key,
+        scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
     out["flood_depth_max"] = out["winter_storm_max_mm"] / 1000.0
@@ -228,9 +257,10 @@ def build_winter_storm_link_disruption(
 
 
 def run_disruption(
-    scenario_key: int,
+    scenario_param: int,
     event_key: str,
     *,
+    scenario: HazardScenario | None = None,
     base_path=None,
     hazard_type: str | None = None,
     hazard_source=None,
@@ -239,14 +269,28 @@ def run_disruption(
     import os
     from pathlib import Path
 
-    resolved_type = (hazard_type or os.environ.get("RESIFLOW_HAZARD_TYPE", "flood")).strip().lower()
+    from resiflow.hazards.scenario_registry import resolve_active_scenario
+
+    if scenario is None:
+        scenario = resolve_active_scenario(
+            scenario_param=int(scenario_param),
+            event_id=str(event_key),
+            base_path=Path(base_path) if base_path is not None else None,
+        )
+
+    resolved_type = (
+        hazard_type or scenario.hazard_type or os.environ.get("RESIFLOW_HAZARD_TYPE", "flood")
+    ).strip().lower()
+    path_key = int(scenario.scenario_param)
+    threshold = scenario.operational_threshold
 
     if resolved_type == "snow":
         from resiflow.disruption.pipeline_snow import run_snow_disruption
 
         run_snow_disruption(
-            scenario_key,
+            path_key,
             event_key,
+            closure_threshold=threshold,
             base_path=base_path,
             hazard_source=hazard_source,
         )
@@ -266,7 +310,7 @@ def run_disruption(
 
             hazard_source = EarthquakeHazardSource(Path(load_config()["paths"]["soge_clusters"]))
         run_intensity_disruption(
-            scenario_key,
+            path_key,
             event_key,
             hazard_label="earthquake",
             hazard_source=hazard_source,
@@ -290,7 +334,7 @@ def run_disruption(
 
             hazard_source = LandslideHazardSource(Path(load_config()["paths"]["soge_clusters"]))
         run_intensity_disruption(
-            scenario_key,
+            path_key,
             event_key,
             hazard_label="landslide",
             hazard_source=hazard_source,
@@ -304,8 +348,9 @@ def run_disruption(
         from resiflow.disruption.pipeline_winter_storm import run_winter_storm_disruption
 
         run_winter_storm_disruption(
-            scenario_key,
+            path_key,
             event_key,
+            closure_threshold=threshold,
             base_path=base_path,
             hazard_source=hazard_source,
         )
@@ -332,8 +377,9 @@ def run_disruption(
             hazard_source = mh
 
     run_flood_disruption(
-        scenario_key,
+        path_key,
         event_key,
+        closure_threshold=threshold,
         base_path=base_path,
         hazard_source=hazard_source,
     )

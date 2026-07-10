@@ -16,7 +16,14 @@ from resiflow.exposure.raster_line import load_analysis_boundary
 from resiflow.hazards.flood import FloodHazardSource
 from resiflow.utils import get_results_variant, load_config
 
-def run_flood_disruption(depth_key, event_key, *, base_path=None, hazard_source=None):
+def run_flood_disruption(
+    scenario_param,
+    event_key,
+    *,
+    closure_threshold: int | None = None,
+    base_path=None,
+    hazard_source=None,
+):
 
     if base_path is None:
         base_path = Path(load_config()["paths"]["soge_clusters"])
@@ -28,9 +35,9 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None, hazard_source=
     Run flood disruption analysis on road networks under flood scenarios.
 
     Parameters:
-        depth_key (int): Flood depth threshold in centimeters for road closure.
-                        Determines when roads become impassable. Common values: 15, 30, 60 cm.
-                        Controls the speed reduction curve for flooded roads.
+        scenario_param (int): Unique output-path key under disruption_analysis/<variant>/.
+        closure_threshold (int | None): Flood depth threshold in centimeters for road closure.
+                        When omitted, defaults to ``scenario_param`` (legacy behavior).
         event_key (str): Scenario identifier for flood event.
                 For the Fairfax toy dataset use:
                 - '1' = base
@@ -60,7 +67,11 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None, hazard_source=
     """
     # Normalize event key so calls from CLI and direct Python are consistent
     event_key = str(event_key).strip()
-    logging.info(f"[MAIN START] depth_key={depth_key} cm, event_key={event_key}")
+    depth_key = int(closure_threshold if closure_threshold is not None else scenario_param)
+    path_key = int(scenario_param)
+    logging.info(
+        f"[MAIN START] scenario_param={path_key}, closure_threshold={depth_key} cm, event_key={event_key}"
+    )
 
     # base scenario simulation results
     base_scenario_path = (
@@ -138,7 +149,7 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None, hazard_source=
             / "results"
             / "disruption_analysis"
             / get_results_variant()
-            / str(depth_key)
+            / str(path_key)
         )
         logging.info(f"[PATHS] Output directory: {out_path}")
         print(f"DEBUG: Output path={out_path}")
@@ -227,7 +238,8 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None, hazard_source=
             intersections,
             base_scenario_links,
             hazard_event=hazard_event,
-            depth_key=depth_key,
+            scenario_param=path_key,
+            closure_threshold=depth_key,
         )
         logging.info(f"[FEATURES_OK] Features computed, {len(road_links)} road links")
 
@@ -237,7 +249,10 @@ def run_flood_disruption(depth_key, event_key, *, base_path=None, hazard_source=
         road_links.to_parquet(links_path)
         validate_output(links_path, road_links, "road_links")
         log_summary("road_links", road_links)
-        logging.info(f"[COMPLETE] Script 2 completed successfully for event_key={event_key}, depth_key={depth_key}")
+        logging.info(
+            f"[COMPLETE] Script 2 completed successfully for event_key={event_key}, "
+            f"scenario_param={path_key}, closure_threshold={depth_key}"
+        )
         print(f"DEBUG: Script 2 COMPLETE! Outputs saved to {out_path}")
 
     if not processed_event:
