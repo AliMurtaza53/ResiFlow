@@ -2,7 +2,7 @@
 
 **Branch:** `perf/numcpu-regression-diagnosis`  
 **Date:** 2026-07-10  
-**Status:** Goals 0–6 complete (CONUS re-run deferred — no local data bundle)
+**Status:** Goals 0–6 complete; CONUS Pass B local sweep in progress (full OD)
 
 ---
 
@@ -11,6 +11,8 @@
 **NumCpu>1 does not improve end-to-end Pass B time on CONUS** and can regress badly (NumCpu=4 aborted after 96+ minutes on prior clone runs). The effective fix is already in production policy: **NumCpu=1 with Patch 6 flags** (`NIRD_OD_ID_AT_INSERT=1`, worker recycle, streaming_arrays). DuckDB write contention during LCP is **not** the cause — workers never touch DuckDB.
 
 Sioux Falls benchmarks confirm pool overhead dominates when per-origin work is tiny; they are **not** a reliable CONUS proxy for numcpu scaling direction.
+
+**Local CONUS Pass B (VA toy raster, Track A stand-in):** 50k row cap → 16 origins, wall flat 29–33 s; full-OD run underway on `Desktop/data/soge_clusters`. See `GOAL1_CONUS_NUMCPU_SWEEP.md`.
 
 **Monday recommendation:** Option **(a)** — document and enforce NumCpu=1; optional affinity spike only if CONUS hardware re-run is scheduled.
 
