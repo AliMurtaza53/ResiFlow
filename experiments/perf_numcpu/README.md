@@ -15,6 +15,22 @@ python experiments/perf_numcpu/benchmark_sioux_falls_passa.py --num-cpus 1,2,4,8
 python experiments/perf_numcpu/summarize_sweep.py
 ```
 
+## Goal 1 — CONUS Pass B sweep (VA toy raster / Track A stand-in)
+
+Uses `config.json` → `Desktop/data/soge_clusters` and `inputs/test_141node_50m/` rasters.
+
+```powershell
+# Quick smoke (50k OD rows — only ~16 origins; pool scaling not representative)
+C:\Users\akothaw\AppData\Local\miniforge3\envs\nird\python.exe `
+  experiments/perf_numcpu/benchmark_conus_passb_numcpu.py --num-cpus 1,2,4
+
+# Full OD (representative origin count; ~40+ min per run)
+C:\Users\akothaw\AppData\Local\miniforge3\envs\nird\python.exe `
+  experiments/perf_numcpu/benchmark_conus_passb_numcpu.py --num-cpus 1,2 --sample-od-n 0 --label goal1_conus_passb_fullod
+
+python experiments/perf_numcpu/summarize_conus_sweep.py
+```
+
 Outputs: `experiments/perf_numcpu/runs/<label>_cpu<N>_<timestamp>/`
 
 ## Goal 2 — pool / IPC isolation (LCP-only, no DuckDB)

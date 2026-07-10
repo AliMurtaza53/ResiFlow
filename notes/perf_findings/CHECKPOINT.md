@@ -14,7 +14,7 @@ Use this file to resume work without prior chat context.
 | Goal | Status | Key artifact |
 |------|--------|--------------|
 | 0 Inventory | ✅ Done | `GOAL0_SCRIPT1_PARALLEL_INVENTORY.md` |
-| 1 Reproduce + instrument | ✅ Done (Sioux Falls) | `GOAL1_NUMCPU_SWEEP.md`, `GOAL1_SWEEP_SUMMARY.md` |
+| 1 Reproduce + instrument | ✅ Done (Sioux + CONUS VA toy) | `GOAL1_NUMCPU_SWEEP.md`, `GOAL1_CONUS_NUMCPU_SWEEP.md` |
 | 2 Isolate causes | ✅ Done | `GOAL2_ISOLATION.md`, `spike_pool_isolation.py` |
 | 3 Fix + benchmark | ✅ Done (policy) | `GOAL3_FIX_AND_BENCHMARK.md` |
 | 4 SP backend spike | ✅ Done | `GOAL4_SP_BACKEND.md`, `spike_sp_backends.py` |
@@ -41,6 +41,16 @@ Use this file to resume work without prior chat context.
 | 1 | 2537 | production lock |
 | 2 | 2572 | flat |
 | 4 | aborted | 96+ min, negative scaling |
+
+### CONUS Pass B — 50k OD cap (16 origins only)
+
+| num_cpu | wall (s) | LCP (s) |
+|---------|----------|---------|
+| 1 | 32.5 | 2.74 |
+| 2 | 28.8 | 4.73 |
+| 4 | 31.0 | 6.49 |
+
+Full-OD sweep (`--sample-od-n 0`) running for representative origin count.
 
 ### Goal 2 LCP microbench (3144 tasks, no DuckDB)
 
@@ -92,7 +102,7 @@ experiments/perf_numcpu/
 
 | Blocker | Impact | Unblock |
 |---------|--------|---------|
-| No local CONUS `config.json` + SOGE bundle | Cannot re-run Pass B on this machine | User provides data path |
+| No local CONUS `config.json` + SOGE bundle | **Resolved** — `config.json` points to `Desktop/data/soge_clusters`; VA toy rasters in `inputs/test_141node_50m/` | Full-OD Pass B sweep in progress |
 | `psutil` missing in `.venv` | CPU affinity + sampler skipped | `pip install psutil` in venv |
 | Sioux Falls ≠ CONUS | Microbench can mislead on pool benefit sign | Cite clone logs for CONUS |
 
