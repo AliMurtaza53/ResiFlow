@@ -8,12 +8,12 @@
 | Goal | Cap | Status | Artifact |
 |------|-----|--------|----------|
 | 0 Inventory | 30m | **done** | `notes/perf_findings/GOAL0_SCRIPT1_PARALLEL_INVENTORY.md` |
-| 1 Reproduce + instrument | 4h | **in progress** | `experiments/perf_numcpu/runs/` |
-| 2 Isolate causes | 8h | pending | per-hypothesis notes in `perf_findings/` |
-| 3 Apply fix + benchmark | 6h | pending | |
-| 4 SP backend spike | 6h | stretch | |
-| 5 Bush PoC | 6h | stretch | |
-| 6 Report | 4h | pending | `REPORT_FOR_TOM.md` |
+| 1 Reproduce + instrument | 4h | **done** (Sioux Falls) | `GOAL1_NUMCPU_SWEEP.md` |
+| 2 Isolate causes | 8h | **done** | `GOAL2_ISOLATION.md` |
+| 3 Apply fix + benchmark | 6h | **done** (policy) | `GOAL3_FIX_AND_BENCHMARK.md` |
+| 4 SP backend spike | 6h | **done** | `GOAL4_SP_BACKEND.md` |
+| 5 Bush PoC | 6h | **done** | `GOAL5_BUSH_POC.md` |
+| 6 Report | 4h | **done** | `REPORT_FOR_TOM.md`, `CHECKPOINT.md` |
 
 ## Guardrails
 

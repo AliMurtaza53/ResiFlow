@@ -8,5 +8,6 @@
 | 8 | 2.863 | 1.3160877227783203 | 0.04 | 0.04 | 1.6597445011138916 | None | 0.00 | `goal1_sioux_passa_cpu8_20260710_174115` |
 | 16 | 2.939 | 1.4581761360168457 | 0.04 | 0.03 | 1.764341115951538 | None | 0.00 | `goal1_sioux_passa_cpu16_20260710_174118` |
 
-**Saturation note:** fill after review — compare `cpu_frac` vs `num_cpu` and whether
-`wall_sec` tracks `lcp_sec` or post-LCP streaming phases.
+**Saturation note:** On Sioux Falls, wall time improves ~2× from num_cpu=1→2 then plateaus (24 origins).
+LCP-only microbench shows the opposite — pool spawn dominates when per-origin work is tiny.
+**CONUS behavior must be taken from clone evidence** (`PRIOR_PASSB_EVIDENCE.md`), not Sioux Falls.

@@ -17,8 +17,30 @@ python experiments/perf_numcpu/summarize_sweep.py
 
 Outputs: `experiments/perf_numcpu/runs/<label>_cpu<N>_<timestamp>/`
 
-## Goal 2 — isolation tests (next)
+## Goal 2 — pool / IPC isolation (LCP-only, no DuckDB)
 
-- DuckDB shard writes (workers → separate files, merge after pool)
-- P-core affinity pinning (`psutil.Process().cpu_affinity`)
-- LCP vs pickle overhead micro-benchmark (WIP — needs normalized Sioux Falls links like Script 1)
+```powershell
+python experiments/perf_numcpu/spike_pool_isolation.py --origin-replicas 1 --num-cpus 1,2,4
+python experiments/perf_numcpu/spike_pool_isolation.py --origin-replicas 131 --num-cpus 1,2,4 --label goal2_conus_tasks
+```
+
+Optional P-core pinning: set `PERF_WORKER_CPU_AFFINITY=0,2,4,6` (requires `psutil`).
+
+Findings: `notes/perf_findings/GOAL2_ISOLATION.md`
+
+## Goal 4 — SP backend spike
+
+```powershell
+python experiments/perf_numcpu/spike_sp_backends.py
+```
+
+## Goal 5 — bush / local reroute PoC
+
+```powershell
+python experiments/perf_numcpu/spike_bush_poc.py
+```
+
+## Resume / report
+
+- Checkpoint: `notes/perf_findings/CHECKPOINT.md`
+- Tom report: `notes/perf_findings/REPORT_FOR_TOM.md`
