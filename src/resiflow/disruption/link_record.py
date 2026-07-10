@@ -51,6 +51,30 @@ def apply_legacy_flood_columns(df: pd.DataFrame, *, depth_key: int, event_id: st
     return out
 
 
+def apply_legacy_intensity_columns(
+    df: pd.DataFrame,
+    *,
+    hazard_type: str,
+    intensity_unit: str,
+    intensity_col: str,
+    scenario_param: int,
+    event_id: str | int,
+) -> pd.DataFrame:
+    """Attach hazard metadata for non-flood intensity hazards."""
+    out = df.copy()
+    if intensity_col not in out.columns:
+        out[intensity_col] = 0.0
+    out[intensity_col] = pd.to_numeric(out[intensity_col], errors="coerce").fillna(0.0)
+    out["hazard_type"] = hazard_type
+    out["event_id"] = str(event_id)
+    out["scenario_param"] = int(scenario_param)
+    out["intensity_primary"] = out[intensity_col]
+    out["intensity_unit"] = intensity_unit
+    if "damage_level_max" in out.columns:
+        out["damage_level_max"] = out["damage_level_max"].fillna("no")
+    return out
+
+
 def apply_legacy_snow_columns(
     df: pd.DataFrame,
     *,

@@ -73,6 +73,28 @@ def compute_damage_level_on_flooded_roads(
             return "extensive"
         return "severe"
 
+    if fldType == "coastal":
+        # PLACEHOLDER — confirm with advisor: surge/velocity-style thresholds (cm).
+        if major:
+            if depth < 40:
+                return "no"
+            if depth < 90:
+                return "minor"
+            if depth < 180:
+                return "moderate"
+            if depth < 500:
+                return "extensive"
+            return "severe"
+        if depth < 30:
+            return "no"
+        if depth < 80:
+            return "minor"
+        if depth < 150:
+            return "moderate"
+        if depth < 400:
+            return "extensive"
+        return "severe"
+
     logging.info("Unknown flood type: %s", fldType)
     return "no"
 
