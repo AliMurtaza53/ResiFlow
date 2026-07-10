@@ -15,6 +15,7 @@ config.json
 # Run outputs
 results/
 logs/
+experiments/perf_numcpu/runs/
 *.duckdb
 *.duckdb.wal
 
