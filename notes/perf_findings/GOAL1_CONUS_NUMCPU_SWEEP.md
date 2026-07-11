@@ -8,41 +8,43 @@
 
 Sioux Falls (24 origins) is a poor proxy for CONUS NumCpu regression. This sweep runs **Pass B Script 1** on the full FAF5 network with VA toy hazard footprint as **Track A stand-in** for moving-window hazard intersection (production Track A will use state-sized rasters on the same network).
 
+## Results — full OD (3143 origins, 9.68M paths)
+
+| num_cpu | wall (s) | LCP (s) | stream p1 | stream p2 | path rows | origins |
+|---------|----------|---------|-----------|-----------|-----------|---------|
+| 1 | **2442** | 1043 | 214 | 1138 | 9684057 | 3143 |
+| 2 | **3779** | 1117 | 528 | 2045 | 9684057 | 3143 |
+
+**Finding:** NumCpu=2 is **55% slower** on wall time locally (3779 s vs 2442 s). Clone showed flat scaling (2572 vs 2537 s); this machine regresses harder — streaming pass 2 nearly doubles (1138 → 2045 s) while LCP barely improves (1043 → 1117 s). **Confirms NumCpu=1 production lock.**
+
+Local num_cpu=1 closely matches clone baseline (2442 vs 2537 s wall; 1043 vs 1048 s LCP).
+
+## Results — 50k OD row cap (smoke, not representative)
+
+**Caveat:** `RESIFLOW_SAMPLE_OD_N=50000` caps **rows**, not origins → only **16 origins**.
+
+| num_cpu | wall (s) | LCP (s) | origins |
+|---------|----------|---------|---------|
+| 1 | 32.5 | 2.74 | 16 |
+| 2 | 28.8 | 4.73 | 16 |
+| 4 | 31.0 | 6.49 | 16 |
+
+## Comparison to clone (full OD, Pass B)
+
+| num_cpu | wall (s) | LCP (s) | source |
+|---------|----------|---------|--------|
+| 1 | 2537 | 1048 | clone |
+| 2 | 2572 | 838 | clone |
+| 1 | 2442 | 1043 | **local** |
+| 2 | 3779 | 1117 | **local** |
+| 4 | aborted | — | clone |
+
 ## Harness
 
 ```powershell
 C:\Users\akothaw\AppData\Local\miniforge3\envs\nird\python.exe `
-  experiments/perf_numcpu/benchmark_conus_passb_numcpu.py --num-cpus 1,2,4
+  experiments/perf_numcpu/benchmark_conus_passb_numcpu.py --num-cpus 1,2 --sample-od-n 0 --label goal1_conus_passb_fullod
 python experiments/perf_numcpu/summarize_conus_sweep.py
 ```
 
-## Results — 50k OD row cap (smoke)
-
-**Caveat:** `RESIFLOW_SAMPLE_OD_N=50000` caps **rows**, not origins. This run yielded only **16 origins** — insufficient to reproduce CONUS pool saturation. Useful for end-to-end Pass B sanity only.
-
-| num_cpu | wall (s) | LCP (s) | stream p1+p2 (s) | path rows | origins |
-|---------|----------|---------|------------------|-----------|---------|
-| 1 | 32.5 | 2.74 | 9.84 | 46624 | 16 |
-| 2 | 28.8 | 4.73 | 9.55 | 46624 | 16 |
-| 4 | 31.0 | (see run meta) | | 46624 | 16 |
-
-**Finding:** At 16 origins, wall time is flat (~29–33 s). NumCpu=2 is marginally fastest on wall despite **higher** logged LCP time — same pattern as clone (LCP savings do not propagate when streaming phases dominate).
-
-## Results — full OD (in progress)
-
-```powershell
-# Representative origin count (~3143); expect ~40+ min per run
-benchmark_conus_passb_numcpu.py --num-cpus 1,2 --sample-od-n 0 --label goal1_conus_passb_fullod
-```
-
-See `GOAL1_CONUS_SWEEP_SUMMARY.md` after completion.
-
-## Comparison to clone (full OD, Pass B)
-
-| num_cpu | wall (s) | source |
-|---------|----------|--------|
-| 1 | 2537 | clone Pass B |
-| 2 | 2572 | clone Pass B |
-| 4 | aborted | clone Pass B |
-
-Full-OD local sweep will validate whether flat scaling reproduces on this machine.
+Table: `experiments/perf_numcpu/GOAL1_CONUS_SWEEP_SUMMARY.md`

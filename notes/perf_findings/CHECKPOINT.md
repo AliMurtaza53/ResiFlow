@@ -50,7 +50,14 @@ Use this file to resume work without prior chat context.
 | 2 | 28.8 | 4.73 |
 | 4 | 31.0 | 6.49 |
 
-Full-OD sweep (`--sample-od-n 0`) running for representative origin count.
+### CONUS Pass B — full OD (3143 origins, VA toy raster)
+
+| num_cpu | wall (s) | LCP (s) | stream p2 (s) |
+|---------|----------|---------|---------------|
+| 1 | 2442 | 1043 | 1138 |
+| 2 | 3779 | 1117 | 2045 |
+
+NumCpu=2 **55% slower** locally; confirms production lock at NumCpu=1.
 
 ### Goal 2 LCP microbench (3144 tasks, no DuckDB)
 

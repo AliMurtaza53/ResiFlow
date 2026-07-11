@@ -2,7 +2,7 @@
 
 **Branch:** `perf/numcpu-regression-diagnosis`  
 **Date:** 2026-07-10  
-**Status:** Goals 0–6 complete; CONUS Pass B local sweep in progress (full OD)
+**Status:** Goals 0–6 complete; CONUS full-OD Pass B sweep confirmed on local VA toy bundle
 
 ---
 
@@ -12,7 +12,7 @@
 
 Sioux Falls benchmarks confirm pool overhead dominates when per-origin work is tiny; they are **not** a reliable CONUS proxy for numcpu scaling direction.
 
-**Local CONUS Pass B (VA toy raster, Track A stand-in):** 50k row cap → 16 origins, wall flat 29–33 s; full-OD run underway on `Desktop/data/soge_clusters`. See `GOAL1_CONUS_NUMCPU_SWEEP.md`.
+**Local CONUS Pass B (VA toy raster, full OD, 3143 origins):** num_cpu=1 wall **2442 s** (matches clone 2537 s); num_cpu=2 wall **3779 s** (**55% regression** — streaming pass 2 doubles). See `GOAL1_CONUS_NUMCPU_SWEEP.md`.
 
 **Monday recommendation:** Option **(a)** — document and enforce NumCpu=1; optional affinity spike only if CONUS hardware re-run is scheduled.
 

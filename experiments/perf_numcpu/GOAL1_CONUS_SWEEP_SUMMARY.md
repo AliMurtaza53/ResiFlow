@@ -1,6 +1,15 @@
-# Goal 1 — CONUS Pass B numcpu sweep (VA toy raster / 50k OD)
+# Goal 1 - CONUS Pass B numcpu sweep (VA toy raster)
 
 Track A stand-in: `inputs/test_141node_50m/va_hazard_*_{base,low,high}.tif` on full FAF5 network.
+
+## Full OD (3143 origins)
+
+| num_cpu | wall (s) | LCP (s) | stream p1 | stream p2 | path rows | origins | run |
+|---------|----------|---------|-----------|-----------|-----------|---------|-----|
+| 1 | 2442.247 | 1042.8252730369568 | 213.98 | 1138.39 | 9684057 | 3143 | `goal1_conus_passb_fullod_cpu1_20260710_182820` |
+| 2 | 3778.965 | 1116.8025178909302 | 528.45 | 2044.54 | 9684057 | 3143 | `goal1_conus_passb_fullod_cpu2_20260710_190925` |
+
+## 50k OD row cap (16 origins — not representative)
 
 | num_cpu | wall (s) | LCP (s) | stream p1 | stream p2 | path rows | origins | run |
 |---------|----------|---------|-----------|-----------|-----------|---------|-----|
