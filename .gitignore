@@ -16,6 +16,7 @@ config.json
 results/
 logs/
 experiments/perf_numcpu/runs/
+experiments/pass_a_convergence/runs/
 *.duckdb
 *.duckdb.wal
 
