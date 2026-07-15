@@ -811,6 +811,8 @@ def main(
 
             # create Duckdb to store mid-outputs
             conn = duckdb.connect(db_path)
+            # mirrors road_revised.network_flow_model's PRAGMA threads fix
+            conn.execute(f"PRAGMA threads={max(1, int(num_of_cpu))}")
             conn.execute("DROP TABLE IF EXISTS od_results")  # reset table
             conn.execute("DROP TABLE IF EXISTS edge_flows")  # reset table
             first = True

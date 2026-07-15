@@ -18,6 +18,9 @@ PROGRESS_RE = re.compile(
     r",\s*stagnant_iterations=(\d+)/(\d+)"
 )
 STOP_RE = re.compile(r"Stop: (.+)")
+ISOLATION_RE = re.compile(r"with\s+([0-9.eE+-]+)\s+extra isolated flows")
+INITIAL_ISOLATED_RE = re.compile(r"Initial isolated flows:\s*([0-9.eE+-]+)")
+NON_ALLOCATED_RE = re.compile(r"Non_allocated_flow:\s*([0-9.eE+-]+)")
 CONTROLS_RE = re.compile(
     r"max_iterations=([^,]+),\s*min_progress_rel=([^,]+),\s*stagnant_limit=(\d+)"
 )
@@ -39,6 +42,7 @@ def parse_log(text: str) -> dict:
         }
 
     iterations: list[dict] = []
+    per_iter_isolation: dict[int, dict] = {}
     current_iter: int | None = None
     for line in text.splitlines():
         sm = ITER_START_RE.search(line)
@@ -46,6 +50,18 @@ def parse_log(text: str) -> dict:
             current_iter = int(sm.group(1))
             continue
         if current_iter is None:
+            continue
+        iim = INITIAL_ISOLATED_RE.search(line)
+        if iim:
+            per_iter_isolation.setdefault(current_iter, {})["initial_isolated"] = float(
+                iim.group(1)
+            )
+            continue
+        nam = NON_ALLOCATED_RE.search(line)
+        if nam:
+            per_iter_isolation.setdefault(current_iter, {})["non_allocated"] = float(
+                nam.group(1)
+            )
             continue
         rm = REMAIN_RE.search(line)
         if rm:
@@ -75,8 +91,43 @@ def parse_log(text: str) -> dict:
         if sm2 and iterations and current_iter is not None:
             current_iter = None
 
+    # merge per-iteration isolation channels ("Initial isolated flows" for
+    # unreachable-node OD pairs, "Non_allocated_flow" for no-path-found OD
+    # pairs) into their iteration rows.
+    for row in iterations:
+        iso = per_iter_isolation.get(row["iteration"], {})
+        row["initial_isolated_flow"] = iso.get("initial_isolated", 0.0)
+        row["non_allocated_flow"] = iso.get("non_allocated", 0.0)
+
     stops = [m.group(1) for m in STOP_RE.finditer(text)]
     truncated = not stops and bool(iterations)
+
+    isolated_flow_at_stop = None
+    isolated_fraction_at_stop = None
+    for stop_msg in stops:
+        im = ISOLATION_RE.search(stop_msg)
+        if im:
+            isolated_flow_at_stop = float(im.group(1))
+            break
+    if isolated_flow_at_stop is not None and initial_supply and initial_supply > 0:
+        isolated_fraction_at_stop = isolated_flow_at_stop / initial_supply
+
+    # Total isolated flow = per-iteration unreachable-node + no-path-found
+    # isolation accumulated across every iteration, plus the final
+    # "extra isolated flows" dump of whatever's left in remain_od at stop.
+    # This should reconcile with SUM(flow) FROM isolated_od in the run's
+    # DuckDB output (verified against a live run on 2026-07-13; see
+    # notes/perf_findings/GOAL6_TEST_RESULTS.md).
+    total_initial_isolated = sum(
+        row["initial_isolated_flow"] for row in iterations
+    )
+    total_non_allocated = sum(row["non_allocated_flow"] for row in iterations)
+    total_isolated_flow = total_initial_isolated + total_non_allocated + (
+        isolated_flow_at_stop or 0.0
+    )
+    total_isolated_fraction = None
+    if initial_supply and initial_supply > 0:
+        total_isolated_fraction = total_isolated_flow / initial_supply
 
     return {
         "initial_supply": initial_supply,
@@ -86,6 +137,12 @@ def parse_log(text: str) -> dict:
         "last_iteration": iterations[-1] if iterations else None,
         "stop_messages": stops,
         "log_truncated_no_stop": truncated,
+        "isolated_flow_at_stop": isolated_flow_at_stop,
+        "isolated_fraction_at_stop": isolated_fraction_at_stop,
+        "total_initial_isolated_flow": total_initial_isolated,
+        "total_non_allocated_flow": total_non_allocated,
+        "total_isolated_flow": total_isolated_flow,
+        "total_isolated_fraction": total_isolated_fraction,
     }
 
 

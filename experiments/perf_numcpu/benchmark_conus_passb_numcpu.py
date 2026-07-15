@@ -72,7 +72,14 @@ def _build_env(
     env["NIRD_ENABLE_SPLIT_CACHE"] = "1"
     env["NIRD_VECTORIZE_PATH_PARSING"] = "1"
     env["NIRD_OD_ID_AT_INSERT"] = "1"
-    env["NIRD_POOL_MAX_TASKS_PER_CHILD"] = "50"
+    # P-core affinity (verified on this i7-14700; see
+    # notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md Goal 8). NOT setting
+    # NIRD_PERSISTENT_LCP_POOL here: it wins on short (3-iteration) runs but
+    # degrades badly over longer/many-iteration runs (Goal 14) -- LCP time
+    # nearly tripled by iteration 2 in a 5M-OD test, vs. +18% for the
+    # standard per-iteration respawn pool. Use persistent pool only for
+    # short bounded-iteration smoke tests, never for convergence-style runs.
+    env["NIRD_WORKER_CPU_AFFINITY"] = "0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"
     env["OMP_NUM_THREADS"] = "1"
     env["MKL_NUM_THREADS"] = "1"
     env["OPENBLAS_NUM_THREADS"] = "1"

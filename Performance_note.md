@@ -38,7 +38,22 @@ Script 4 repeats the same pattern on the **disrupted subgraph** for every recove
 ### Mitigations (ordered by practicality)
 
 **1. More compute (easiest near-term)**  
-- Increase `num_of_cpu` on Scripts 1 and 4 (multiprocessing LCP pool).  
+- Increase `num_of_cpu` on Scripts 1 and 4 (multiprocessing LCP pool), but
+  **don't push past 4** on this machine — 8 measurably regressed (§10),
+  likely hyperthread contention. On this machine (i7-14700, 8 P-cores/16
+  threads + 12 E-cores/12 threads), unpinned worker processes can land on
+  slower E-cores; set
+  `NIRD_WORKER_CPU_AFFINITY="0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15"` to pin
+  LCP workers to the (empirically verified — see
+  `notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md` §8) P-core logical
+  processors; measured ~1.7-2x LCP dispatch speedup. Opt-in and
+  machine-specific — re-verify core indices before reusing on different
+  hardware.
+  **`NIRD_PERSISTENT_LCP_POOL=1` (create the worker pool once instead of
+  respawning it) wins on short runs but degrades badly over many iterations
+  (LCP time nearly tripled by iteration 2 in a 5M-OD test — §11) — do not
+  use it for convergence-style/long runs, only short bounded-iteration
+  smoke tests.**
 - Run hazards/events as **embarrassingly parallel jobs** (separate processes per `scenario_param` × event).  
 - Use a machine with **fast NVMe** for `baseline.duckdb` and recovery DBs (`NIRD_BASELINE_DB_PATH`).
 
@@ -74,6 +89,10 @@ NIRD_PATH_REALIZATION_STRATEGY=streaming_arrays
 NIRD_ODPFC_OUTPUT_MODE=skip
 NIRD_ENABLE_PASSENGER_REROUTING=1
 OMP_NUM_THREADS=1   # avoid oversubscription with multiprocessing pool
+
+# Recommended additions on this machine (i7-14700) when num_of_cpu > 1 (keep num_of_cpu<=4):
+NIRD_WORKER_CPU_AFFINITY=0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15   # verified P-core threads
+# NIRD_PERSISTENT_LCP_POOL=1   # only for short smoke tests -- degrades over long runs, see §11
 ```
 
 **Bottom line for OR/CS/software:** CONUS scale is gated by **repeated national-scale shortest-path assignment and path materialization**, not by damage curve evaluation or visualization. Near-term wins are **parallel hardware + workflow sharding + candidate filtering**; medium-term wins require **assignment algorithm upgrades (FW/TAPAS-class)** and/or **network decomposition**; GPUs are not on the critical path unless the assignment kernel is reimplemented.

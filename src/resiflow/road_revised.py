@@ -35,6 +35,47 @@ def _env_flag(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in {"1", "true", "yes"}
 
 
+def _log_rss(label: str) -> None:
+    """Opt-in RSS checkpoint logging (NIRD_LOG_RSS_CHECKPOINTS=1) to localize
+    which phase of network_flow_model drives main-process memory growth."""
+    if not _env_flag("NIRD_LOG_RSS_CHECKPOINTS"):
+        return
+    try:
+        import psutil
+
+        rss_gb = psutil.Process().memory_info().rss / (1024**3)
+        logging.info("RSS checkpoint [%s]: %.2f GB", label, rss_gb)
+    except Exception:
+        logging.exception("Failed to log RSS checkpoint [%s]", label)
+    if _env_flag("NIRD_MEM_PROFILE_TOP_TYPES"):
+        try:
+            import gc as _gc
+            import sys as _sys
+            from collections import Counter
+
+            sizes: Counter = Counter()
+            counts: Counter = Counter()
+            for obj in _gc.get_objects():
+                try:
+                    sz = _sys.getsizeof(obj)
+                except Exception:
+                    continue
+                tname = type(obj).__name__
+                sizes[tname] += sz
+                counts[tname] += 1
+            top = sizes.most_common(15)
+            logging.info(
+                "Top object types by shallow size [%s]: %s",
+                label,
+                "; ".join(
+                    f"{name}={sz/(1024**2):.1f}MB(n={counts[name]})"
+                    for name, sz in top
+                ),
+            )
+        except Exception:
+            logging.exception("Failed to log top object types [%s]", label)
+
+
 def select_partial_roads(
     road_links: gpd.GeoDataFrame,
     road_nodes: gpd.GeoDataFrame,
@@ -633,7 +674,11 @@ def update_network_structure(
     ratio = temp_edge_flow["acc_capacity"] / temp_edge_flow["current_capacity"].replace(
         0, np.nan
     )
-    mask = (temp_edge_flow["acc_capacity"] < 1) | (ratio < 0.001)
+    # fully utilised if remaining capacity < 1 vehicle or < 1% of original
+    # capacity (matches upstream DAFNI-NIRD df56a1d, 2026-02-25; ResiFlow had
+    # been on the stricter pre-fix 0.1% threshold — see
+    # notes/perf_findings/GOAL6_UPSTREAM_DRIFT_AUDIT.md)
+    mask = (temp_edge_flow["acc_capacity"] < 1) | (ratio < 0.01)
     # drop fully utilised edges from the network
     zero_capacity_edges = set(
         temp_edge_flow.loc[
@@ -790,6 +835,36 @@ def worker_init_path(
     -------
     None
         The function sets the module-level ``shared_network`` variable in-place.
+    """
+    global shared_network
+    affinity_spec = os.environ.get("NIRD_WORKER_CPU_AFFINITY", "").strip()
+    if affinity_spec:
+        try:
+            import psutil
+
+            cores = [
+                int(c)
+                for c in affinity_spec.replace(",", " ").split()
+                if c.strip() != ""
+            ]
+            if cores:
+                psutil.Process().cpu_affinity(cores)
+                logging.info("Worker pinned to CPU affinity: %s", cores)
+        except Exception:
+            logging.exception("Failed to set worker CPU affinity; continuing unpinned.")
+    shared_network = pickle.loads(shared_network_pkl)
+    return None
+
+
+def refresh_worker_network(shared_network_pkl: bytes) -> None:
+    """Update the module-level ``shared_network`` in a persistent pool worker.
+
+    Used by the opt-in persistent-pool path (``NIRD_PERSISTENT_LCP_POOL``) to
+    push each iteration's updated network (edges dropped by
+    ``update_network_structure``) into already-running workers, instead of
+    respawning the pool (and re-pinning affinity, re-importing dependencies)
+    every iteration. CPU affinity is set once at worker startup in
+    ``worker_init_path`` and is not touched here.
     """
     global shared_network
     shared_network = pickle.loads(shared_network_pkl)
@@ -1141,10 +1216,17 @@ def realize_paths_streaming(
     edge_length = np.asarray(edges["length_mile"], dtype=np.float64)
     edge_count = len(edge_eid)
 
-    cap_by_eid = road_links.set_index("e_id")["acc_capacity"].to_dict()
-    edge_capacity = np.asarray(
-        [cap_by_eid.get(eid, 0.0) for eid in edge_eid],
-        dtype=np.float64,
+    # Vectorized lookup (pandas reindex) instead of a per-edge Python dict.get
+    # loop, which profiled at ~21s of ~87s in realize_paths_streaming on a
+    # 200k-OD/CONUS-scale run (see notes/perf_findings/GOAL6_TEST_RESULTS.md).
+    # keep="last" matches the previous dict-construction behavior for any
+    # duplicate e_id rows (dict silently keeps the last value written).
+    cap_by_eid = (
+        road_links.drop_duplicates(subset="e_id", keep="last")
+        .set_index("e_id")["acc_capacity"]
+    )
+    edge_capacity = (
+        cap_by_eid.reindex(edge_eid).fillna(0.0).to_numpy(dtype=np.float64)
     )
 
     edge_total_flow = np.zeros(edge_count, dtype=np.float64)
@@ -1252,8 +1334,26 @@ def realize_paths_streaming(
     candidate_buffers: Dict[str, List[Tuple]] = defaultdict(list)
     candidate_summary: Dict[str, Dict[str, int]] = {}
     candidate_write_seconds = 0.0
+    # Vectorized per-event damaged-edge lookup (boolean mask + value array per
+    # event, indexed by igraph edge index) instead of a per-path, per-edge
+    # Python dict.get loop, which profiled as the largest remaining hotspot
+    # in this function (see notes/perf_findings/GOAL7_PROFILING_AND_STRATEGY_RESULTS.md).
+    event_ids_list: List[str] = []
+    event_damaged_mask: Dict[str, np.ndarray] = {}
+    event_flood_link_arr: Dict[str, np.ndarray] = {}
     if not create_full_temp_flow_matrix and event_candidates_out_dir and damaged_edges_path:
         event_edges, edge_events, _ = load_event_damaged_edges(damaged_edges_path, network)
+        event_ids_list = list(event_edges.keys())
+        for event_id, edge_lookup in event_edges.items():
+            mask_arr = np.zeros(edge_count, dtype=bool)
+            val_arr = np.empty(edge_count, dtype=object)
+            if edge_lookup:
+                idxs = np.fromiter(edge_lookup.keys(), dtype=np.int64, count=len(edge_lookup))
+                vals = np.asarray(list(edge_lookup.values()), dtype=object)
+                mask_arr[idxs] = True
+                val_arr[idxs] = vals
+            event_damaged_mask[event_id] = mask_arr
+            event_flood_link_arr[event_id] = val_arr
         candidate_summary = {
             event_id: {"rows": 0, "parts": 0} for event_id in event_edges
         }
@@ -1364,37 +1464,34 @@ def realize_paths_streaming(
                 cost_toll_total += assigned_flow * toll
                 cost_fare_total += assigned_flow * fare
 
-                if event_edges and path.size > 0:
-                    touched: Dict[str, List[int]] = defaultdict(list)
-                    for idx in path.tolist():
-                        for event_id in edge_events.get(int(idx), []):
-                            touched[event_id].append(int(idx))
-                    if touched:
-                        path_eids = [str(e) for e in edge_eid[path].tolist()]
-                        for event_id, hit_indices in touched.items():
-                            event_edge_lookup = event_edges[event_id]
-                            flood_links = [
-                                event_edge_lookup[idx]
-                                for idx in hit_indices
-                                if idx in event_edge_lookup
-                            ]
-                            candidate_buffers[event_id].append(
-                                (
-                                    int(row.od_id),
-                                    origin,
-                                    destination,
-                                    assigned_flow,
-                                    path_eids,
-                                    flood_links,
-                                    fuel,
-                                    adjusted_time_cost,
-                                    toll,
-                                    fare,
-                                    length_mile,
-                                )
+                if event_ids_list and path.size > 0:
+                    path_eids: Optional[List[str]] = None
+                    for event_id in event_ids_list:
+                        hit_mask = event_damaged_mask[event_id][path]
+                        if not hit_mask.any():
+                            continue
+                        if path_eids is None:
+                            path_eids = [str(e) for e in edge_eid[path].tolist()]
+                        flood_links = event_flood_link_arr[event_id][
+                            path[hit_mask]
+                        ].tolist()
+                        candidate_buffers[event_id].append(
+                            (
+                                int(row.od_id),
+                                origin,
+                                destination,
+                                assigned_flow,
+                                path_eids,
+                                flood_links,
+                                fuel,
+                                adjusted_time_cost,
+                                toll,
+                                fare,
+                                length_mile,
                             )
-                            if len(candidate_buffers[event_id]) >= max_buffer_rows:
-                                flush_candidate_event(event_id)
+                        )
+                        if len(candidate_buffers[event_id]) >= max_buffer_rows:
+                            flush_candidate_event(event_id)
 
         if adj_rows:
             adj_df = pd.DataFrame(adj_rows, columns=adj_columns)
@@ -1769,6 +1866,7 @@ def itter_path(
                 CREATE OR REPLACE TEMP TABLE temp_flow_indexed AS
                 SELECT
                     ROW_NUMBER() OVER () AS rn,
+                    od_id,
                     origin,
                     destination,
                     path,
@@ -1827,6 +1925,7 @@ def itter_path(
                     f"""
                     INSERT INTO od_results_iter
                     SELECT
+                        FIRST(t.od_id) AS od_id,
                         t.origin,
                         t.destination,
                         LIST(e.e_id ORDER BY u.ord) AS e_id,
@@ -1840,7 +1939,7 @@ def itter_path(
                     JOIN edge_attrs e
                       ON e.path = u.path_idx
                     WHERE t.rn BETWEEN {start} AND {end}
-                    GROUP BY t.origin, t.destination;
+                    GROUP BY t.od_id, t.origin, t.destination;
                     """
                 )
 
@@ -1860,6 +1959,7 @@ def itter_path(
             conn.execute(
                 """
                 CREATE TABLE od_adjustment_parts (
+                    od_id BIGINT,
                     origin VARCHAR,
                     destination VARCHAR,
                     adjust_r DOUBLE
@@ -1876,6 +1976,7 @@ def itter_path(
                     f"""
                     INSERT INTO od_adjustment_parts
                     SELECT
+                        t.od_id,
                         t.origin,
                         t.destination,
                         MIN(LEAST(total.acc_capacity / NULLIF(total.total_flow, 0), 1.0)) AS adjust_r
@@ -1886,16 +1987,16 @@ def itter_path(
                     JOIN total
                       ON total.e_id = e.e_id
                     WHERE t.rn BETWEEN {start} AND {end}
-                    GROUP BY t.origin, t.destination;
+                    GROUP BY t.od_id, t.origin, t.destination;
                     """
                 )
 
             conn.execute(
                 """
                 CREATE OR REPLACE TEMP TABLE od_adjustment AS
-                SELECT origin, destination, MIN(adjust_r) AS adjust_r
+                SELECT od_id, origin, destination, MIN(adjust_r) AS adjust_r
                 FROM od_adjustment_parts
-                GROUP BY origin, destination;
+                GROUP BY od_id, origin, destination;
                 """
             )
             conn.execute(
@@ -1911,7 +2012,7 @@ def itter_path(
                     o.toll,
                     o.length_mile
                 FROM od_results_iter o
-                LEFT JOIN od_adjustment a USING (origin, destination);
+                LEFT JOIN od_adjustment a USING (od_id, origin, destination);
                 """
             )
             logging.info("Complete creating temp_flow_matrix table in Duckdb!")
@@ -2497,6 +2598,9 @@ def network_flow_model(
     min_progress_rel = float(os.environ.get("NIRD_MIN_FLOW_PROGRESS_REL", "1e-6"))
     stagnant_limit = int(os.environ.get("NIRD_STAGNANT_ITERATIONS", "3"))
     stagnant_iterations = 0
+    remain_assign_mode = (
+        get_env("RESIFLOW_REMAIN_ASSIGN_FRACTION", "NIRD_REMAIN_ASSIGN_FRACTION", "") or ""
+    ).strip().lower()
     path_strategy = os.environ.get(
         "NIRD_PATH_REALIZATION_STRATEGY", "legacy_compact_sql"
     ).strip().lower()
@@ -2577,7 +2681,8 @@ def network_flow_model(
         "Iteration controls: "
         f"max_iterations={'unbounded' if max_iterations <= 0 else max_iterations}, "
         f"min_progress_rel={min_progress_rel}, "
-        f"stagnant_limit={stagnant_limit}"
+        f"stagnant_limit={stagnant_limit}, "
+        f"remain_assign_mode={remain_assign_mode or 'full'}"
     )
     logging.info(
         "OD path output controls: "
@@ -2596,6 +2701,23 @@ def network_flow_model(
         os.remove(db_path)
     # create isolated_od table
     conn = duckdb.connect(db_path)
+    # DuckDB's own query engine can parallelize the (dominant) streaming/
+    # aggregation phase internally; mirrors upstream DAFNI-NIRD's fix for the
+    # NumCpu regression (see notes/perf_findings/GOAL6_UPSTREAM_DRIFT_AUDIT.md).
+    conn.execute(f"PRAGMA threads={max(1, int(num_of_cpu))}")
+    # Bound DuckDB's buffer-pool memory explicitly. Without this it defaults
+    # to ~80% of system RAM; on a long-lived connection that repeatedly
+    # creates/drops large temp tables over many hours/iterations (national
+    # scale), RSS ratchets toward that ceiling and the OS starts swapping
+    # long before DuckDB itself would call it OOM (Goal 14 overnight run:
+    # RSS hit ~46.6GB / 625MB free, iteration time grew ~4x from swap
+    # thrashing -- see notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md).
+    # Capping memory_limit forces DuckDB to spill to temp_directory instead.
+    duckdb_memory_limit = os.environ.get("NIRD_DUCKDB_MEMORY_LIMIT", "24GB")
+    conn.execute(f"PRAGMA memory_limit='{duckdb_memory_limit}'")
+    duckdb_temp_dir = os.environ.get("NIRD_DUCKDB_TEMP_DIRECTORY")
+    if duckdb_temp_dir:
+        conn.execute(f"PRAGMA temp_directory='{_sql_path(duckdb_temp_dir)}'")
     if edge_lookup_path is not None:
         edge_lookup_df = pd.DataFrame(
             {"edge_idx": np.arange(number_of_edges, dtype=np.int32), "e_id": network.es["e_id"]}
@@ -2665,9 +2787,32 @@ def network_flow_model(
     del remain_od
     gc.collect()
 
+    # Opt-in persistent worker pool: create once and refresh each worker's
+    # network reference per iteration instead of respawning the pool every
+    # iteration (spawn+reimport cost scaled linearly with worker count; see
+    # notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md Goal 11). Falls back to
+    # the existing per-iteration Pool() when disabled (default).
+    persistent_pool_enabled = _env_flag("NIRD_PERSISTENT_LCP_POOL") and num_of_cpu > 1
+    persistent_pool = None
+    if persistent_pool_enabled:
+        initial_pkl = pickle.dumps(network)
+        persistent_pool_kwargs = {
+            "processes": num_of_cpu,
+            "initializer": worker_init_path,
+            "initargs": (initial_pkl,),
+        }
+        _persistent_max_tasks = int(os.environ.get("NIRD_POOL_MAX_TASKS_PER_CHILD", "0"))
+        if _persistent_max_tasks > 0:
+            persistent_pool_kwargs["maxtasksperchild"] = _persistent_max_tasks
+        persistent_pool = Pool(**persistent_pool_kwargs)
+        logging.info(
+            "Persistent LCP worker pool created once (num_of_cpu=%s).", num_of_cpu
+        )
+
     while total_remain > 0:
         previous_total_remain = total_remain
         logging.info(f"No.{iter_flag} iteration starts:")
+        _log_rss(f"iter{iter_flag}_start")
         # remove OD pairs whose nodes are not present in the current network
         conn.register("current_valid_nodes", pd.DataFrame({"node": network.vs["name"]}))
         conn.execute("DROP TABLE IF EXISTS isolated_tmp")
@@ -2703,7 +2848,17 @@ def network_flow_model(
         logging.info(f"Initial isolated flows: {temp_isolation}")
 
         # dump the network and edge weight for shared use in multiprocessing
-        shared_network_pkl = pickle.dumps(network)
+        # (only needed when actually spawning worker processes; skip the
+        # pickle entirely at num_of_cpu=1, where shared_network is assigned
+        # directly instead -- was previously computed unconditionally)
+        shared_network_pkl = None
+        if num_of_cpu > 1:
+            pickle_st = time.time()
+            shared_network_pkl = pickle.dumps(network)
+            logging.info(
+                "Network pickle time for worker init: %.3f seconds.",
+                time.time() - pickle_st,
+            )
 
         # find the least-cost path for each OD trip
         args_df = conn.execute(
@@ -2728,8 +2883,28 @@ def network_flow_model(
                 desc="Creating argument list: ",
             )
         ]
+        # Sort tasks by descending destination-list length before Pool
+        # dispatch (longest-job-first load balancing): imap_unordered
+        # returns results out of order regardless, so this only affects
+        # scheduling, not correctness. Avoids one worker getting stuck on a
+        # single huge-origin task while others sit idle on small ones.
+        if _env_flag("NIRD_LCP_SORT_BY_DEST_COUNT", True) and num_of_cpu > 1:
+            args.sort(key=lambda a: len(a[1]), reverse=True)
+        if remain_assign_mode == "msa":
+            alpha = 1.0 / max(1, iter_flag)
+            args = [
+                (origin, destinations, [flow * alpha for flow in flows])
+                for origin, destinations, flows in args
+            ]
+            logging.info(
+                "MSA remain assignment: alpha=%.8f (1/%s) for iteration %s",
+                alpha,
+                iter_flag,
+                iter_flag,
+            )
         del args_df
         gc.collect()
+        _log_rss(f"iter{iter_flag}_args_built")
 
         conn.execute("DROP TABLE IF EXISTS temp_flow_matrix_input")
         od_id_at_insert = _env_flag("NIRD_OD_ID_AT_INSERT")
@@ -2834,25 +3009,74 @@ def network_flow_model(
 
         # batch-processing
         lcp_pool_st = time.time()
-        pool_kwargs = {
-            "processes": num_of_cpu,
-            "initializer": worker_init_path,
-            "initargs": (shared_network_pkl,),
-        }
-        max_tasks_per_child = int(os.environ.get("NIRD_POOL_MAX_TASKS_PER_CHILD", "0"))
-        if max_tasks_per_child > 0:
-            pool_kwargs["maxtasksperchild"] = max_tasks_per_child
 
-        if num_of_cpu > 1:
+        # imap_unordered default chunksize is 1 (one IPC round-trip per
+        # origin-task); raising it batches multiple tasks per round-trip,
+        # cutting IPC overhead at the cost of coarser load balancing. Opt-in
+        # via env; combined with the size-descending sort above, large tasks
+        # still get their own round-trip early while small ones batch later.
+        pool_chunksize = max(1, int(os.environ.get("NIRD_LCP_POOL_CHUNKSIZE", "1")))
+
+        def _run_pool_dispatch(pool) -> None:
+            dispatch_st = time.time()
+            if lcp_collect_pool:
+                nonlocal pool_results
+                pool_results = list(
+                    pool.imap_unordered(
+                        find_least_cost_path, args, chunksize=pool_chunksize
+                    )
+                )
+            else:
+                for i, shortest_path in enumerate(
+                    pool.imap_unordered(
+                        find_least_cost_path, args, chunksize=pool_chunksize
+                    ),
+                    start=1,
+                ):
+                    handle_shortest_path(shortest_path)
+                    _log_lcp_progress(i, len(args))
+            logging.info(
+                "Pool dispatch (imap_unordered consumption) time: %.3f seconds "
+                "(chunksize=%s).",
+                time.time() - dispatch_st,
+                pool_chunksize,
+            )
+
+        pool_results = None
+        if persistent_pool_enabled:
+            refresh_st = time.time()
+            persistent_pool.map(
+                refresh_worker_network, [shared_network_pkl] * num_of_cpu
+            )
+            logging.info(
+                "Persistent pool worker refresh time: %.3f seconds "
+                "(num_of_cpu=%s).",
+                time.time() - refresh_st,
+                num_of_cpu,
+            )
+            _run_pool_dispatch(persistent_pool)
+        elif num_of_cpu > 1:
+            pool_kwargs = {
+                "processes": num_of_cpu,
+                "initializer": worker_init_path,
+                "initargs": (shared_network_pkl,),
+            }
+            max_tasks_per_child = int(
+                os.environ.get("NIRD_POOL_MAX_TASKS_PER_CHILD", "0")
+            )
+            if max_tasks_per_child > 0:
+                pool_kwargs["maxtasksperchild"] = max_tasks_per_child
+
+            pool_spawn_st = time.time()
             with Pool(**pool_kwargs) as pool:
-                if lcp_collect_pool:
-                    pool_results = list(pool.imap_unordered(find_least_cost_path, args))
-                else:
-                    for i, shortest_path in enumerate(
-                        pool.imap_unordered(find_least_cost_path, args), start=1
-                    ):
-                        handle_shortest_path(shortest_path)
-                        _log_lcp_progress(i, len(args))
+                pool_spawn_sec = time.time() - pool_spawn_st
+                logging.info(
+                    "Pool construction (spawn+initializer) time: %.3f seconds "
+                    "(num_of_cpu=%s).",
+                    pool_spawn_sec,
+                    num_of_cpu,
+                )
+                _run_pool_dispatch(pool)
         else:
             global shared_network
             shared_network = network
@@ -2867,6 +3091,7 @@ def network_flow_model(
 
         lcp_pool_sec = time.time() - lcp_pool_st
         logging.info(f"The least-cost path flow allocation time: {lcp_pool_sec}.")
+        _log_rss(f"iter{iter_flag}_lcp_pool_done")
 
         if lcp_collect_pool:
             lcp_db_st = time.time()
@@ -2961,6 +3186,7 @@ def network_flow_model(
         )
 
         # %%
+        _log_rss(f"iter{iter_flag}_before_itter_path")
         logging.info("Create temp_flow_matrix table in duckdb...")
         # origin (name), destination(name), path(idx), flow(int)
         itter_path(
@@ -3402,6 +3628,13 @@ def network_flow_model(
             or 0.0
         )
         logging.info(f"The total remain flow (after adjustment) is: {total_remain}.")
+        remain_fraction = total_remain / initial_sumod if initial_sumod > 0 else 0.0
+        logging.info(
+            "Pass A convergence: remain_fraction=%.8f assigned_fraction=%.8f iteration=%s",
+            remain_fraction,
+            1.0 - remain_fraction,
+            iter_flag,
+        )
         progress = max(previous_total_remain - total_remain, 0.0)
         progress_rel = progress / initial_sumod if initial_sumod > 0 else 0.0
         if progress_rel < min_progress_rel:
@@ -3432,6 +3665,7 @@ def network_flow_model(
             conn.execute(f"DROP TABLE IF EXISTS {transient_table}")
         logging.info("Finished cleanup for iteration %s.", iter_flag)
         gc.collect()
+        _log_rss(f"iter{iter_flag}_end")
 
         # %%
         # check point for next iteration
@@ -3519,6 +3753,11 @@ def network_flow_model(
         gc.collect()
 
         iter_flag += 1
+
+    if persistent_pool is not None:
+        persistent_pool.close()
+        persistent_pool.join()
+        logging.info("Persistent LCP worker pool closed.")
 
     cList = [cost_time, cost_fuel, cost_toll, total_cost]
     road_links = road_links[road_links_columns]
