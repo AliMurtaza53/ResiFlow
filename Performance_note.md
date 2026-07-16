@@ -59,8 +59,21 @@ Script 4 repeats the same pattern on the **disrupted subgraph** for every recove
 
 **2. Memory / I/O tuning**  
 - Smoke already sets: `NIRD_ODPFC_OUTPUT_MODE=skip`, `NIRD_WRITE_FULL_ODPFC=0`, `streaming_arrays`, `NIRD_ENABLE_SPLIT_CACHE=1`.  
-- For full runs: tune `NIRD_FLOW_DB_BATCH_SIZE` (default 100k), avoid materializing full ODPFC unless needed for Pass B.  
-- If RAM blows up: reduce `ShortestPathDestBatch` (split all-destinations-from-one-origin calls) per CONUS workflow docs.
+- For full runs: tune `NIRD_FLOW_DB_BATCH_SIZE` (default 100k) -- this is the
+  dominant lever on peak RAM at national OD scale, **not** worker count or
+  per-origin destination-list size (both tested and ruled out; see
+  `notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md` Goal 15). At 5M OD, the
+  default 100k caused peak RSS to reach ~45GB (killed a run at 625MB free
+  system RAM); `NIRD_FLOW_DB_BATCH_SIZE=50000` cut that to ~7.2GB for only
+  ~+45% wall time per iteration -- the recommended setting for any
+  multi-million-OD run on a workstation-class machine. Also set an explicit
+  `PRAGMA memory_limit` via `NIRD_DUCKDB_MEMORY_LIMIT` (default 24GB) as a
+  backstop. Avoid materializing full ODPFC unless needed for Pass B.  
+- If RAM blows up further: reduce `ShortestPathDestBatch` (split
+  all-destinations-from-one-origin calls) per CONUS workflow docs -- note
+  this trades wall time for memory in the same way as
+  `NIRD_FLOW_DB_BATCH_SIZE`, and the batch-size lever proved much more
+  effective per unit of slowdown in direct testing.
 
 **3. Demand / scope reduction (valid for smoke & sensitivity)**  
 - `RESIFLOW_SAMPLE_OD_N` (50k smoke).  
@@ -93,6 +106,10 @@ OMP_NUM_THREADS=1   # avoid oversubscription with multiprocessing pool
 # Recommended additions on this machine (i7-14700) when num_of_cpu > 1 (keep num_of_cpu<=4):
 NIRD_WORKER_CPU_AFFINITY=0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15   # verified P-core threads
 # NIRD_PERSISTENT_LCP_POOL=1   # only for short smoke tests -- degrades over long runs, see §11
+
+# Required at multi-million-OD scale (Goal 15) to avoid OOM:
+NIRD_FLOW_DB_BATCH_SIZE=50000   # default 100k risks ~45GB peak RSS at 5M OD; 50k -> ~7.2GB
+NIRD_DUCKDB_MEMORY_LIMIT=24GB   # backstop PRAGMA memory_limit on the long-lived DuckDB connection
 ```
 
 **Bottom line for OR/CS/software:** CONUS scale is gated by **repeated national-scale shortest-path assignment and path materialization**, not by damage curve evaluation or visualization. Near-term wins are **parallel hardware + workflow sharding + candidate filtering**; medium-term wins require **assignment algorithm upgrades (FW/TAPAS-class)** and/or **network decomposition**; GPUs are not on the critical path unless the assignment kernel is reimplemented.

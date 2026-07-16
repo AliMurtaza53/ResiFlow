@@ -2883,6 +2883,46 @@ def network_flow_model(
                 desc="Creating argument list: ",
             )
         ]
+        # Split each origin's destination list into bounded-size sub-tasks
+        # (opt-in; Goal 15). Origin count is roughly fixed regardless of OD
+        # sample size (~2975 on the VA-priority CONUS run), while
+        # destinations-per-origin scales with total OD volume -- at 5M OD
+        # that meant ~1680 destinations bundled into a single task/result,
+        # which drove main-process RSS to ~45GB (vs ~5GB at 500k OD; see
+        # notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md Goal 15). Chunking
+        # bounds peak per-task/result memory independent of OD scale, at the
+        # cost of re-running the single-source Dijkstra tree once per chunk
+        # for origins split across multiple tasks (igraph's
+        # get_shortest_paths recomputes the tree per call regardless of
+        # destination count) -- the same tradeoff already exercised by
+        # NIRD_SHORTEST_PATH_DEST_BATCH, just applied at task-construction
+        # time instead of inside find_least_cost_path.
+        dest_chunk_size = int(os.environ.get("NIRD_LCP_DEST_CHUNK_SIZE", "0"))
+        if dest_chunk_size > 0:
+            pre_chunk_task_count = len(args)
+            chunked_args = []
+            for origin, destinations, flows in args:
+                if len(destinations) <= dest_chunk_size:
+                    chunked_args.append((origin, destinations, flows))
+                else:
+                    for start in range(0, len(destinations), dest_chunk_size):
+                        chunked_args.append(
+                            (
+                                origin,
+                                destinations[start : start + dest_chunk_size],
+                                flows[start : start + dest_chunk_size],
+                            )
+                        )
+            logging.info(
+                "Chunked LCP dispatch: %s origin-tasks split into %s tasks "
+                "(dest_chunk_size=%s).",
+                pre_chunk_task_count,
+                len(chunked_args),
+                dest_chunk_size,
+            )
+            args = chunked_args
+            del chunked_args
+
         # Sort tasks by descending destination-list length before Pool
         # dispatch (longest-job-first load balancing): imap_unordered
         # returns results out of order regardless, so this only affects

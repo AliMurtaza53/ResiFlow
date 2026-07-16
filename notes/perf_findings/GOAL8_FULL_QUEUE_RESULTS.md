@@ -412,15 +412,101 @@ until the degradation is root-caused (e.g., forcing periodic worker
 recycling via `maxtasksperchild` even within the persistent-pool path would
 be the natural next experiment, not attempted here given time budget).
 
+## Goal 15: overnight run near-OOM, root cause, and fix
+
+The first real overnight convergence attempt (`goal14_va_priority_5m_overnight`,
+5M-OD VA-priority sample, all Goal 6-14 fixes applied, standard
+per-iteration respawn pool) ran 9 iterations cleanly (`remain_fraction`
+0.4477 → 0.4067) but per-iteration wall time grew ~4.3x (35min → 150min,
+iterations 1→9) with no code path that should cause that. Checking system
+memory mid-iteration-10 found the main process at **~46.6GB RSS with only
+625MB of 65GB system RAM free** — killed it before an OS-level OOM/crash.
+
+**Hypothesis 1 (DuckDB's default memory ceiling, ~80% of RAM, never
+bounded via `PRAGMA memory_limit`)** — plausible on paper (no
+`memory_limit` pragma existed anywhere in the codebase), so added one
+(`NIRD_DUCKDB_MEMORY_LIMIT`, default 24GB) to the long-lived connection.
+Validation test on the same 5M-OD sample **disproved it as the primary
+cause**: RSS hit 45GB at only 17% through *iteration 1* — before the
+many-iterations-of-churn this hypothesis needed. The pragma is still a
+reasonable belt-and-suspenders bound and was kept.
+
+**Hypothesis 2 (worker-count / per-worker network copies)** — disproved by
+direct A/B: `num_of_cpu=2` vs `num_of_cpu=4` on a safe 500k-OD repro gave
+*identical* peak RSS (~5GB both), only `num_of_cpu=2` was slower. Ruled out.
+
+**Hypothesis 3 (per-origin destination-list size scaling with OD volume)**
+— origin count is ~fixed (~2975) regardless of OD sample size, while
+destinations-per-origin scales with OD volume (168 avg at 500k → ~1680 avg
+at 5M), and `find_least_cost_path` bundles one origin's *entire* destination
+list into a single task/result. Implemented `NIRD_LCP_DEST_CHUNK_SIZE` to
+split each origin's destinations into bounded sub-tasks at construction
+time (no change needed to the worker function, which already supports
+arbitrary-length destination lists via the existing
+`NIRD_SHORTEST_PATH_DEST_BATCH` precedent). **Also disproved**: chunking to
+300 destinations/task gave *higher* peak RSS (5.92-6.07GB vs the unchunked
+baseline's 5.09-5.62GB at 500k OD) and ~30% slower wall time, for no
+memory benefit. Correctness was unaffected (`remain_fraction` matched the
+unchunked baseline exactly across 3 iterations), but the fix itself did
+nothing useful, so `NIRD_LCP_DEST_CHUNK_SIZE` was left in the codebase
+disabled by default (opt-in, harmless, not used).
+
+**Actual root cause: `NIRD_FLOW_DB_BATCH_SIZE`.** Each LCP result is
+unpacked into `flow_batch`/`isolated_batch` and flushed to DuckDB as a
+pandas DataFrame (path column = nested Python int lists) once the batch
+reaches this threshold (default 100,000 rows). Testing batch size directly
+at 500k OD, single iteration:
+
+| `NIRD_FLOW_DB_BATCH_SIZE` | Flush cycles (500k OD) | Peak RSS |
+|---|---|---|
+| 1,000,000 (one flush) | 1 | **17.06 GB** |
+| 100,000 (default) | 5 | ~5 GB |
+| 10,000 | 50 | **2.87 GB** |
+
+Peak memory is governed by the size of a single in-flight, unflushed batch,
+not by total OD volume directly. Confirmed decoupling from OD scale: at
+`NIRD_FLOW_DB_BATCH_SIZE=10000`, peak RSS was 2.87GB at 500k OD, 5.11GB at
+2M OD (4x the rows, not 4x the memory), and **6.78GB at the full 5M-OD
+scale** (single iteration) — an 85% reduction from the killed run's
+~45GB, with massive headroom on this 65GB machine. The cost: that
+iteration took 6223s (~104min) vs. the original 35min at default batch
+size — smaller batches mean more flush cycles, each with fixed
+DataFrame-construction/`register`/`INSERT`/`unregister` overhead.
+
+Tuned the trade-off: `NIRD_FLOW_DB_BATCH_SIZE=50000` (100 flush cycles for
+5M OD) gave **7.23GB peak RSS — barely worse than the 10k setting's
+6.78GB** — but at only **3047s (~51min)**, roughly half the wall time of
+the 10k setting. The memory benefit saturates well before 10,000; 50,000 is
+the adopted default for the overnight run via
+`NIRD_FLOW_DB_BATCH_SIZE=50000` in
+`experiments/pass_a_convergence/run_overnight_va_priority.py`, alongside
+the `PRAGMA memory_limit` bound and lightweight `NIRD_LOG_RSS_CHECKPOINTS`
+monitoring for the run itself.
+
+**Diagnostic tooling added** (both opt-in, zero cost when unset):
+`NIRD_LOG_RSS_CHECKPOINTS=1` logs main-process RSS at 5 points per
+iteration (start, args-built, post-LCP-dispatch, pre-`itter_path`,
+end); `NIRD_MEM_PROFILE_TOP_TYPES=1` additionally dumps the top 15 Python
+object types by shallow size at each checkpoint (useful for narrowing down
+*where* memory sits, though shallow `sys.getsizeof` under-counts nested
+container contents — the real signal here came from the batch-size A/B,
+not the object-type dump).
+
+Branch note: the DuckDB `memory_limit` fix and diagnostics landed on
+`perf/pass-a-convergence-diagnosis`; the (ultimately disproven)
+`NIRD_LCP_DEST_CHUNK_SIZE` chunked-dispatch work and the batch-size
+investigation/fix live on `perf/lcp-dest-chunked-dispatch`.
+
 ## Recommendation
 
-All four items resolved or fixed; two (`cap_by_eid`, event-edge matching)
-delivered large, verified wins. `duckdb_chunked_compact` should not be
-revisited unless someone specifically wants to invest in fixing its second
-bug *and* solving its apparent memory/row-count blowup at scale — not
-recommended given `streaming_arrays` is now both correct and much faster
-post-vectorization. Next natural step: re-run the Goal 6 CONUS-scale
-convergence comparison (configs A/B/C, `remain_fraction` curve) now that
-per-iteration cost is ~3-4x cheaper — more iterations become affordable in
-the same wall-clock budget, which directly bears on the still-open Pass A
+All four Goal 8 items resolved or fixed; two (`cap_by_eid`, event-edge
+matching) delivered large, verified wins. `duckdb_chunked_compact` should
+not be revisited unless someone specifically wants to invest in fixing its
+second bug *and* solving its apparent memory/row-count blowup at scale —
+not recommended given `streaming_arrays` is now both correct and much
+faster post-vectorization. The Goal 15 memory fix
+(`NIRD_FLOW_DB_BATCH_SIZE=50000` + `PRAGMA memory_limit`) removes the OOM
+risk that blocked the overnight convergence run; next step is to relaunch
+it and let Pass A run to convergence (or stagnation) on the real 5M-OD
+VA-priority sample, which directly bears on the still-open Pass A
 convergence question.
