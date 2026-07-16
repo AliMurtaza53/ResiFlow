@@ -3,10 +3,18 @@
 (built by build_va_priority_5m_od.py), with every validated fix from Goals
 6-15 applied: threshold fix, PRAGMA threads, cap_by_eid + event-edge
 vectorization, P-core affinity, task sort by destination-count, DuckDB
-memory_limit, and the Goal 15 flush-batch-size fix (NIRD_FLOW_DB_BATCH_SIZE
-lowered from the 100k default to 50k, which cut peak RSS from ~45GB to
-~7.2GB at this exact 5M-OD scale for roughly +45% wall time per iteration --
-see notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md Goal 15). Unbounded
+memory_limit, flush-batch-size tuning, and -- the real Goal 15 fix --
+per-origin destination chunking (NIRD_LCP_DEST_CHUNK_SIZE=300). Tasks are
+sorted by descending destination count before dispatch, so without
+chunking the biggest (most memory-hungry) origins are processed first and
+back-to-back, producing a transient mid-dispatch RSS spike (~48.7GB at 5M
+OD) that a boundary-only (pool-open/pool-close) memory check completely
+misses -- it drains back down to a low steady-state by the time dispatch
+finishes. Chunking each origin's destinations into bounded 300-sized
+sub-tasks eliminates the spike entirely (measured peak ~13.4GB at full 5M
+OD, smooth monotonic climb, no spike) and was *also* faster (891s vs 3047s
+for the same OD/iteration) thanks to better load balancing across workers.
+See notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md Goal 15. Unbounded
 iterations -- run until it stops itself or is killed for inspection.
 """
 from __future__ import annotations
@@ -19,7 +27,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 OD_PATH = Path(__file__).resolve().parent / "runs" / "goal14_va_priority_5m_od.pq"
-RUN_LABEL = "goal15_va_priority_5m_overnight"
+RUN_LABEL = "goal15_va_priority_5m_overnight_v2"
 
 sys.path.insert(0, str(REPO_ROOT / "src"))
 sys.path.insert(0, str(REPO_ROOT))
@@ -72,12 +80,14 @@ env = {
     "NIRD_LCP_SORT_BY_DEST_COUNT": "1",
     "NIRD_LCP_POOL_CHUNKSIZE": "1",
     "NIRD_BASELINE_PATH_OUTPUT_MODE": "none",
-    # Goal 15 fix: default batch size (100k) let a single unflushed flow_batch
-    # DataFrame (path column = nested int lists) balloon RSS to ~45GB at 5M
-    # OD, causing an OOM-adjacent near-crash (625MB free / 65GB) by iteration
-    # 9. 50k cuts peak RSS to ~7.2GB (validated at full 5M-OD, single
-    # iteration) for ~+45% wall time -- a much better trade than 10k (~6.8GB
-    # but ~3x slower), since the memory benefit saturates well before 10k.
+    # Goal 15 real fix: chunk each origin's destinations into bounded
+    # sub-tasks before dispatch. Without this, sort-by-descending-dest-count
+    # concentrates the biggest origins early in dispatch, producing a
+    # transient ~48.7GB mid-dispatch RSS spike at 5M OD (a boundary-only
+    # memory check misses this entirely). Chunking measured at ~13.4GB peak,
+    # smooth climb, no spike -- and 891s vs 3047s wall time (also faster).
+    "NIRD_LCP_DEST_CHUNK_SIZE": "300",
+    # Kept as additional safety margin, not the primary fix:
     "NIRD_FLOW_DB_BATCH_SIZE": "50000",
     "NIRD_DUCKDB_MEMORY_LIMIT": "24GB",
     "NIRD_LOG_RSS_CHECKPOINTS": "1",

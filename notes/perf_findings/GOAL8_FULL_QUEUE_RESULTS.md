@@ -443,59 +443,79 @@ list into a single task/result. Implemented `NIRD_LCP_DEST_CHUNK_SIZE` to
 split each origin's destinations into bounded sub-tasks at construction
 time (no change needed to the worker function, which already supports
 arbitrary-length destination lists via the existing
-`NIRD_SHORTEST_PATH_DEST_BATCH` precedent). **Also disproved**: chunking to
-300 destinations/task gave *higher* peak RSS (5.92-6.07GB vs the unchunked
-baseline's 5.09-5.62GB at 500k OD) and ~30% slower wall time, for no
-memory benefit. Correctness was unaffected (`remain_fraction` matched the
-unchunked baseline exactly across 3 iterations), but the fix itself did
-nothing useful, so `NIRD_LCP_DEST_CHUNK_SIZE` was left in the codebase
-disabled by default (opt-in, harmless, not used).
+`NIRD_SHORTEST_PATH_DEST_BATCH` precedent). **Initially appeared disproved**
+at 500k OD (chunking to 300 destinations/task gave slightly *higher* peak
+RSS and ~30% slower wall time) — but this test only measured RSS at
+pool-open and pool-close, and was wrong; see below.
 
-**Actual root cause: `NIRD_FLOW_DB_BATCH_SIZE`.** Each LCP result is
-unpacked into `flow_batch`/`isolated_batch` and flushed to DuckDB as a
-pandas DataFrame (path column = nested Python int lists) once the batch
-reaches this threshold (default 100,000 rows). Testing batch size directly
-at 500k OD, single iteration:
+**Interim (also incomplete) finding: `NIRD_FLOW_DB_BATCH_SIZE`.** Testing
+the flow-batch flush threshold (default 100,000 rows, governs how large a
+pandas DataFrame gets built/inserted/dropped per flush cycle) at 500k OD
+showed peak RSS scaling with batch size (1M→17GB, 100k→~5GB, 10k→2.87GB),
+and at full 5M OD, `NIRD_FLOW_DB_BATCH_SIZE=50000` measured **7.23GB peak
+RSS** for ~51min wall time — seemingly a good fix. **This was also wrong**,
+for the same reason as the chunking test below: RSS was only checked at
+pool-open/pool-close.
 
-| `NIRD_FLOW_DB_BATCH_SIZE` | Flush cycles (500k OD) | Peak RSS |
-|---|---|---|
-| 1,000,000 (one flush) | 1 | **17.06 GB** |
-| 100,000 (default) | 5 | ~5 GB |
-| 10,000 | 50 | **2.87 GB** |
+**The real bug: boundary-only RSS checkpoints miss the true peak.** Tasks
+are sorted by *descending* destination count before dispatch (a
+load-balancing optimization from Goal 13) — so without chunking, the
+biggest, most memory-hungry origins are processed *first*, all clustered
+together early in dispatch. A checkpoint taken only at pool-open (before
+any of this) and pool-close (after even the biggest results have long
+since been flushed and reclaimed) **completely misses a spike that occurs
+specifically in the middle of dispatch** and drains back down by the end.
+This was caught only because the *actual relaunched overnight run* (with
+the "validated" `NIRD_FLOW_DB_BATCH_SIZE=50000` fix in place) hit **~40-50GB
+RSS and 800MB free system RAM at just 18% into iteration 1** — contradicting
+the 7.23GB the diagnostic had measured — forcing an emergency kill and a
+re-examination of the measurement methodology itself, not just the fix.
 
-Peak memory is governed by the size of a single in-flight, unflushed batch,
-not by total OD volume directly. Confirmed decoupling from OD scale: at
-`NIRD_FLOW_DB_BATCH_SIZE=10000`, peak RSS was 2.87GB at 500k OD, 5.11GB at
-2M OD (4x the rows, not 4x the memory), and **6.78GB at the full 5M-OD
-scale** (single iteration) — an 85% reduction from the killed run's
-~45GB, with massive headroom on this 65GB machine. The cost: that
-iteration took 6223s (~104min) vs. the original 35min at default batch
-size — smaller batches mean more flush cycles, each with fixed
-DataFrame-construction/`register`/`INSERT`/`unregister` overhead.
+Added periodic mid-dispatch RSS sampling (dense — every 20 origins — for
+the first 500 tasks, then every 100) instead of only sampling at the pool
+boundaries. Re-running the *unchunked* 5M-OD test with this corrected
+instrumentation (`NIRD_FLOW_DB_BATCH_SIZE=50000`, no chunking) revealed the
+true shape: RSS climbs from ~2GB to a peak of **48.72GB around origins
+400-1000 of 2983** (the biggest-destination-count origins), then drains
+back to a steady 7.14GB by the time dispatch reaches 100% — exactly the
+7.23GB the flawed boundary check had reported, and exactly the same danger
+that killed the first overnight run.
 
-Tuned the trade-off: `NIRD_FLOW_DB_BATCH_SIZE=50000` (100 flush cycles for
-5M OD) gave **7.23GB peak RSS — barely worse than the 10k setting's
-6.78GB** — but at only **3047s (~51min)**, roughly half the wall time of
-the 10k setting. The memory benefit saturates well before 10,000; 50,000 is
-the adopted default for the overnight run via
-`NIRD_FLOW_DB_BATCH_SIZE=50000` in
-`experiments/pass_a_convergence/run_overnight_va_priority.py`, alongside
-the `PRAGMA memory_limit` bound and lightweight `NIRD_LOG_RSS_CHECKPOINTS`
-monitoring for the run itself.
+**Re-testing chunked dispatch (`NIRD_LCP_DEST_CHUNK_SIZE=300`) with the
+corrected instrumentation reverses the earlier verdict entirely**: peak RSS
+was only **13.4GB**, climbing smoothly and monotonically across the whole
+dispatch with no spike at all (since no single task now bundles a huge
+origin's full destination list, the sort-by-descending-count optimization
+no longer concentrates memory-heavy work early). It was *also faster* —
+**891s vs 3047s** for the same 5M-OD single iteration — apparently because
+finer-grained tasks let the 4 workers load-balance better than a handful of
+huge, uneven per-origin jobs. Combined with `NIRD_FLOW_DB_BATCH_SIZE=50000`
+and `NIRD_DUCKDB_MEMORY_LIMIT=24GB` as additional safety margin (neither
+strictly necessary once chunking removes the spike, but both cheap and
+harmless to keep), this is the adopted configuration in
+`experiments/pass_a_convergence/run_overnight_va_priority.py`.
 
-**Diagnostic tooling added** (both opt-in, zero cost when unset):
-`NIRD_LOG_RSS_CHECKPOINTS=1` logs main-process RSS at 5 points per
-iteration (start, args-built, post-LCP-dispatch, pre-`itter_path`,
-end); `NIRD_MEM_PROFILE_TOP_TYPES=1` additionally dumps the top 15 Python
-object types by shallow size at each checkpoint (useful for narrowing down
-*where* memory sits, though shallow `sys.getsizeof` under-counts nested
-container contents — the real signal here came from the batch-size A/B,
-not the object-type dump).
+**Lesson for future memory diagnostics on this codebase:** any dispatch
+path with non-uniform task sizes and a sort/priority order needs RSS
+sampled *during* dispatch, not just at its boundaries — a monotonic
+end-of-phase value can hide an arbitrarily large transient spike, and this
+cost two rounds of "validated" fixes that weren't.
+
+**Diagnostic tooling added** (all opt-in, zero cost when unset):
+`NIRD_LOG_RSS_CHECKPOINTS=1` logs main-process RSS at iteration
+start/end/args-built/pre-post-dispatch plus periodic mid-dispatch samples
+(density configurable via `NIRD_RSS_SAMPLE_EVERY_N`, default 100, with
+dense every-20 sampling for the first 500 tasks); `NIRD_MEM_PROFILE_TOP_TYPES=1`
+additionally dumps the top 15 Python object types by shallow size at each
+checkpoint (useful for narrowing down *where* memory sits, though shallow
+`sys.getsizeof` under-counts nested container contents — the real signal
+here came from the mid-dispatch A/B, not the object-type dump).
 
 Branch note: the DuckDB `memory_limit` fix and diagnostics landed on
-`perf/pass-a-convergence-diagnosis`; the (ultimately disproven)
-`NIRD_LCP_DEST_CHUNK_SIZE` chunked-dispatch work and the batch-size
-investigation/fix live on `perf/lcp-dest-chunked-dispatch`.
+`perf/pass-a-convergence-diagnosis`; the chunked-dispatch investigation
+(initially disproven, then confirmed as the real fix once instrumentation
+was corrected), the batch-size tuning, and the mid-dispatch sampling fix
+all live on `perf/lcp-dest-chunked-dispatch`.
 
 ## Recommendation
 

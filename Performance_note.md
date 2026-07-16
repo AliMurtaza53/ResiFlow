@@ -59,21 +59,24 @@ Script 4 repeats the same pattern on the **disrupted subgraph** for every recove
 
 **2. Memory / I/O tuning**  
 - Smoke already sets: `NIRD_ODPFC_OUTPUT_MODE=skip`, `NIRD_WRITE_FULL_ODPFC=0`, `streaming_arrays`, `NIRD_ENABLE_SPLIT_CACHE=1`.  
-- For full runs: tune `NIRD_FLOW_DB_BATCH_SIZE` (default 100k) -- this is the
-  dominant lever on peak RAM at national OD scale, **not** worker count or
-  per-origin destination-list size (both tested and ruled out; see
-  `notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md` Goal 15). At 5M OD, the
-  default 100k caused peak RSS to reach ~45GB (killed a run at 625MB free
-  system RAM); `NIRD_FLOW_DB_BATCH_SIZE=50000` cut that to ~7.2GB for only
-  ~+45% wall time per iteration -- the recommended setting for any
-  multi-million-OD run on a workstation-class machine. Also set an explicit
-  `PRAGMA memory_limit` via `NIRD_DUCKDB_MEMORY_LIMIT` (default 24GB) as a
-  backstop. Avoid materializing full ODPFC unless needed for Pass B.  
-- If RAM blows up further: reduce `ShortestPathDestBatch` (split
-  all-destinations-from-one-origin calls) per CONUS workflow docs -- note
-  this trades wall time for memory in the same way as
-  `NIRD_FLOW_DB_BATCH_SIZE`, and the batch-size lever proved much more
-  effective per unit of slowdown in direct testing.
+- For multi-million-OD runs: set `NIRD_LCP_DEST_CHUNK_SIZE=300` -- this is
+  the fix for a real, dangerous mid-dispatch RSS spike (~48.7GB at 5M OD)
+  caused by sort-by-descending-destination-count concentrating the
+  biggest, most memory-hungry origins early in dispatch. A memory check at
+  only the pool-open/pool-close boundaries **completely misses this spike**
+  (it drains back to a low steady value by the time dispatch finishes),
+  which cost two rounds of "validated" fixes before being caught -- see
+  `notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md` Goal 15 for the full
+  story. Chunking measured at ~13.4GB peak (smooth climb, no spike) at full
+  5M OD and was *also* faster (891s vs 3047s) than the unchunked run, likely
+  from better load-balancing across workers. Also set
+  `NIRD_FLOW_DB_BATCH_SIZE=50000` and `NIRD_DUCKDB_MEMORY_LIMIT=24GB` as
+  cheap additional safety margin. Avoid materializing full ODPFC unless
+  needed for Pass B.  
+- If diagnosing memory on any dispatch path with non-uniform task sizes and
+  a sort/priority order, sample RSS **during** dispatch (not just at its
+  boundaries) -- a monotonic end-of-phase value can hide an arbitrarily
+  large transient spike.
 
 **3. Demand / scope reduction (valid for smoke & sensitivity)**  
 - `RESIFLOW_SAMPLE_OD_N` (50k smoke).  
@@ -107,9 +110,12 @@ OMP_NUM_THREADS=1   # avoid oversubscription with multiprocessing pool
 NIRD_WORKER_CPU_AFFINITY=0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15   # verified P-core threads
 # NIRD_PERSISTENT_LCP_POOL=1   # only for short smoke tests -- degrades over long runs, see §11
 
-# Required at multi-million-OD scale (Goal 15) to avoid OOM:
-NIRD_FLOW_DB_BATCH_SIZE=50000   # default 100k risks ~45GB peak RSS at 5M OD; 50k -> ~7.2GB
-NIRD_DUCKDB_MEMORY_LIMIT=24GB   # backstop PRAGMA memory_limit on the long-lived DuckDB connection
+# Required at multi-million-OD scale (Goal 15) to avoid a dangerous
+# mid-dispatch RSS spike (~48.7GB at 5M OD; a boundary-only memory check
+# misses it entirely -- see GOAL8_FULL_QUEUE_RESULTS.md Goal 15):
+NIRD_LCP_DEST_CHUNK_SIZE=300     # the real fix -- ~13.4GB peak at 5M OD, and faster too
+NIRD_FLOW_DB_BATCH_SIZE=50000    # cheap additional safety margin
+NIRD_DUCKDB_MEMORY_LIMIT=24GB    # backstop PRAGMA memory_limit on the long-lived DuckDB connection
 ```
 
 **Bottom line for OR/CS/software:** CONUS scale is gated by **repeated national-scale shortest-path assignment and path materialization**, not by damage curve evaluation or visualization. Near-term wins are **parallel hardware + workflow sharding + candidate filtering**; medium-term wins require **assignment algorithm upgrades (FW/TAPAS-class)** and/or **network decomposition**; GPUs are not on the critical path unless the assignment kernel is reimplemented.

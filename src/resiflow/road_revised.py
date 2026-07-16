@@ -3046,6 +3046,19 @@ def network_flow_model(
                 logging.info(
                     f"Completed {i} of {total}, {100 * i / total:.2f}%"
                 )
+            # Mid-dispatch RSS sampling (Goal 15 follow-up): the
+            # pool-open/pool-close checkpoints alone missed a transient
+            # mid-dispatch peak that GC/flush cycles can reclaim by the time
+            # the pool closes, making end-of-dispatch RSS an unreliable
+            # proxy for the true peak. Sample periodically during dispatch;
+            # tasks are sorted by descending destination count, so the
+            # biggest (most memory-hungry) origins are processed first --
+            # sample densely near the start to catch an early spike.
+            rss_sample_every = int(
+                os.environ.get("NIRD_RSS_SAMPLE_EVERY_N", "100")
+            )
+            if i == 1 or i <= 500 and i % 20 == 0 or i % rss_sample_every == 0 or i == total:
+                _log_rss(f"iter{iter_flag}_lcp_progress_{i}_of_{total}")
 
         # batch-processing
         lcp_pool_st = time.time()
