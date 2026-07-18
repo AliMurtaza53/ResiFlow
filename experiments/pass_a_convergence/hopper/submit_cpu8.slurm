@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=hazard_scale_cpu8
 #SBATCH --partition=normal
-#SBATCH --time=00:50:00
+#SBATCH --time=01:30:00
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=64G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_cpu8_%j.out
