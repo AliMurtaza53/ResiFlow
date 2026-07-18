@@ -25,7 +25,7 @@ export NIRD_BASELINE_DB_PATH=/scratch/akothaw/multimodal_hazard_data/scale_test_
 # Goal 15 validated fixes -- keep these regardless of core count
 export NIRD_LCP_DEST_CHUNK_SIZE=300
 export NIRD_FLOW_DB_BATCH_SIZE=50000
-export NIRD_DUCKDB_MEMORY_LIMIT=24GB
+export NIRD_DUCKDB_MEMORY_LIMIT=32GB
 export NIRD_LOG_RSS_CHECKPOINTS=1
 export NIRD_LCP_SORT_BY_DEST_COUNT=1
 export OMP_NUM_THREADS=1
