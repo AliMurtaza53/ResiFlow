@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=hazard_scale_cpu4
-#SBATCH --partition=debug
+#SBATCH --partition=normal
 #SBATCH --time=00:50:00
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=64G
