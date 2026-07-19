@@ -1942,6 +1942,7 @@ def itter_path(
                     GROUP BY t.od_id, t.origin, t.destination;
                     """
                 )
+                _log_rss(f"itter_path_pass1_chunk_{start}_{end}_of_{total_rows}")
 
             conn.execute(
                 """
@@ -1990,6 +1991,7 @@ def itter_path(
                     GROUP BY t.od_id, t.origin, t.destination;
                     """
                 )
+                _log_rss(f"itter_path_pass2_chunk_{start}_{end}_of_{total_rows}")
 
             conn.execute(
                 """
@@ -2003,6 +2005,7 @@ def itter_path(
                 """
                 CREATE OR REPLACE TEMP TABLE temp_flow_matrix AS
                 SELECT
+                    o.od_id,
                     o.origin,
                     o.destination,
                     o.e_id,
@@ -3256,6 +3259,7 @@ def network_flow_model(
             combine_event_candidate_parts=combine_event_candidate_parts,
             vehicle_type=vehicle_type,
         )  # -> xxx, fuel, time, toll
+        _log_rss(f"iter{iter_flag}_after_itter_path")
 
         if create_full_temp_flow_matrix:
             assigned_iter_sum = (

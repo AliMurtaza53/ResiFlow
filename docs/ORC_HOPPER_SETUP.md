@@ -210,12 +210,80 @@ during the `itter_path` aggregation phase (not the LCP dispatch phase).
 At `--mem=64G` with the full ~9.68M-row OD:
 - `--cpus-per-task=4`: 24GB caused no issue, but 32GB gives more margin (observed Python RSS peaked ~23.7GB pre-`itter_path`)
 - `--cpus-per-task=8`: 24GB **failed** (OOM at 22.3/22.3GB used); 40GB resolved it
+  at the time, but a later `--mem=128G` / `NIRD_DUCKDB_MEMORY_LIMIT=90GB` run
+  at the same OD scale OOM'd again (`83.8/83.8 GiB used`) despite ~16GB of the
+  node sitting unused -- see "The bigger lever" below. Treat the 40GB figure
+  as strategy-dependent, not a durable ceiling.
 
 Rule of thumb: budget `--mem` total, subtract observed/expected Python-side
 RSS (check `NIRD_LOG_RSS_CHECKPOINTS` output), and give DuckDB most of the
 rest, scaling upward with core count.
 
-## 7. Submitting and monitoring
+### The bigger lever: `NIRD_PATH_REALIZATION_STRATEGY`
+
+Raising `NIRD_DUCKDB_MEMORY_LIMIT` is not sufficient by itself at
+`--cpus-per-task=8` and full OD scale. The reason: `itter_path`'s **default**
+strategy (`legacy_compact_sql`) runs the path-explode `CROSS JOIN
+UNNEST(t.path)` join that turns OD paths into per-edge flows as **one
+unchunked DuckDB query over the entire OD table**. `NIRD_LCP_DEST_CHUNK_SIZE`
+does not touch this -- that env var only chunks the earlier LCP dispatch
+phase. At 8 threads, DuckDB runs that single giant join with 8 parallel
+hash/sort buffers that must stay pinned (non-spillable) for the join's
+duration, so the *whole table's* working set has to fit at once, not a
+fraction of it.
+
+Set `NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact` to route through
+the alternate code path in `itter_path` that actually respects chunking: it
+runs the same join in `num_of_chunk` (the script's first CLI arg) row batches
+via `WHERE t.rn BETWEEN ...`, so DuckDB only needs to hold one chunk's join
+working set pinned at a time. **This is the fix that matters** -- treat
+`NIRD_DUCKDB_MEMORY_LIMIT` as a safety margin on top of it, not the primary
+lever.
+
+Other strategies available in the same env var: `pandas_chunked` (most
+memory-conservative, offloads the explode/groupby to pandas in chunks, likely
+slower) and the default `legacy_compact_sql` (fine at smaller OD scale or
+lower core counts where the single-query working set fits in the configured
+`NIRD_DUCKDB_MEMORY_LIMIT`).
+
+## 7. Sync and verify before every submission
+
+Edits made locally (code fixes, SLURM script changes) only exist in the local
+working copy until pushed -- Hopper has its own separate clone under
+`/scratch/$USER/multimodal_hazard_data/code/ResiFlow`. **Every time a file
+changes, this sync has to happen before the next `sbatch`, or the job runs
+against stale code/config with no warning.**
+
+1. **Locally:** commit and push the change to the branch Hopper tracks
+   (`perf/lcp-dest-chunked-dispatch`, or wherever the fixes have landed --
+   see the branch caveat at the top of this doc).
+   ```bash
+   git add -A
+   git commit -m "..."
+   git push
+   ```
+2. **On Hopper:** `cd` into the cloned repo and pull.
+   ```bash
+   cd /scratch/$USER/multimodal_hazard_data/code/ResiFlow
+   git pull
+   git log -1 --stat        # confirm the expected commit/fix is actually present
+   ```
+3. **Verify the SLURM script itself**, separately from the code -- it's easy
+   to edit `submit_cpu8.slurm` locally, forget to re-sync it (or sync the repo
+   but not notice the script still has stale env vars), and burn another
+   partial-hour job on a config you didn't mean to run.
+   ```bash
+   git status              # nothing unexpected modified/stale after the pull
+   git diff HEAD~1 -- experiments/pass_a_convergence/hopper/submit_cpu8.slurm
+   cat experiments/pass_a_convergence/hopper/submit_cpu8.slurm   # eyeball the actual env vars that will run
+   ```
+   If the script lives outside git (hand-edited directly on Hopper), skip the
+   `git diff` and just `cat` it before every `sbatch` -- there's no other way
+   to confirm what's about to run.
+
+Only once both checks pass, move to submission below.
+
+## 8. Submitting and monitoring
 
 ```bash
 sbatch submit_test.slurm
@@ -245,7 +313,7 @@ opposite of what was observed on a hybrid P-core/E-core workstation CPU
 properly for this workload, since the LCP dispatch phase is embarrassingly
 parallel per-origin.
 
-## 8. Known issues and fixes
+## 9. Known issues and fixes
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -254,4 +322,5 @@ parallel per-origin.
 | `sbatch: error: invalid partition specified: debug` | No `debug` partition exists on this cluster | Use `--partition=normal` |
 | `slurmstepd: error: ... CANCELLED ... DUE TO TIME LIMIT` | `--time` too short for the OD scale being run | See "how much `--time` to request" above |
 | `_duckdb.OutOfMemoryException: failed to pin block ...` | `NIRD_DUCKDB_MEMORY_LIMIT` too low relative to `--mem` and core count | See "how to set `NIRD_DUCKDB_MEMORY_LIMIT`" above |
+| Same OOM persists even after raising `NIRD_DUCKDB_MEMORY_LIMIT` close to `--mem`, with node memory still unused | Default `itter_path` strategy runs the path-explode join unchunked over the whole OD table | Set `NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact` -- see "The bigger lever" above |
 | Env vars like `NIRD_LCP_DEST_CHUNK_SIZE` seem to have no effect | Cloned `main` instead of the branch with the fix | Check you're on `perf/lcp-dest-chunked-dispatch` (or wherever it's been merged to) |
