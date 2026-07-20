@@ -1,7 +1,13 @@
 #!/bin/bash
 #SBATCH --job-name=hazard_scale_cpu8
 #SBATCH --partition=normal
-#SBATCH --time=01:30:00
+# 01:30:00 was sized for the old scaling-test reference point (pool dispatch
+# + od_id assignment + aggregation only). This run also writes full_odpfc
+# output, and the 2026-07-19 attempt got CANCELLED DUE TO TIME LIMIT with
+# no OOM -- pool dispatch (~18min) + od_id assignment (~4min) + chunked
+# pass 1 (~45-50min) + pass 2 (~8min) already consumed the whole 90min
+# budget before the full_odpfc INSERT (9.68M rows) got any time at all.
+#SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_cpu8_%j.out

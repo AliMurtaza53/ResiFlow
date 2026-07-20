@@ -192,10 +192,18 @@ python /scratch/$USER/multimodal_hazard_data/code/ResiFlow/scripts/1_network_flo
 (~9.68M rows). A real test at `--cpus-per-task=4` needed ~44.5 minutes just
 for LCP dispatch + od_id assignment + edge aggregation, before the
 remaining per-iteration steps (edge speed updates, `remain_od`
-recomputation, cleanup). **Request at least 1.5 hours** for a single-
-iteration scaling test at this scale; a real multi-iteration convergence
-run needs proportionally more (`normal`'s 7-day cap is the real ceiling to
-plan against).
+recomputation, cleanup).
+
+**1.5 hours isn't enough either once `full_odpfc` output is involved.**
+A `--cpus-per-task=8` run with `NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact`
+got `CANCELLED DUE TO TIME LIMIT` at `--time=01:30:00` with **no OOM** --
+pool dispatch (~18min) + od_id assignment (~4min) + chunked pass 1
+(~45-50min) + pass 2 (~8min) already consumed the entire budget before the
+`full_odpfc` `INSERT` (writing all 9.68M rows to `odpfc`) got any time at
+all. **Request at least 4 hours** for a single-iteration run at this scale
+with `full_odpfc` output enabled; a real multi-iteration convergence run
+needs proportionally more (`normal`'s 7-day cap is the real ceiling to plan
+against).
 
 ### How to set `NIRD_DUCKDB_MEMORY_LIMIT`
 
