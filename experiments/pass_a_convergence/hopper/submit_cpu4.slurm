@@ -1,9 +1,16 @@
 #!/bin/bash
 #SBATCH --job-name=hazard_scale_cpu4
 #SBATCH --partition=normal
-#SBATCH --time=01:30:00
+# Matches the cpu8 run's proven-working budget (see submit_cpu8.slurm for the
+# full history): 01:30:00/64G/32GB repeats the exact OOM + time-limit
+# failures already fixed there. Post-chunking-fix, peak memory is driven
+# mostly by total OD row count (9.68M, unchanged across core counts) since
+# the final accumulated tables hold all rows regardless of chunking -- core
+# count only affects the transient per-chunk join buffers -- so cpu4 is not
+# expected to need much less than cpu8 needed.
+#SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=64G
+#SBATCH --mem=128G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_cpu4_%j.out
 #SBATCH --error=/home/akothaw/multimodal_hazard_project/logs_cpu4_%j.err
 
@@ -25,9 +32,16 @@ export NIRD_BASELINE_DB_PATH=/scratch/akothaw/multimodal_hazard_data/scale_test_
 # Goal 15 validated fixes -- keep these regardless of core count
 export NIRD_LCP_DEST_CHUNK_SIZE=300
 export NIRD_FLOW_DB_BATCH_SIZE=50000
-export NIRD_DUCKDB_MEMORY_LIMIT=32GB
+export NIRD_DUCKDB_MEMORY_LIMIT=100GB
 export NIRD_LOG_RSS_CHECKPOINTS=1
 export NIRD_LCP_SORT_BY_DEST_COUNT=1
+
+# Same itter_path fix as cpu8 -- default legacy_compact_sql runs the
+# path-explode join unchunked over the full OD table; this bounds peak
+# per-chunk working set instead. See docs/ORC_HOPPER_SETUP.md.
+export NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact
+export NIRD_DUCKDB_TEMP_DIRECTORY=/scratch/akothaw/multimodal_hazard_data/duckdb_tmp_cpu4
+
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
