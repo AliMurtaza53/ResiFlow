@@ -9,14 +9,14 @@
 # DuckDB limit as a margin of safety rather than assuming linear cpu8->16
 # scaling in either direction.
 #
-# VERIFY BEFORE SUBMITTING: run `sinfo -o "%P %c %m"` (or `scontrol show
-# partition normal`) to confirm `normal` actually has nodes with >=16 cores
-# and >=176G RAM available -- if not, this will sit pending or need
-# --partition=bigmem instead. Not something I can check without cluster
-# access.
+# Verified against `sinfo -o "%P %c %m"` (2026-07-21): `normal` has 48+-core
+# nodes with 180000 MB RAM, so 16 cores fits easily. --mem=170G rather than
+# 176G because SLURM's G suffix is GiB (176G = 180224 MiB), which exceeds
+# the node's 180000 MiB total and would never schedule; 170G = 174080 MiB
+# leaves ~5.9GB headroom for SLURM/OS overhead.
 #SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=16
-#SBATCH --mem=176G
+#SBATCH --mem=170G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_cpu16_%j.out
 #SBATCH --error=/home/akothaw/multimodal_hazard_project/logs_cpu16_%j.err
 
