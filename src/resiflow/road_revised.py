@@ -1898,51 +1898,116 @@ def itter_path(
                 );
                 """
             )
+            # Opt-in: fuse the two pass-1 queries per chunk so the
+            # CROSS JOIN UNNEST(t.path) + edge_attrs/road_caps join runs
+            # once per chunk instead of twice (edge_total_parts and
+            # od_results_iter each independently re-exploded and
+            # re-joined the same rows). Gated behind an env var so the
+            # original two-query behavior stays available for direct A/B
+            # comparison rather than being replaced outright.
+            fuse_pass1 = _env_flag("NIRD_DUCKDB_CHUNKED_FUSE_PASS1")
             for start in tqdm(
                 range(1, total_rows + 1, chunk_size),
                 desc="DuckDB compact pass 1:",
                 unit="chunk",
             ):
                 end = min(start + chunk_size - 1, total_rows)
-                conn.execute(
-                    f"""
-                    INSERT INTO edge_total_parts
-                    SELECT
-                        e.e_id,
-                        MAX(r.acc_capacity) AS acc_capacity,
-                        SUM(t.flow) AS total_flow
-                    FROM temp_flow_indexed t
-                    CROSS JOIN UNNEST(t.path) WITH ORDINALITY AS u(path_idx, ord)
-                    JOIN edge_attrs e
-                      ON e.path = u.path_idx
-                    LEFT JOIN road_caps r
-                      ON r.e_id = e.e_id
-                    WHERE t.rn BETWEEN {start} AND {end}
-                    GROUP BY e.e_id;
-                    """
-                )
-                conn.execute(
-                    f"""
-                    INSERT INTO od_results_iter
-                    SELECT
-                        FIRST(t.od_id) AS od_id,
-                        t.origin,
-                        t.destination,
-                        LIST(e.e_id ORDER BY u.ord) AS e_id,
-                        FIRST(t.flow) AS flow,
-                        SUM(e.fuel) AS fuel,
-                        SUM(e.time) AS time,
-                        SUM(e.toll) AS toll,
-                        SUM(e.length_mile) AS length_mile
-                    FROM temp_flow_indexed t
-                    CROSS JOIN UNNEST(t.path) WITH ORDINALITY AS u(path_idx, ord)
-                    JOIN edge_attrs e
-                      ON e.path = u.path_idx
-                    WHERE t.rn BETWEEN {start} AND {end}
-                    GROUP BY t.od_id, t.origin, t.destination;
-                    """
-                )
+                if fuse_pass1:
+                    conn.execute(
+                        f"""
+                        CREATE OR REPLACE TEMP TABLE chunk_exploded AS
+                        SELECT
+                            t.od_id,
+                            t.origin,
+                            t.destination,
+                            t.flow,
+                            u.ord,
+                            e.e_id,
+                            e.fuel,
+                            e.time,
+                            e.toll,
+                            e.length_mile,
+                            r.acc_capacity
+                        FROM temp_flow_indexed t
+                        CROSS JOIN UNNEST(t.path) WITH ORDINALITY AS u(path_idx, ord)
+                        JOIN edge_attrs e
+                          ON e.path = u.path_idx
+                        LEFT JOIN road_caps r
+                          ON r.e_id = e.e_id
+                        WHERE t.rn BETWEEN {start} AND {end};
+                        """
+                    )
+                    conn.execute(
+                        """
+                        INSERT INTO edge_total_parts
+                        SELECT
+                            e_id,
+                            MAX(acc_capacity) AS acc_capacity,
+                            SUM(flow) AS total_flow
+                        FROM chunk_exploded
+                        GROUP BY e_id;
+                        """
+                    )
+                    conn.execute(
+                        """
+                        INSERT INTO od_results_iter
+                        SELECT
+                            FIRST(od_id) AS od_id,
+                            origin,
+                            destination,
+                            LIST(e_id ORDER BY ord) AS e_id,
+                            FIRST(flow) AS flow,
+                            SUM(fuel) AS fuel,
+                            SUM(time) AS time,
+                            SUM(toll) AS toll,
+                            SUM(length_mile) AS length_mile
+                        FROM chunk_exploded
+                        GROUP BY od_id, origin, destination;
+                        """
+                    )
+                else:
+                    conn.execute(
+                        f"""
+                        INSERT INTO edge_total_parts
+                        SELECT
+                            e.e_id,
+                            MAX(r.acc_capacity) AS acc_capacity,
+                            SUM(t.flow) AS total_flow
+                        FROM temp_flow_indexed t
+                        CROSS JOIN UNNEST(t.path) WITH ORDINALITY AS u(path_idx, ord)
+                        JOIN edge_attrs e
+                          ON e.path = u.path_idx
+                        LEFT JOIN road_caps r
+                          ON r.e_id = e.e_id
+                        WHERE t.rn BETWEEN {start} AND {end}
+                        GROUP BY e.e_id;
+                        """
+                    )
+                    conn.execute(
+                        f"""
+                        INSERT INTO od_results_iter
+                        SELECT
+                            FIRST(t.od_id) AS od_id,
+                            t.origin,
+                            t.destination,
+                            LIST(e.e_id ORDER BY u.ord) AS e_id,
+                            FIRST(t.flow) AS flow,
+                            SUM(e.fuel) AS fuel,
+                            SUM(e.time) AS time,
+                            SUM(e.toll) AS toll,
+                            SUM(e.length_mile) AS length_mile
+                        FROM temp_flow_indexed t
+                        CROSS JOIN UNNEST(t.path) WITH ORDINALITY AS u(path_idx, ord)
+                        JOIN edge_attrs e
+                          ON e.path = u.path_idx
+                        WHERE t.rn BETWEEN {start} AND {end}
+                        GROUP BY t.od_id, t.origin, t.destination;
+                        """
+                    )
                 _log_rss(f"itter_path_pass1_chunk_{start}_{end}_of_{total_rows}")
+
+            if fuse_pass1:
+                conn.execute("DROP TABLE IF EXISTS chunk_exploded")
 
             conn.execute(
                 """

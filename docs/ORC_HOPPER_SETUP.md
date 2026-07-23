@@ -254,7 +254,58 @@ slower) and the default `legacy_compact_sql` (fine at smaller OD scale or
 lower core counts where the single-query working set fits in the configured
 `NIRD_DUCKDB_MEMORY_LIMIT`).
 
-## 7. Sync and verify before every submission
+## 7. Optimization experiments (cpu8 baseline)
+
+Once the cpu4/cpu8/cpu16 scaling tests confirmed cpu8 (128G, `duckdb_chunked_compact`,
+100GB DuckDB limit) as the preferred config, profiling job **9000424** (2026-07-21,
+83.5min total) pointed at two concrete, testable inefficiencies rather than open-ended
+tuning. Five one-factor-at-a-time experiments isolate each lever against that baseline;
+none of them are convergence runs (`MAX_FLOW_ITERATIONS=1`, same as the scaling tests).
+
+| # | Script | Variable under test | Baseline value | New value |
+|---|---|---|---|---|
+| 1 | `submit_cpu8_opt_fuse.slurm` | `NIRD_DUCKDB_CHUNKED_FUSE_PASS1` | unset (off) | `1` |
+| 2 | `submit_cpu8_opt_chunk10.slurm` | `num_of_chunk` (CLI arg) | `20` | `10` |
+| 3 | `submit_cpu8_opt_chunk40.slurm` | `num_of_chunk` (CLI arg) | `20` | `40` |
+| 4 | `submit_cpu8_opt_lcpchunk1000.slurm` | `NIRD_LCP_DEST_CHUNK_SIZE` | `300` | `1000` |
+| 5 | `submit_cpu8_opt_lcpchunk0.slurm` | `NIRD_LCP_DEST_CHUNK_SIZE` | `300` | `0` (disabled) |
+
+**#1 -- pass-1 query fusion.** The `duckdb_chunked_compact` path ran two independent
+`CROSS JOIN UNNEST(t.path)` queries per chunk (`edge_total_parts` and `od_results_iter`),
+each re-exploding and re-joining the same rows. `NIRD_DUCKDB_CHUNKED_FUSE_PASS1=1`
+materializes the join once into a `chunk_exploded` temp table and feeds both aggregates
+from it. Gated behind an env var (default off) specifically so the original two-query
+path stays available for direct A/B comparison -- see `itter_path` in
+`src/resiflow/road_revised.py` for both branches side by side.
+
+**#2/#3 -- itter_path chunk count.** `num_of_chunk` (the script's first CLI arg) trades
+per-query planning/compilation overhead (more chunks = more queries = more overhead)
+against peak per-chunk memory (fewer, larger chunks = bigger transient join). 10 and 40
+bracket the baseline's 20 in both directions.
+
+**#4/#5 -- LCP destination chunking.** `NIRD_LCP_DEST_CHUNK_SIZE=300` (a Goal 15 fix for
+memory safety at high OD scale) causes igraph's `get_shortest_paths` to rebuild each
+origin's full Dijkstra tree once per chunked task rather than once per origin --
+baseline log line `Chunked LCP dispatch: 3143 origin-tasks split into 34374 tasks`
+means each origin's tree was rebuilt ~11x. The LCP phase runs *before* `itter_path`, and
+baseline RSS at that point was only ~24GB against a 128G allocation -- there's headroom
+to test relaxing this. `1000` cuts rebuilds to ~4x/origin; `0` disables chunking
+entirely (~1x/origin, the theoretical best case) but is the higher memory-risk bookend --
+treat #5 as informational even if it doesn't complete cleanly; if `iter1_lcp_pool_done`
+RSS spikes, that tells us the real ceiling is somewhere between 300 and 1000, not 0.
+
+**Total: 5 new jobs**, each independently comparable to the existing cpu8 baseline
+(job 9000424) rather than to each other -- this is a one-factor-at-a-time design,
+not a full factorial, to keep cluster time proportionate. After results come in,
+combine whichever levers actually helped into one follow-up run rather than assuming
+they stack additively.
+
+**Correctness check, not just speed:** #1 changes the SQL that produces `temp_flow_matrix`
+(same output schema, different query plan) -- diff its `odpfc.pq` / `edge_flows.gpq`
+against the baseline run's output before trusting the timing win. #2-#5 don't change any
+query logic, only chunk sizing, so their outputs should match the baseline exactly.
+
+## 8. Sync and verify before every submission
 
 Edits made locally (code fixes, SLURM script changes) only exist in the local
 working copy until pushed -- Hopper has its own separate clone under
@@ -291,7 +342,7 @@ against stale code/config with no warning.**
 
 Only once both checks pass, move to submission below.
 
-## 8. Submitting and monitoring
+## 9. Submitting and monitoring
 
 ```bash
 sbatch submit_test.slurm
@@ -321,7 +372,7 @@ opposite of what was observed on a hybrid P-core/E-core workstation CPU
 properly for this workload, since the LCP dispatch phase is embarrassingly
 parallel per-origin.
 
-## 9. Known issues and fixes
+## 10. Known issues and fixes
 
 | Symptom | Cause | Fix |
 |---|---|---|
