@@ -1,0 +1,1518 @@
+2026-07-23 07:55:02,542 3823145 1_network_flow_model_revision.py Database path is: /scratch/akothaw/multimodal_hazard_data/opt_lcpchunk1000_cpu8.duckdb
+2026-07-23 07:55:02,554 3823145 1_network_flow_model_revision.py {'freeway': 2400.0, 'arterial': 2200.0, 'collector': 1700.0, 'local_access': 1000.0}
+2026-07-23 07:55:11,019 3823145 1_network_flow_model_revision.py Assignment demand (faf5_parquet): freight=1735334.699 passenger=147181931.000 total=148917265.699
+2026-07-23 07:55:21,069 3823145 1_network_flow_model_revision.py 
+         origin_node  destination_node        Car21
+0             100024            100024  2689.965855
+1             100024            100123     0.001053
+2             100024            100130     0.014766
+3             100024            100178     0.000828
+4             100024            100481     0.009938
+...              ...               ...          ...
+9780699        99961             99757     0.001568
+9780700        99961             99789     0.003307
+9780701        99961             99844     0.011416
+9780702        99961             99948     0.005834
+9780703        99961             99961  4935.606654
+
+[9780704 rows x 3 columns]
+2026-07-23 07:55:21,070 3823145 1_network_flow_model_revision.py OD totals (Car21): rows=9,780,704, total=148,917,265.699, self_pair_flow=77,784,890.780, duplicate_pairs=0
+2026-07-23 07:55:21,070 3823145 1_network_flow_model_revision.py Generate road links
+2026-07-23 07:55:21,875 3823145 1_network_flow_model_revision.py Create igraph network
+2026-07-23 07:55:23,841 3823145 1_network_flow_model_revision.py Direct output controls: direct_duckdb_outputs=True, path_strategy=duckdb_chunked_compact, baseline_path_output_mode=full_odpfc, odpfc_output_mode=duckdb_table, combine_odpfc_parts=default
+2026-07-23 07:55:23,841 3823145 1_network_flow_model_revision.py Run simulation
+2026-07-23 07:55:23,888 3823145 road_revised.py The initial supply is 148917265.69904837
+2026-07-23 07:55:24,176 3823145 road_revised.py The initial number of edges in the network: 483442
+2026-07-23 07:55:24,214 3823145 road_revised.py The initial number of origins: 3143
+2026-07-23 07:55:24,256 3823145 road_revised.py The initial number of destinations: 3143
+2026-07-23 07:55:24,301 3823145 road_revised.py Iteration controls: max_iterations=1, min_progress_rel=1e-06, stagnant_limit=3, remain_assign_mode=full
+2026-07-23 07:55:24,301 3823145 road_revised.py OD path output controls: path_strategy=duckdb_chunked_compact, odpfc_output_mode=duckdb_table, combine_odpfc_parts=True, odpfc_parts_dir=None, baseline_path_output_mode=full_odpfc, combine_event_candidate_parts=False, damaged_edges_path=None, create_full_temp_flow_matrix=True
+2026-07-23 07:55:25,538 3823145 road_revised.py No.1 iteration starts:
+2026-07-23 07:55:25,586 3823145 road_revised.py RSS checkpoint [iter1_start]: 2.80 GB
+2026-07-23 07:55:25,757 3823145 road_revised.py Initial isolated flows: 0.0
+2026-07-23 07:55:26,342 3823145 road_revised.py Network pickle time for worker init: 0.585 seconds.
+Creating argument list:   0%|          | 0/3143 [00:00<?, ?it/s]Creating argument list:  10%|▉         | 302/3143 [00:00<00:01, 2779.92it/s]Creating argument list:  22%|██▏       | 677/3143 [00:00<00:00, 3327.33it/s]Creating argument list:  32%|███▏      | 1015/3143 [00:00<00:00, 3348.70it/s]Creating argument list:  44%|████▍     | 1391/3143 [00:00<00:00, 3508.52it/s]Creating argument list:  55%|█████▌    | 1743/3143 [00:00<00:00, 3370.29it/s]Creating argument list:  67%|██████▋   | 2112/3143 [00:00<00:00, 3473.39it/s]Creating argument list:  78%|███████▊  | 2461/3143 [00:00<00:00, 3456.49it/s]Creating argument list:  90%|█████████ | 2835/3143 [00:00<00:00, 3542.83it/s]Creating argument list: 100%|██████████| 3143/3143 [00:01<00:00, 3101.68it/s]
+2026-07-23 07:55:28,272 3823145 road_revised.py Chunked LCP dispatch: 3143 origin-tasks split into 12497 tasks (dest_chunk_size=1000).
+2026-07-23 07:55:28,603 3823145 road_revised.py RSS checkpoint [iter1_args_built]: 3.87 GB
+2026-07-23 07:55:28,606 3823145 road_revised.py Flow DB insert batch size: 50,000
+2026-07-23 07:55:28,917 3823145 road_revised.py Pool construction (spawn+initializer) time: 0.310 seconds (num_of_cpu=8).
+2026-07-23 07:55:29,399 3823145 road_revised.py Completed 1 of 12497, 0.01%
+2026-07-23 07:55:29,400 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1_of_12497]: 3.62 GB
+2026-07-23 07:55:29,802 3823145 road_revised.py Completed 10 of 12497, 0.08%
+2026-07-23 07:55:30,230 3823145 road_revised.py Completed 20 of 12497, 0.16%
+2026-07-23 07:55:30,230 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_20_of_12497]: 4.15 GB
+2026-07-23 07:55:30,644 3823145 road_revised.py Completed 30 of 12497, 0.24%
+2026-07-23 07:55:31,085 3823145 road_revised.py Completed 40 of 12497, 0.32%
+2026-07-23 07:55:31,109 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_40_of_12497]: 4.70 GB
+2026-07-23 07:55:31,494 3823145 road_revised.py Completed 50 of 12497, 0.40%
+2026-07-23 07:55:33,993 3823145 road_revised.py Completed 60 of 12497, 0.48%
+2026-07-23 07:55:34,011 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_60_of_12497]: 4.94 GB
+2026-07-23 07:55:34,019 3823145 road_revised.py Completed 70 of 12497, 0.56%
+2026-07-23 07:55:34,022 3823145 road_revised.py Completed 80 of 12497, 0.64%
+2026-07-23 07:55:34,040 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_80_of_12497]: 4.94 GB
+2026-07-23 07:55:34,638 3823145 road_revised.py Completed 90 of 12497, 0.72%
+2026-07-23 07:55:35,019 3823145 road_revised.py Completed 100 of 12497, 0.80%
+2026-07-23 07:55:35,019 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_100_of_12497]: 5.14 GB
+2026-07-23 07:55:38,917 3823145 road_revised.py Completed 110 of 12497, 0.88%
+2026-07-23 07:55:38,974 3823145 road_revised.py Completed 120 of 12497, 0.96%
+2026-07-23 07:55:39,002 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_120_of_12497]: 6.12 GB
+2026-07-23 07:55:39,037 3823145 road_revised.py Completed 130 of 12497, 1.04%
+2026-07-23 07:55:39,045 3823145 road_revised.py Completed 140 of 12497, 1.12%
+2026-07-23 07:55:39,045 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_140_of_12497]: 6.14 GB
+2026-07-23 07:55:39,048 3823145 road_revised.py Completed 150 of 12497, 1.20%
+2026-07-23 07:55:43,087 3823145 road_revised.py Completed 160 of 12497, 1.28%
+2026-07-23 07:55:43,088 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_160_of_12497]: 5.58 GB
+2026-07-23 07:55:43,092 3823145 road_revised.py Completed 170 of 12497, 1.36%
+2026-07-23 07:55:43,098 3823145 road_revised.py Completed 180 of 12497, 1.44%
+2026-07-23 07:55:43,109 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_180_of_12497]: 5.59 GB
+2026-07-23 07:55:43,165 3823145 road_revised.py Completed 190 of 12497, 1.52%
+2026-07-23 07:55:43,171 3823145 road_revised.py Completed 200 of 12497, 1.60%
+2026-07-23 07:55:43,190 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_200_of_12497]: 5.66 GB
+2026-07-23 07:55:47,069 3823145 road_revised.py Completed 210 of 12497, 1.68%
+2026-07-23 07:55:47,072 3823145 road_revised.py Completed 220 of 12497, 1.76%
+2026-07-23 07:55:47,094 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_220_of_12497]: 6.53 GB
+2026-07-23 07:55:47,106 3823145 road_revised.py Completed 230 of 12497, 1.84%
+2026-07-23 07:55:47,140 3823145 road_revised.py Completed 240 of 12497, 1.92%
+2026-07-23 07:55:47,158 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_240_of_12497]: 6.54 GB
+2026-07-23 07:55:47,181 3823145 road_revised.py Completed 250 of 12497, 2.00%
+2026-07-23 07:55:50,793 3823145 road_revised.py Completed 260 of 12497, 2.08%
+2026-07-23 07:55:50,794 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_260_of_12497]: 6.23 GB
+2026-07-23 07:55:50,797 3823145 road_revised.py Completed 270 of 12497, 2.16%
+2026-07-23 07:55:50,800 3823145 road_revised.py Completed 280 of 12497, 2.24%
+2026-07-23 07:55:50,819 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_280_of_12497]: 6.23 GB
+2026-07-23 07:55:50,831 3823145 road_revised.py Completed 290 of 12497, 2.32%
+2026-07-23 07:55:50,834 3823145 road_revised.py Completed 300 of 12497, 2.40%
+2026-07-23 07:55:50,843 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_300_of_12497]: 6.23 GB
+2026-07-23 07:55:54,660 3823145 road_revised.py Completed 310 of 12497, 2.48%
+2026-07-23 07:55:54,669 3823145 road_revised.py Completed 320 of 12497, 2.56%
+2026-07-23 07:55:54,669 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_320_of_12497]: 6.37 GB
+2026-07-23 07:55:54,672 3823145 road_revised.py Completed 330 of 12497, 2.64%
+2026-07-23 07:55:54,675 3823145 road_revised.py Completed 340 of 12497, 2.72%
+2026-07-23 07:55:54,712 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_340_of_12497]: 6.38 GB
+2026-07-23 07:55:54,745 3823145 road_revised.py Completed 350 of 12497, 2.80%
+2026-07-23 07:55:57,335 3823145 road_revised.py Completed 360 of 12497, 2.88%
+2026-07-23 07:55:57,336 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_360_of_12497]: 6.26 GB
+2026-07-23 07:55:57,919 3823145 road_revised.py Completed 370 of 12497, 2.96%
+2026-07-23 07:55:57,923 3823145 road_revised.py Completed 380 of 12497, 3.04%
+2026-07-23 07:55:57,923 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_380_of_12497]: 6.02 GB
+2026-07-23 07:55:57,926 3823145 road_revised.py Completed 390 of 12497, 3.12%
+2026-07-23 07:55:57,929 3823145 road_revised.py Completed 400 of 12497, 3.20%
+2026-07-23 07:55:57,968 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_400_of_12497]: 6.04 GB
+2026-07-23 07:56:02,285 3823145 road_revised.py Completed 410 of 12497, 3.28%
+2026-07-23 07:56:02,288 3823145 road_revised.py Completed 420 of 12497, 3.36%
+2026-07-23 07:56:02,288 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_420_of_12497]: 7.11 GB
+2026-07-23 07:56:02,291 3823145 road_revised.py Completed 430 of 12497, 3.44%
+2026-07-23 07:56:02,295 3823145 road_revised.py Completed 440 of 12497, 3.52%
+2026-07-23 07:56:02,310 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_440_of_12497]: 7.11 GB
+2026-07-23 07:56:02,342 3823145 road_revised.py Completed 450 of 12497, 3.60%
+2026-07-23 07:56:05,791 3823145 road_revised.py Completed 460 of 12497, 3.68%
+2026-07-23 07:56:05,805 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_460_of_12497]: 6.23 GB
+2026-07-23 07:56:05,867 3823145 road_revised.py Completed 470 of 12497, 3.76%
+2026-07-23 07:56:05,876 3823145 road_revised.py Completed 480 of 12497, 3.84%
+2026-07-23 07:56:05,876 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_480_of_12497]: 6.23 GB
+2026-07-23 07:56:05,879 3823145 road_revised.py Completed 490 of 12497, 3.92%
+2026-07-23 07:56:05,882 3823145 road_revised.py Completed 500 of 12497, 4.00%
+2026-07-23 07:56:05,900 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_500_of_12497]: 6.23 GB
+2026-07-23 07:56:09,756 3823145 road_revised.py Completed 510 of 12497, 4.08%
+2026-07-23 07:56:09,760 3823145 road_revised.py Completed 520 of 12497, 4.16%
+2026-07-23 07:56:09,763 3823145 road_revised.py Completed 530 of 12497, 4.24%
+2026-07-23 07:56:09,789 3823145 road_revised.py Completed 540 of 12497, 4.32%
+2026-07-23 07:56:09,802 3823145 road_revised.py Completed 550 of 12497, 4.40%
+2026-07-23 07:56:13,682 3823145 road_revised.py Completed 560 of 12497, 4.48%
+2026-07-23 07:56:13,689 3823145 road_revised.py Completed 570 of 12497, 4.56%
+2026-07-23 07:56:13,696 3823145 road_revised.py Completed 580 of 12497, 4.64%
+2026-07-23 07:56:13,699 3823145 road_revised.py Completed 590 of 12497, 4.72%
+2026-07-23 07:56:13,729 3823145 road_revised.py Completed 600 of 12497, 4.80%
+2026-07-23 07:56:13,730 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_600_of_12497]: 6.34 GB
+2026-07-23 07:56:17,657 3823145 road_revised.py Completed 610 of 12497, 4.88%
+2026-07-23 07:56:17,671 3823145 road_revised.py Completed 620 of 12497, 4.96%
+2026-07-23 07:56:17,674 3823145 road_revised.py Completed 630 of 12497, 5.04%
+2026-07-23 07:56:17,677 3823145 road_revised.py Completed 640 of 12497, 5.12%
+2026-07-23 07:56:17,680 3823145 road_revised.py Completed 650 of 12497, 5.20%
+2026-07-23 07:56:20,468 3823145 road_revised.py Completed 660 of 12497, 5.28%
+2026-07-23 07:56:20,516 3823145 road_revised.py Completed 670 of 12497, 5.36%
+2026-07-23 07:56:20,522 3823145 road_revised.py Completed 680 of 12497, 5.44%
+2026-07-23 07:56:20,553 3823145 road_revised.py Completed 690 of 12497, 5.52%
+2026-07-23 07:56:20,623 3823145 road_revised.py Completed 700 of 12497, 5.60%
+2026-07-23 07:56:20,624 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_700_of_12497]: 6.64 GB
+2026-07-23 07:56:25,047 3823145 road_revised.py Completed 710 of 12497, 5.68%
+2026-07-23 07:56:25,069 3823145 road_revised.py Completed 720 of 12497, 5.76%
+2026-07-23 07:56:25,099 3823145 road_revised.py Completed 730 of 12497, 5.84%
+2026-07-23 07:56:25,103 3823145 road_revised.py Completed 740 of 12497, 5.92%
+2026-07-23 07:56:25,106 3823145 road_revised.py Completed 750 of 12497, 6.00%
+2026-07-23 07:56:28,546 3823145 road_revised.py Completed 760 of 12497, 6.08%
+2026-07-23 07:56:28,563 3823145 road_revised.py Completed 770 of 12497, 6.16%
+2026-07-23 07:56:28,567 3823145 road_revised.py Completed 780 of 12497, 6.24%
+2026-07-23 07:56:28,570 3823145 road_revised.py Completed 790 of 12497, 6.32%
+2026-07-23 07:56:28,573 3823145 road_revised.py Completed 800 of 12497, 6.40%
+2026-07-23 07:56:28,614 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_800_of_12497]: 6.80 GB
+2026-07-23 07:56:33,116 3823145 road_revised.py Completed 810 of 12497, 6.48%
+2026-07-23 07:56:33,124 3823145 road_revised.py Completed 820 of 12497, 6.56%
+2026-07-23 07:56:33,127 3823145 road_revised.py Completed 830 of 12497, 6.64%
+2026-07-23 07:56:33,233 3823145 road_revised.py Completed 840 of 12497, 6.72%
+2026-07-23 07:56:33,253 3823145 road_revised.py Completed 850 of 12497, 6.80%
+2026-07-23 07:56:36,800 3823145 road_revised.py Completed 860 of 12497, 6.88%
+2026-07-23 07:56:36,822 3823145 road_revised.py Completed 870 of 12497, 6.96%
+2026-07-23 07:56:36,830 3823145 road_revised.py Completed 880 of 12497, 7.04%
+2026-07-23 07:56:36,833 3823145 road_revised.py Completed 890 of 12497, 7.12%
+2026-07-23 07:56:36,893 3823145 road_revised.py Completed 900 of 12497, 7.20%
+2026-07-23 07:56:36,893 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_900_of_12497]: 7.18 GB
+2026-07-23 07:56:41,376 3823145 road_revised.py Completed 910 of 12497, 7.28%
+2026-07-23 07:56:41,381 3823145 road_revised.py Completed 920 of 12497, 7.36%
+2026-07-23 07:56:41,397 3823145 road_revised.py Completed 930 of 12497, 7.44%
+2026-07-23 07:56:41,403 3823145 road_revised.py Completed 940 of 12497, 7.52%
+2026-07-23 07:56:41,406 3823145 road_revised.py Completed 950 of 12497, 7.60%
+2026-07-23 07:56:45,784 3823145 road_revised.py Completed 960 of 12497, 7.68%
+2026-07-23 07:56:45,790 3823145 road_revised.py Completed 970 of 12497, 7.76%
+2026-07-23 07:56:45,793 3823145 road_revised.py Completed 980 of 12497, 7.84%
+2026-07-23 07:56:45,810 3823145 road_revised.py Completed 990 of 12497, 7.92%
+2026-07-23 07:56:45,813 3823145 road_revised.py Completed 1000 of 12497, 8.00%
+2026-07-23 07:56:45,829 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1000_of_12497]: 7.59 GB
+2026-07-23 07:56:49,848 3823145 road_revised.py Completed 1010 of 12497, 8.08%
+2026-07-23 07:56:49,884 3823145 road_revised.py Completed 1020 of 12497, 8.16%
+2026-07-23 07:56:49,923 3823145 road_revised.py Completed 1030 of 12497, 8.24%
+2026-07-23 07:56:49,936 3823145 road_revised.py Completed 1040 of 12497, 8.32%
+2026-07-23 07:56:49,939 3823145 road_revised.py Completed 1050 of 12497, 8.40%
+2026-07-23 07:56:52,957 3823145 road_revised.py Completed 1060 of 12497, 8.48%
+2026-07-23 07:56:53,633 3823145 road_revised.py Completed 1070 of 12497, 8.56%
+2026-07-23 07:56:53,636 3823145 road_revised.py Completed 1080 of 12497, 8.64%
+2026-07-23 07:56:53,640 3823145 road_revised.py Completed 1090 of 12497, 8.72%
+2026-07-23 07:56:53,646 3823145 road_revised.py Completed 1100 of 12497, 8.80%
+2026-07-23 07:56:53,662 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1100_of_12497]: 7.87 GB
+2026-07-23 07:56:58,156 3823145 road_revised.py Completed 1110 of 12497, 8.88%
+2026-07-23 07:56:58,200 3823145 road_revised.py Completed 1120 of 12497, 8.96%
+2026-07-23 07:56:58,203 3823145 road_revised.py Completed 1130 of 12497, 9.04%
+2026-07-23 07:56:58,206 3823145 road_revised.py Completed 1140 of 12497, 9.12%
+2026-07-23 07:56:58,209 3823145 road_revised.py Completed 1150 of 12497, 9.20%
+2026-07-23 07:57:01,772 3823145 road_revised.py Completed 1160 of 12497, 9.28%
+2026-07-23 07:57:01,792 3823145 road_revised.py Completed 1170 of 12497, 9.36%
+2026-07-23 07:57:01,795 3823145 road_revised.py Completed 1180 of 12497, 9.44%
+2026-07-23 07:57:01,812 3823145 road_revised.py Completed 1190 of 12497, 9.52%
+2026-07-23 07:57:01,815 3823145 road_revised.py Completed 1200 of 12497, 9.60%
+2026-07-23 07:57:01,816 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1200_of_12497]: 8.16 GB
+2026-07-23 07:57:05,765 3823145 road_revised.py Completed 1210 of 12497, 9.68%
+2026-07-23 07:57:05,811 3823145 road_revised.py Completed 1220 of 12497, 9.76%
+2026-07-23 07:57:05,830 3823145 road_revised.py Completed 1230 of 12497, 9.84%
+2026-07-23 07:57:05,855 3823145 road_revised.py Completed 1240 of 12497, 9.92%
+2026-07-23 07:57:05,890 3823145 road_revised.py Completed 1250 of 12497, 10.00%
+2026-07-23 07:57:09,872 3823145 road_revised.py Completed 1260 of 12497, 10.08%
+2026-07-23 07:57:09,891 3823145 road_revised.py Completed 1270 of 12497, 10.16%
+2026-07-23 07:57:09,894 3823145 road_revised.py Completed 1280 of 12497, 10.24%
+2026-07-23 07:57:09,898 3823145 road_revised.py Completed 1290 of 12497, 10.32%
+2026-07-23 07:57:09,901 3823145 road_revised.py Completed 1300 of 12497, 10.40%
+2026-07-23 07:57:09,901 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1300_of_12497]: 9.01 GB
+2026-07-23 07:57:13,826 3823145 road_revised.py Completed 1310 of 12497, 10.48%
+2026-07-23 07:57:13,895 3823145 road_revised.py Completed 1320 of 12497, 10.56%
+2026-07-23 07:57:13,928 3823145 road_revised.py Completed 1330 of 12497, 10.64%
+2026-07-23 07:57:13,956 3823145 road_revised.py Completed 1340 of 12497, 10.72%
+2026-07-23 07:57:13,960 3823145 road_revised.py Completed 1350 of 12497, 10.80%
+2026-07-23 07:57:17,754 3823145 road_revised.py Completed 1360 of 12497, 10.88%
+2026-07-23 07:57:17,777 3823145 road_revised.py Completed 1370 of 12497, 10.96%
+2026-07-23 07:57:17,784 3823145 road_revised.py Completed 1380 of 12497, 11.04%
+2026-07-23 07:57:17,787 3823145 road_revised.py Completed 1390 of 12497, 11.12%
+2026-07-23 07:57:17,790 3823145 road_revised.py Completed 1400 of 12497, 11.20%
+2026-07-23 07:57:17,791 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1400_of_12497]: 9.77 GB
+2026-07-23 07:57:22,043 3823145 road_revised.py Completed 1410 of 12497, 11.28%
+2026-07-23 07:57:22,130 3823145 road_revised.py Completed 1420 of 12497, 11.36%
+2026-07-23 07:57:22,160 3823145 road_revised.py Completed 1430 of 12497, 11.44%
+2026-07-23 07:57:22,186 3823145 road_revised.py Completed 1440 of 12497, 11.52%
+2026-07-23 07:57:22,195 3823145 road_revised.py Completed 1450 of 12497, 11.60%
+2026-07-23 07:57:25,283 3823145 road_revised.py Completed 1460 of 12497, 11.68%
+2026-07-23 07:57:26,046 3823145 road_revised.py Completed 1470 of 12497, 11.76%
+2026-07-23 07:57:26,065 3823145 road_revised.py Completed 1480 of 12497, 11.84%
+2026-07-23 07:57:26,069 3823145 road_revised.py Completed 1490 of 12497, 11.92%
+2026-07-23 07:57:26,072 3823145 road_revised.py Completed 1500 of 12497, 12.00%
+2026-07-23 07:57:26,110 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1500_of_12497]: 9.80 GB
+2026-07-23 07:57:29,975 3823145 road_revised.py Completed 1510 of 12497, 12.08%
+2026-07-23 07:57:30,013 3823145 road_revised.py Completed 1520 of 12497, 12.16%
+2026-07-23 07:57:30,046 3823145 road_revised.py Completed 1530 of 12497, 12.24%
+2026-07-23 07:57:30,058 3823145 road_revised.py Completed 1540 of 12497, 12.32%
+2026-07-23 07:57:30,062 3823145 road_revised.py Completed 1550 of 12497, 12.40%
+2026-07-23 07:57:34,127 3823145 road_revised.py Completed 1560 of 12497, 12.48%
+2026-07-23 07:57:34,172 3823145 road_revised.py Completed 1570 of 12497, 12.56%
+2026-07-23 07:57:34,182 3823145 road_revised.py Completed 1580 of 12497, 12.64%
+2026-07-23 07:57:34,185 3823145 road_revised.py Completed 1590 of 12497, 12.72%
+2026-07-23 07:57:34,188 3823145 road_revised.py Completed 1600 of 12497, 12.80%
+2026-07-23 07:57:34,205 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1600_of_12497]: 10.11 GB
+2026-07-23 07:57:37,837 3823145 road_revised.py Completed 1610 of 12497, 12.88%
+2026-07-23 07:57:37,845 3823145 road_revised.py Completed 1620 of 12497, 12.96%
+2026-07-23 07:57:37,848 3823145 road_revised.py Completed 1630 of 12497, 13.04%
+2026-07-23 07:57:37,851 3823145 road_revised.py Completed 1640 of 12497, 13.12%
+2026-07-23 07:57:37,854 3823145 road_revised.py Completed 1650 of 12497, 13.20%
+2026-07-23 07:57:41,181 3823145 road_revised.py Completed 1660 of 12497, 13.28%
+2026-07-23 07:57:41,187 3823145 road_revised.py Completed 1670 of 12497, 13.36%
+2026-07-23 07:57:41,926 3823145 road_revised.py Completed 1680 of 12497, 13.44%
+2026-07-23 07:57:41,930 3823145 road_revised.py Completed 1690 of 12497, 13.52%
+2026-07-23 07:57:41,934 3823145 road_revised.py Completed 1700 of 12497, 13.60%
+2026-07-23 07:57:41,989 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1700_of_12497]: 10.13 GB
+2026-07-23 07:57:46,291 3823145 road_revised.py Completed 1710 of 12497, 13.68%
+2026-07-23 07:57:46,376 3823145 road_revised.py Completed 1720 of 12497, 13.76%
+2026-07-23 07:57:46,392 3823145 road_revised.py Completed 1730 of 12497, 13.84%
+2026-07-23 07:57:46,395 3823145 road_revised.py Completed 1740 of 12497, 13.92%
+2026-07-23 07:57:46,450 3823145 road_revised.py Completed 1750 of 12497, 14.00%
+2026-07-23 07:57:49,308 3823145 road_revised.py Completed 1760 of 12497, 14.08%
+2026-07-23 07:57:50,135 3823145 road_revised.py Completed 1770 of 12497, 14.16%
+2026-07-23 07:57:50,138 3823145 road_revised.py Completed 1780 of 12497, 14.24%
+2026-07-23 07:57:50,158 3823145 road_revised.py Completed 1790 of 12497, 14.32%
+2026-07-23 07:57:50,161 3823145 road_revised.py Completed 1800 of 12497, 14.40%
+2026-07-23 07:57:50,162 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1800_of_12497]: 10.24 GB
+2026-07-23 07:57:54,026 3823145 road_revised.py Completed 1810 of 12497, 14.48%
+2026-07-23 07:57:54,052 3823145 road_revised.py Completed 1820 of 12497, 14.56%
+2026-07-23 07:57:54,059 3823145 road_revised.py Completed 1830 of 12497, 14.64%
+2026-07-23 07:57:54,063 3823145 road_revised.py Completed 1840 of 12497, 14.72%
+2026-07-23 07:57:54,085 3823145 road_revised.py Completed 1850 of 12497, 14.80%
+2026-07-23 07:57:57,768 3823145 road_revised.py Completed 1860 of 12497, 14.88%
+2026-07-23 07:57:57,797 3823145 road_revised.py Completed 1870 of 12497, 14.96%
+2026-07-23 07:57:57,800 3823145 road_revised.py Completed 1880 of 12497, 15.04%
+2026-07-23 07:57:57,803 3823145 road_revised.py Completed 1890 of 12497, 15.12%
+2026-07-23 07:57:57,850 3823145 road_revised.py Completed 1900 of 12497, 15.20%
+2026-07-23 07:57:57,850 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_1900_of_12497]: 10.21 GB
+2026-07-23 07:57:57,853 3823145 road_revised.py Completed 1910 of 12497, 15.28%
+2026-07-23 07:58:01,487 3823145 road_revised.py Completed 1920 of 12497, 15.36%
+2026-07-23 07:58:01,517 3823145 road_revised.py Completed 1930 of 12497, 15.44%
+2026-07-23 07:58:01,521 3823145 road_revised.py Completed 1940 of 12497, 15.52%
+2026-07-23 07:58:01,547 3823145 road_revised.py Completed 1950 of 12497, 15.60%
+2026-07-23 07:58:01,551 3823145 road_revised.py Completed 1960 of 12497, 15.68%
+2026-07-23 07:58:04,728 3823145 road_revised.py Completed 1970 of 12497, 15.76%
+2026-07-23 07:58:05,459 3823145 road_revised.py Completed 1980 of 12497, 15.84%
+2026-07-23 07:58:05,462 3823145 road_revised.py Completed 1990 of 12497, 15.92%
+2026-07-23 07:58:05,486 3823145 road_revised.py Completed 2000 of 12497, 16.00%
+2026-07-23 07:58:05,487 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2000_of_12497]: 10.80 GB
+2026-07-23 07:58:05,490 3823145 road_revised.py Completed 2010 of 12497, 16.08%
+2026-07-23 07:58:09,464 3823145 road_revised.py Completed 2020 of 12497, 16.16%
+2026-07-23 07:58:09,468 3823145 road_revised.py Completed 2030 of 12497, 16.24%
+2026-07-23 07:58:09,471 3823145 road_revised.py Completed 2040 of 12497, 16.32%
+2026-07-23 07:58:09,475 3823145 road_revised.py Completed 2050 of 12497, 16.40%
+2026-07-23 07:58:09,479 3823145 road_revised.py Completed 2060 of 12497, 16.48%
+2026-07-23 07:58:12,548 3823145 road_revised.py Completed 2070 of 12497, 16.56%
+2026-07-23 07:58:13,457 3823145 road_revised.py Completed 2080 of 12497, 16.64%
+2026-07-23 07:58:13,461 3823145 road_revised.py Completed 2090 of 12497, 16.72%
+2026-07-23 07:58:13,491 3823145 road_revised.py Completed 2100 of 12497, 16.80%
+2026-07-23 07:58:13,491 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2100_of_12497]: 11.16 GB
+2026-07-23 07:58:13,495 3823145 road_revised.py Completed 2110 of 12497, 16.88%
+2026-07-23 07:58:17,536 3823145 road_revised.py Completed 2120 of 12497, 16.96%
+2026-07-23 07:58:17,558 3823145 road_revised.py Completed 2130 of 12497, 17.04%
+2026-07-23 07:58:17,563 3823145 road_revised.py Completed 2140 of 12497, 17.12%
+2026-07-23 07:58:17,567 3823145 road_revised.py Completed 2150 of 12497, 17.20%
+2026-07-23 07:58:17,570 3823145 road_revised.py Completed 2160 of 12497, 17.28%
+2026-07-23 07:58:21,781 3823145 road_revised.py Completed 2170 of 12497, 17.36%
+2026-07-23 07:58:21,805 3823145 road_revised.py Completed 2180 of 12497, 17.44%
+2026-07-23 07:58:21,813 3823145 road_revised.py Completed 2190 of 12497, 17.52%
+2026-07-23 07:58:21,816 3823145 road_revised.py Completed 2200 of 12497, 17.60%
+2026-07-23 07:58:21,816 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2200_of_12497]: 11.51 GB
+2026-07-23 07:58:21,819 3823145 road_revised.py Completed 2210 of 12497, 17.68%
+2026-07-23 07:58:25,967 3823145 road_revised.py Completed 2220 of 12497, 17.76%
+2026-07-23 07:58:25,978 3823145 road_revised.py Completed 2230 of 12497, 17.84%
+2026-07-23 07:58:25,981 3823145 road_revised.py Completed 2240 of 12497, 17.92%
+2026-07-23 07:58:25,984 3823145 road_revised.py Completed 2250 of 12497, 18.00%
+2026-07-23 07:58:25,988 3823145 road_revised.py Completed 2260 of 12497, 18.08%
+2026-07-23 07:58:29,109 3823145 road_revised.py Completed 2270 of 12497, 18.16%
+2026-07-23 07:58:29,945 3823145 road_revised.py Completed 2280 of 12497, 18.24%
+2026-07-23 07:58:29,949 3823145 road_revised.py Completed 2290 of 12497, 18.32%
+2026-07-23 07:58:29,952 3823145 road_revised.py Completed 2300 of 12497, 18.40%
+2026-07-23 07:58:29,994 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2300_of_12497]: 11.77 GB
+2026-07-23 07:58:30,040 3823145 road_revised.py Completed 2310 of 12497, 18.48%
+2026-07-23 07:58:33,880 3823145 road_revised.py Completed 2320 of 12497, 18.56%
+2026-07-23 07:58:33,885 3823145 road_revised.py Completed 2330 of 12497, 18.64%
+2026-07-23 07:58:33,916 3823145 road_revised.py Completed 2340 of 12497, 18.72%
+2026-07-23 07:58:33,927 3823145 road_revised.py Completed 2350 of 12497, 18.80%
+2026-07-23 07:58:33,931 3823145 road_revised.py Completed 2360 of 12497, 18.88%
+2026-07-23 07:58:36,736 3823145 road_revised.py Completed 2370 of 12497, 18.96%
+2026-07-23 07:58:37,628 3823145 road_revised.py Completed 2380 of 12497, 19.04%
+2026-07-23 07:58:37,635 3823145 road_revised.py Completed 2390 of 12497, 19.12%
+2026-07-23 07:58:37,638 3823145 road_revised.py Completed 2400 of 12497, 19.20%
+2026-07-23 07:58:37,638 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2400_of_12497]: 11.45 GB
+2026-07-23 07:58:37,642 3823145 road_revised.py Completed 2410 of 12497, 19.28%
+2026-07-23 07:58:41,570 3823145 road_revised.py Completed 2420 of 12497, 19.36%
+2026-07-23 07:58:41,583 3823145 road_revised.py Completed 2430 of 12497, 19.44%
+2026-07-23 07:58:41,586 3823145 road_revised.py Completed 2440 of 12497, 19.52%
+2026-07-23 07:58:41,628 3823145 road_revised.py Completed 2450 of 12497, 19.60%
+2026-07-23 07:58:41,632 3823145 road_revised.py Completed 2460 of 12497, 19.68%
+2026-07-23 07:58:44,217 3823145 road_revised.py Completed 2470 of 12497, 19.76%
+2026-07-23 07:58:45,145 3823145 road_revised.py Completed 2480 of 12497, 19.84%
+2026-07-23 07:58:45,148 3823145 road_revised.py Completed 2490 of 12497, 19.92%
+2026-07-23 07:58:45,152 3823145 road_revised.py Completed 2500 of 12497, 20.00%
+2026-07-23 07:58:45,211 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2500_of_12497]: 12.02 GB
+2026-07-23 07:58:45,255 3823145 road_revised.py Completed 2510 of 12497, 20.08%
+2026-07-23 07:58:49,412 3823145 road_revised.py Completed 2520 of 12497, 20.16%
+2026-07-23 07:58:49,466 3823145 road_revised.py Completed 2530 of 12497, 20.24%
+2026-07-23 07:58:49,488 3823145 road_revised.py Completed 2540 of 12497, 20.32%
+2026-07-23 07:58:49,495 3823145 road_revised.py Completed 2550 of 12497, 20.40%
+2026-07-23 07:58:49,498 3823145 road_revised.py Completed 2560 of 12497, 20.48%
+2026-07-23 07:58:49,502 3823145 road_revised.py Completed 2570 of 12497, 20.56%
+2026-07-23 07:58:53,709 3823145 road_revised.py Completed 2580 of 12497, 20.64%
+2026-07-23 07:58:53,727 3823145 road_revised.py Completed 2590 of 12497, 20.72%
+2026-07-23 07:58:53,747 3823145 road_revised.py Completed 2600 of 12497, 20.80%
+2026-07-23 07:58:53,748 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2600_of_12497]: 12.77 GB
+2026-07-23 07:58:53,784 3823145 road_revised.py Completed 2610 of 12497, 20.89%
+2026-07-23 07:58:53,798 3823145 road_revised.py Completed 2620 of 12497, 20.97%
+2026-07-23 07:58:57,396 3823145 road_revised.py Completed 2630 of 12497, 21.05%
+2026-07-23 07:58:57,451 3823145 road_revised.py Completed 2640 of 12497, 21.13%
+2026-07-23 07:58:57,454 3823145 road_revised.py Completed 2650 of 12497, 21.21%
+2026-07-23 07:58:57,481 3823145 road_revised.py Completed 2660 of 12497, 21.29%
+2026-07-23 07:58:57,484 3823145 road_revised.py Completed 2670 of 12497, 21.37%
+2026-07-23 07:59:00,795 3823145 road_revised.py Completed 2680 of 12497, 21.45%
+2026-07-23 07:59:00,821 3823145 road_revised.py Completed 2690 of 12497, 21.53%
+2026-07-23 07:59:01,727 3823145 road_revised.py Completed 2700 of 12497, 21.61%
+2026-07-23 07:59:01,727 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2700_of_12497]: 12.35 GB
+2026-07-23 07:59:01,731 3823145 road_revised.py Completed 2710 of 12497, 21.69%
+2026-07-23 07:59:01,766 3823145 road_revised.py Completed 2720 of 12497, 21.77%
+2026-07-23 07:59:06,005 3823145 road_revised.py Completed 2730 of 12497, 21.85%
+2026-07-23 07:59:06,012 3823145 road_revised.py Completed 2740 of 12497, 21.93%
+2026-07-23 07:59:06,015 3823145 road_revised.py Completed 2750 of 12497, 22.01%
+2026-07-23 07:59:06,019 3823145 road_revised.py Completed 2760 of 12497, 22.09%
+2026-07-23 07:59:06,022 3823145 road_revised.py Completed 2770 of 12497, 22.17%
+2026-07-23 07:59:08,713 3823145 road_revised.py Completed 2780 of 12497, 22.25%
+2026-07-23 07:59:08,721 3823145 road_revised.py Completed 2790 of 12497, 22.33%
+2026-07-23 07:59:08,724 3823145 road_revised.py Completed 2800 of 12497, 22.41%
+2026-07-23 07:59:09,673 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2800_of_12497]: 12.98 GB
+2026-07-23 07:59:09,677 3823145 road_revised.py Completed 2810 of 12497, 22.49%
+2026-07-23 07:59:09,680 3823145 road_revised.py Completed 2820 of 12497, 22.57%
+2026-07-23 07:59:13,650 3823145 road_revised.py Completed 2830 of 12497, 22.65%
+2026-07-23 07:59:13,684 3823145 road_revised.py Completed 2840 of 12497, 22.73%
+2026-07-23 07:59:13,687 3823145 road_revised.py Completed 2850 of 12497, 22.81%
+2026-07-23 07:59:13,691 3823145 road_revised.py Completed 2860 of 12497, 22.89%
+2026-07-23 07:59:13,694 3823145 road_revised.py Completed 2870 of 12497, 22.97%
+2026-07-23 07:59:16,980 3823145 road_revised.py Completed 2880 of 12497, 23.05%
+2026-07-23 07:59:16,984 3823145 road_revised.py Completed 2890 of 12497, 23.13%
+2026-07-23 07:59:17,965 3823145 road_revised.py Completed 2900 of 12497, 23.21%
+2026-07-23 07:59:17,968 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_2900_of_12497]: 13.09 GB
+2026-07-23 07:59:18,016 3823145 road_revised.py Completed 2910 of 12497, 23.29%
+2026-07-23 07:59:18,027 3823145 road_revised.py Completed 2920 of 12497, 23.37%
+2026-07-23 07:59:21,776 3823145 road_revised.py Completed 2930 of 12497, 23.45%
+2026-07-23 07:59:21,797 3823145 road_revised.py Completed 2940 of 12497, 23.53%
+2026-07-23 07:59:21,801 3823145 road_revised.py Completed 2950 of 12497, 23.61%
+2026-07-23 07:59:21,804 3823145 road_revised.py Completed 2960 of 12497, 23.69%
+2026-07-23 07:59:21,827 3823145 road_revised.py Completed 2970 of 12497, 23.77%
+2026-07-23 07:59:24,586 3823145 road_revised.py Completed 2980 of 12497, 23.85%
+2026-07-23 07:59:24,644 3823145 road_revised.py Completed 2990 of 12497, 23.93%
+2026-07-23 07:59:24,657 3823145 road_revised.py Completed 3000 of 12497, 24.01%
+2026-07-23 07:59:24,657 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3000_of_12497]: 13.37 GB
+2026-07-23 07:59:25,614 3823145 road_revised.py Completed 3010 of 12497, 24.09%
+2026-07-23 07:59:25,634 3823145 road_revised.py Completed 3020 of 12497, 24.17%
+2026-07-23 07:59:29,807 3823145 road_revised.py Completed 3030 of 12497, 24.25%
+2026-07-23 07:59:29,835 3823145 road_revised.py Completed 3040 of 12497, 24.33%
+2026-07-23 07:59:29,838 3823145 road_revised.py Completed 3050 of 12497, 24.41%
+2026-07-23 07:59:29,841 3823145 road_revised.py Completed 3060 of 12497, 24.49%
+2026-07-23 07:59:29,861 3823145 road_revised.py Completed 3070 of 12497, 24.57%
+2026-07-23 07:59:32,381 3823145 road_revised.py Completed 3080 of 12497, 24.65%
+2026-07-23 07:59:32,463 3823145 road_revised.py Completed 3090 of 12497, 24.73%
+2026-07-23 07:59:32,466 3823145 road_revised.py Completed 3100 of 12497, 24.81%
+2026-07-23 07:59:32,466 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3100_of_12497]: 13.87 GB
+2026-07-23 07:59:33,485 3823145 road_revised.py Completed 3110 of 12497, 24.89%
+2026-07-23 07:59:33,494 3823145 road_revised.py Completed 3120 of 12497, 24.97%
+2026-07-23 07:59:37,105 3823145 road_revised.py Completed 3130 of 12497, 25.05%
+2026-07-23 07:59:37,123 3823145 road_revised.py Completed 3140 of 12497, 25.13%
+2026-07-23 07:59:37,127 3823145 road_revised.py Completed 3150 of 12497, 25.21%
+2026-07-23 07:59:37,131 3823145 road_revised.py Completed 3160 of 12497, 25.29%
+2026-07-23 07:59:37,146 3823145 road_revised.py Completed 3170 of 12497, 25.37%
+2026-07-23 07:59:40,214 3823145 road_revised.py Completed 3180 of 12497, 25.45%
+2026-07-23 07:59:40,227 3823145 road_revised.py Completed 3190 of 12497, 25.53%
+2026-07-23 07:59:40,230 3823145 road_revised.py Completed 3200 of 12497, 25.61%
+2026-07-23 07:59:40,230 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3200_of_12497]: 13.76 GB
+2026-07-23 07:59:40,233 3823145 road_revised.py Completed 3210 of 12497, 25.69%
+2026-07-23 07:59:40,237 3823145 road_revised.py Completed 3220 of 12497, 25.77%
+2026-07-23 07:59:44,977 3823145 road_revised.py Completed 3230 of 12497, 25.85%
+2026-07-23 07:59:45,010 3823145 road_revised.py Completed 3240 of 12497, 25.93%
+2026-07-23 07:59:45,048 3823145 road_revised.py Completed 3250 of 12497, 26.01%
+2026-07-23 07:59:45,051 3823145 road_revised.py Completed 3260 of 12497, 26.09%
+2026-07-23 07:59:45,098 3823145 road_revised.py Completed 3270 of 12497, 26.17%
+2026-07-23 07:59:47,746 3823145 road_revised.py Completed 3280 of 12497, 26.25%
+2026-07-23 07:59:47,763 3823145 road_revised.py Completed 3290 of 12497, 26.33%
+2026-07-23 07:59:47,766 3823145 road_revised.py Completed 3300 of 12497, 26.41%
+2026-07-23 07:59:47,767 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3300_of_12497]: 14.06 GB
+2026-07-23 07:59:47,770 3823145 road_revised.py Completed 3310 of 12497, 26.49%
+2026-07-23 07:59:47,773 3823145 road_revised.py Completed 3320 of 12497, 26.57%
+2026-07-23 07:59:52,887 3823145 road_revised.py Completed 3330 of 12497, 26.65%
+2026-07-23 07:59:52,919 3823145 road_revised.py Completed 3340 of 12497, 26.73%
+2026-07-23 07:59:52,923 3823145 road_revised.py Completed 3350 of 12497, 26.81%
+2026-07-23 07:59:52,927 3823145 road_revised.py Completed 3360 of 12497, 26.89%
+2026-07-23 07:59:52,954 3823145 road_revised.py Completed 3370 of 12497, 26.97%
+2026-07-23 07:59:55,485 3823145 road_revised.py Completed 3380 of 12497, 27.05%
+2026-07-23 07:59:55,521 3823145 road_revised.py Completed 3390 of 12497, 27.13%
+2026-07-23 07:59:55,525 3823145 road_revised.py Completed 3400 of 12497, 27.21%
+2026-07-23 07:59:55,587 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3400_of_12497]: 14.20 GB
+2026-07-23 07:59:55,610 3823145 road_revised.py Completed 3410 of 12497, 27.29%
+2026-07-23 07:59:55,613 3823145 road_revised.py Completed 3420 of 12497, 27.37%
+2026-07-23 08:00:00,521 3823145 road_revised.py Completed 3430 of 12497, 27.45%
+2026-07-23 08:00:00,528 3823145 road_revised.py Completed 3440 of 12497, 27.53%
+2026-07-23 08:00:00,532 3823145 road_revised.py Completed 3450 of 12497, 27.61%
+2026-07-23 08:00:00,556 3823145 road_revised.py Completed 3460 of 12497, 27.69%
+2026-07-23 08:00:00,566 3823145 road_revised.py Completed 3470 of 12497, 27.77%
+2026-07-23 08:00:00,612 3823145 road_revised.py Completed 3480 of 12497, 27.85%
+2026-07-23 08:00:03,888 3823145 road_revised.py Completed 3490 of 12497, 27.93%
+2026-07-23 08:00:03,892 3823145 road_revised.py Completed 3500 of 12497, 28.01%
+2026-07-23 08:00:03,913 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3500_of_12497]: 14.60 GB
+2026-07-23 08:00:03,917 3823145 road_revised.py Completed 3510 of 12497, 28.09%
+2026-07-23 08:00:03,920 3823145 road_revised.py Completed 3520 of 12497, 28.17%
+2026-07-23 08:00:03,948 3823145 road_revised.py Completed 3530 of 12497, 28.25%
+2026-07-23 08:00:07,784 3823145 road_revised.py Completed 3540 of 12497, 28.33%
+2026-07-23 08:00:07,788 3823145 road_revised.py Completed 3550 of 12497, 28.41%
+2026-07-23 08:00:07,791 3823145 road_revised.py Completed 3560 of 12497, 28.49%
+2026-07-23 08:00:07,795 3823145 road_revised.py Completed 3570 of 12497, 28.57%
+2026-07-23 08:00:07,798 3823145 road_revised.py Completed 3580 of 12497, 28.65%
+2026-07-23 08:00:10,931 3823145 road_revised.py Completed 3590 of 12497, 28.73%
+2026-07-23 08:00:10,934 3823145 road_revised.py Completed 3600 of 12497, 28.81%
+2026-07-23 08:00:10,965 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3600_of_12497]: 14.16 GB
+2026-07-23 08:00:11,012 3823145 road_revised.py Completed 3610 of 12497, 28.89%
+2026-07-23 08:00:11,016 3823145 road_revised.py Completed 3620 of 12497, 28.97%
+2026-07-23 08:00:11,061 3823145 road_revised.py Completed 3630 of 12497, 29.05%
+2026-07-23 08:00:15,095 3823145 road_revised.py Completed 3640 of 12497, 29.13%
+2026-07-23 08:00:15,123 3823145 road_revised.py Completed 3650 of 12497, 29.21%
+2026-07-23 08:00:16,091 3823145 road_revised.py Completed 3660 of 12497, 29.29%
+2026-07-23 08:00:16,110 3823145 road_revised.py Completed 3670 of 12497, 29.37%
+2026-07-23 08:00:16,117 3823145 road_revised.py Completed 3680 of 12497, 29.45%
+2026-07-23 08:00:19,059 3823145 road_revised.py Completed 3690 of 12497, 29.53%
+2026-07-23 08:00:19,072 3823145 road_revised.py Completed 3700 of 12497, 29.61%
+2026-07-23 08:00:19,083 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3700_of_12497]: 14.91 GB
+2026-07-23 08:00:19,112 3823145 road_revised.py Completed 3710 of 12497, 29.69%
+2026-07-23 08:00:19,121 3823145 road_revised.py Completed 3720 of 12497, 29.77%
+2026-07-23 08:00:19,124 3823145 road_revised.py Completed 3730 of 12497, 29.85%
+2026-07-23 08:00:23,503 3823145 road_revised.py Completed 3740 of 12497, 29.93%
+2026-07-23 08:00:24,502 3823145 road_revised.py Completed 3750 of 12497, 30.01%
+2026-07-23 08:00:24,506 3823145 road_revised.py Completed 3760 of 12497, 30.09%
+2026-07-23 08:00:24,526 3823145 road_revised.py Completed 3770 of 12497, 30.17%
+2026-07-23 08:00:24,530 3823145 road_revised.py Completed 3780 of 12497, 30.25%
+2026-07-23 08:00:27,244 3823145 road_revised.py Completed 3790 of 12497, 30.33%
+2026-07-23 08:00:27,274 3823145 road_revised.py Completed 3800 of 12497, 30.41%
+2026-07-23 08:00:27,299 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3800_of_12497]: 14.80 GB
+2026-07-23 08:00:27,340 3823145 road_revised.py Completed 3810 of 12497, 30.49%
+2026-07-23 08:00:27,354 3823145 road_revised.py Completed 3820 of 12497, 30.57%
+2026-07-23 08:00:27,358 3823145 road_revised.py Completed 3830 of 12497, 30.65%
+2026-07-23 08:00:31,045 3823145 road_revised.py Completed 3840 of 12497, 30.73%
+2026-07-23 08:00:32,040 3823145 road_revised.py Completed 3850 of 12497, 30.81%
+2026-07-23 08:00:32,065 3823145 road_revised.py Completed 3860 of 12497, 30.89%
+2026-07-23 08:00:32,069 3823145 road_revised.py Completed 3870 of 12497, 30.97%
+2026-07-23 08:00:32,073 3823145 road_revised.py Completed 3880 of 12497, 31.05%
+2026-07-23 08:00:35,253 3823145 road_revised.py Completed 3890 of 12497, 31.13%
+2026-07-23 08:00:35,256 3823145 road_revised.py Completed 3900 of 12497, 31.21%
+2026-07-23 08:00:35,285 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_3900_of_12497]: 15.34 GB
+2026-07-23 08:00:35,327 3823145 road_revised.py Completed 3910 of 12497, 31.29%
+2026-07-23 08:00:35,330 3823145 road_revised.py Completed 3920 of 12497, 31.37%
+2026-07-23 08:00:35,334 3823145 road_revised.py Completed 3930 of 12497, 31.45%
+2026-07-23 08:00:39,332 3823145 road_revised.py Completed 3940 of 12497, 31.53%
+2026-07-23 08:00:40,385 3823145 road_revised.py Completed 3950 of 12497, 31.61%
+2026-07-23 08:00:40,389 3823145 road_revised.py Completed 3960 of 12497, 31.69%
+2026-07-23 08:00:40,393 3823145 road_revised.py Completed 3970 of 12497, 31.77%
+2026-07-23 08:00:40,419 3823145 road_revised.py Completed 3980 of 12497, 31.85%
+2026-07-23 08:00:43,326 3823145 road_revised.py Completed 3990 of 12497, 31.93%
+2026-07-23 08:00:43,346 3823145 road_revised.py Completed 4000 of 12497, 32.01%
+2026-07-23 08:00:43,346 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4000_of_12497]: 15.83 GB
+2026-07-23 08:00:43,349 3823145 road_revised.py Completed 4010 of 12497, 32.09%
+2026-07-23 08:00:43,395 3823145 road_revised.py Completed 4020 of 12497, 32.17%
+2026-07-23 08:00:43,398 3823145 road_revised.py Completed 4030 of 12497, 32.25%
+2026-07-23 08:00:43,424 3823145 road_revised.py Completed 4040 of 12497, 32.33%
+2026-07-23 08:00:47,495 3823145 road_revised.py Completed 4050 of 12497, 32.41%
+2026-07-23 08:00:48,552 3823145 road_revised.py Completed 4060 of 12497, 32.49%
+2026-07-23 08:00:48,555 3823145 road_revised.py Completed 4070 of 12497, 32.57%
+2026-07-23 08:00:48,558 3823145 road_revised.py Completed 4080 of 12497, 32.65%
+2026-07-23 08:00:48,607 3823145 road_revised.py Completed 4090 of 12497, 32.73%
+2026-07-23 08:00:51,202 3823145 road_revised.py Completed 4100 of 12497, 32.81%
+2026-07-23 08:00:51,203 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4100_of_12497]: 15.87 GB
+2026-07-23 08:00:51,251 3823145 road_revised.py Completed 4110 of 12497, 32.89%
+2026-07-23 08:00:51,302 3823145 road_revised.py Completed 4120 of 12497, 32.97%
+2026-07-23 08:00:51,330 3823145 road_revised.py Completed 4130 of 12497, 33.05%
+2026-07-23 08:00:51,335 3823145 road_revised.py Completed 4140 of 12497, 33.13%
+2026-07-23 08:00:54,650 3823145 road_revised.py Completed 4150 of 12497, 33.21%
+2026-07-23 08:00:54,695 3823145 road_revised.py Completed 4160 of 12497, 33.29%
+2026-07-23 08:00:54,701 3823145 road_revised.py Completed 4170 of 12497, 33.37%
+2026-07-23 08:00:55,768 3823145 road_revised.py Completed 4180 of 12497, 33.45%
+2026-07-23 08:00:55,771 3823145 road_revised.py Completed 4190 of 12497, 33.53%
+2026-07-23 08:00:58,808 3823145 road_revised.py Completed 4200 of 12497, 33.61%
+2026-07-23 08:00:58,809 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4200_of_12497]: 15.81 GB
+2026-07-23 08:00:58,873 3823145 road_revised.py Completed 4210 of 12497, 33.69%
+2026-07-23 08:00:58,957 3823145 road_revised.py Completed 4220 of 12497, 33.77%
+2026-07-23 08:00:58,964 3823145 road_revised.py Completed 4230 of 12497, 33.85%
+2026-07-23 08:00:58,967 3823145 road_revised.py Completed 4240 of 12497, 33.93%
+2026-07-23 08:01:02,740 3823145 road_revised.py Completed 4250 of 12497, 34.01%
+2026-07-23 08:01:02,775 3823145 road_revised.py Completed 4260 of 12497, 34.09%
+2026-07-23 08:01:02,779 3823145 road_revised.py Completed 4270 of 12497, 34.17%
+2026-07-23 08:01:02,782 3823145 road_revised.py Completed 4280 of 12497, 34.25%
+2026-07-23 08:01:02,805 3823145 road_revised.py Completed 4290 of 12497, 34.33%
+2026-07-23 08:01:06,699 3823145 road_revised.py Completed 4300 of 12497, 34.41%
+2026-07-23 08:01:06,699 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4300_of_12497]: 16.27 GB
+2026-07-23 08:01:06,716 3823145 road_revised.py Completed 4310 of 12497, 34.49%
+2026-07-23 08:01:06,719 3823145 road_revised.py Completed 4320 of 12497, 34.57%
+2026-07-23 08:01:06,722 3823145 road_revised.py Completed 4330 of 12497, 34.65%
+2026-07-23 08:01:06,725 3823145 road_revised.py Completed 4340 of 12497, 34.73%
+2026-07-23 08:01:11,126 3823145 road_revised.py Completed 4350 of 12497, 34.81%
+2026-07-23 08:01:11,148 3823145 road_revised.py Completed 4360 of 12497, 34.89%
+2026-07-23 08:01:11,151 3823145 road_revised.py Completed 4370 of 12497, 34.97%
+2026-07-23 08:01:11,154 3823145 road_revised.py Completed 4380 of 12497, 35.05%
+2026-07-23 08:01:11,158 3823145 road_revised.py Completed 4390 of 12497, 35.13%
+2026-07-23 08:01:15,438 3823145 road_revised.py Completed 4400 of 12497, 35.21%
+2026-07-23 08:01:15,460 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4400_of_12497]: 16.87 GB
+2026-07-23 08:01:15,510 3823145 road_revised.py Completed 4410 of 12497, 35.29%
+2026-07-23 08:01:15,536 3823145 road_revised.py Completed 4420 of 12497, 35.37%
+2026-07-23 08:01:15,539 3823145 road_revised.py Completed 4430 of 12497, 35.45%
+2026-07-23 08:01:15,543 3823145 road_revised.py Completed 4440 of 12497, 35.53%
+2026-07-23 08:01:19,529 3823145 road_revised.py Completed 4450 of 12497, 35.61%
+2026-07-23 08:01:19,646 3823145 road_revised.py Completed 4460 of 12497, 35.69%
+2026-07-23 08:01:19,723 3823145 road_revised.py Completed 4470 of 12497, 35.77%
+2026-07-23 08:01:19,738 3823145 road_revised.py Completed 4480 of 12497, 35.85%
+2026-07-23 08:01:19,741 3823145 road_revised.py Completed 4490 of 12497, 35.93%
+2026-07-23 08:01:24,779 3823145 road_revised.py Completed 4500 of 12497, 36.01%
+2026-07-23 08:01:24,816 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4500_of_12497]: 17.40 GB
+2026-07-23 08:01:24,873 3823145 road_revised.py Completed 4510 of 12497, 36.09%
+2026-07-23 08:01:24,876 3823145 road_revised.py Completed 4520 of 12497, 36.17%
+2026-07-23 08:01:24,917 3823145 road_revised.py Completed 4530 of 12497, 36.25%
+2026-07-23 08:01:24,921 3823145 road_revised.py Completed 4540 of 12497, 36.33%
+2026-07-23 08:01:28,899 3823145 road_revised.py Completed 4550 of 12497, 36.41%
+2026-07-23 08:01:28,927 3823145 road_revised.py Completed 4560 of 12497, 36.49%
+2026-07-23 08:01:28,930 3823145 road_revised.py Completed 4570 of 12497, 36.57%
+2026-07-23 08:01:29,283 3823145 road_revised.py Completed 4580 of 12497, 36.65%
+2026-07-23 08:01:29,291 3823145 road_revised.py Completed 4590 of 12497, 36.73%
+2026-07-23 08:01:29,295 3823145 road_revised.py Completed 4600 of 12497, 36.81%
+2026-07-23 08:01:29,295 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4600_of_12497]: 18.28 GB
+2026-07-23 08:01:33,927 3823145 road_revised.py Completed 4610 of 12497, 36.89%
+2026-07-23 08:01:33,982 3823145 road_revised.py Completed 4620 of 12497, 36.97%
+2026-07-23 08:01:33,986 3823145 road_revised.py Completed 4630 of 12497, 37.05%
+2026-07-23 08:01:33,989 3823145 road_revised.py Completed 4640 of 12497, 37.13%
+2026-07-23 08:01:34,010 3823145 road_revised.py Completed 4650 of 12497, 37.21%
+2026-07-23 08:01:38,042 3823145 road_revised.py Completed 4660 of 12497, 37.29%
+2026-07-23 08:01:38,069 3823145 road_revised.py Completed 4670 of 12497, 37.37%
+2026-07-23 08:01:38,072 3823145 road_revised.py Completed 4680 of 12497, 37.45%
+2026-07-23 08:01:38,075 3823145 road_revised.py Completed 4690 of 12497, 37.53%
+2026-07-23 08:01:38,093 3823145 road_revised.py Completed 4700 of 12497, 37.61%
+2026-07-23 08:01:38,094 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4700_of_12497]: 18.54 GB
+2026-07-23 08:01:42,420 3823145 road_revised.py Completed 4710 of 12497, 37.69%
+2026-07-23 08:01:42,428 3823145 road_revised.py Completed 4720 of 12497, 37.77%
+2026-07-23 08:01:42,434 3823145 road_revised.py Completed 4730 of 12497, 37.85%
+2026-07-23 08:01:42,437 3823145 road_revised.py Completed 4740 of 12497, 37.93%
+2026-07-23 08:01:42,477 3823145 road_revised.py Completed 4750 of 12497, 38.01%
+2026-07-23 08:01:46,807 3823145 road_revised.py Completed 4760 of 12497, 38.09%
+2026-07-23 08:01:46,812 3823145 road_revised.py Completed 4770 of 12497, 38.17%
+2026-07-23 08:01:46,815 3823145 road_revised.py Completed 4780 of 12497, 38.25%
+2026-07-23 08:01:46,819 3823145 road_revised.py Completed 4790 of 12497, 38.33%
+2026-07-23 08:01:46,839 3823145 road_revised.py Completed 4800 of 12497, 38.41%
+2026-07-23 08:01:46,840 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4800_of_12497]: 18.53 GB
+2026-07-23 08:01:49,763 3823145 road_revised.py Completed 4810 of 12497, 38.49%
+2026-07-23 08:01:49,768 3823145 road_revised.py Completed 4820 of 12497, 38.57%
+2026-07-23 08:01:49,772 3823145 road_revised.py Completed 4830 of 12497, 38.65%
+2026-07-23 08:01:51,072 3823145 road_revised.py Completed 4840 of 12497, 38.73%
+2026-07-23 08:01:51,083 3823145 road_revised.py Completed 4850 of 12497, 38.81%
+2026-07-23 08:01:55,535 3823145 road_revised.py Completed 4860 of 12497, 38.89%
+2026-07-23 08:01:55,553 3823145 road_revised.py Completed 4870 of 12497, 38.97%
+2026-07-23 08:01:55,556 3823145 road_revised.py Completed 4880 of 12497, 39.05%
+2026-07-23 08:01:55,559 3823145 road_revised.py Completed 4890 of 12497, 39.13%
+2026-07-23 08:01:55,562 3823145 road_revised.py Completed 4900 of 12497, 39.21%
+2026-07-23 08:01:55,584 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_4900_of_12497]: 19.41 GB
+2026-07-23 08:01:58,491 3823145 road_revised.py Completed 4910 of 12497, 39.29%
+2026-07-23 08:01:58,557 3823145 road_revised.py Completed 4920 of 12497, 39.37%
+2026-07-23 08:01:58,560 3823145 road_revised.py Completed 4930 of 12497, 39.45%
+2026-07-23 08:01:58,564 3823145 road_revised.py Completed 4940 of 12497, 39.53%
+2026-07-23 08:01:58,568 3823145 road_revised.py Completed 4950 of 12497, 39.61%
+2026-07-23 08:02:03,582 3823145 road_revised.py Completed 4960 of 12497, 39.69%
+2026-07-23 08:02:03,623 3823145 road_revised.py Completed 4970 of 12497, 39.77%
+2026-07-23 08:02:03,626 3823145 road_revised.py Completed 4980 of 12497, 39.85%
+2026-07-23 08:02:03,652 3823145 road_revised.py Completed 4990 of 12497, 39.93%
+2026-07-23 08:02:03,655 3823145 road_revised.py Completed 5000 of 12497, 40.01%
+2026-07-23 08:02:03,698 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5000_of_12497]: 19.41 GB
+2026-07-23 08:02:07,256 3823145 road_revised.py Completed 5010 of 12497, 40.09%
+2026-07-23 08:02:07,308 3823145 road_revised.py Completed 5020 of 12497, 40.17%
+2026-07-23 08:02:07,319 3823145 road_revised.py Completed 5030 of 12497, 40.25%
+2026-07-23 08:02:07,322 3823145 road_revised.py Completed 5040 of 12497, 40.33%
+2026-07-23 08:02:07,353 3823145 road_revised.py Completed 5050 of 12497, 40.41%
+2026-07-23 08:02:13,234 3823145 road_revised.py Completed 5060 of 12497, 40.49%
+2026-07-23 08:02:13,248 3823145 road_revised.py Completed 5070 of 12497, 40.57%
+2026-07-23 08:02:13,251 3823145 road_revised.py Completed 5080 of 12497, 40.65%
+2026-07-23 08:02:13,254 3823145 road_revised.py Completed 5090 of 12497, 40.73%
+2026-07-23 08:02:13,257 3823145 road_revised.py Completed 5100 of 12497, 40.81%
+2026-07-23 08:02:13,279 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5100_of_12497]: 19.42 GB
+2026-07-23 08:02:13,289 3823145 road_revised.py Completed 5110 of 12497, 40.89%
+2026-07-23 08:02:16,101 3823145 road_revised.py Completed 5120 of 12497, 40.97%
+2026-07-23 08:02:16,123 3823145 road_revised.py Completed 5130 of 12497, 41.05%
+2026-07-23 08:02:16,126 3823145 road_revised.py Completed 5140 of 12497, 41.13%
+2026-07-23 08:02:16,129 3823145 road_revised.py Completed 5150 of 12497, 41.21%
+2026-07-23 08:02:16,133 3823145 road_revised.py Completed 5160 of 12497, 41.29%
+2026-07-23 08:02:20,358 3823145 road_revised.py Completed 5170 of 12497, 41.37%
+2026-07-23 08:02:20,368 3823145 road_revised.py Completed 5180 of 12497, 41.45%
+2026-07-23 08:02:20,371 3823145 road_revised.py Completed 5190 of 12497, 41.53%
+2026-07-23 08:02:20,391 3823145 road_revised.py Completed 5200 of 12497, 41.61%
+2026-07-23 08:02:20,433 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5200_of_12497]: 19.40 GB
+2026-07-23 08:02:20,471 3823145 road_revised.py Completed 5210 of 12497, 41.69%
+2026-07-23 08:02:24,165 3823145 road_revised.py Completed 5220 of 12497, 41.77%
+2026-07-23 08:02:24,175 3823145 road_revised.py Completed 5230 of 12497, 41.85%
+2026-07-23 08:02:24,179 3823145 road_revised.py Completed 5240 of 12497, 41.93%
+2026-07-23 08:02:24,182 3823145 road_revised.py Completed 5250 of 12497, 42.01%
+2026-07-23 08:02:24,185 3823145 road_revised.py Completed 5260 of 12497, 42.09%
+2026-07-23 08:02:27,829 3823145 road_revised.py Completed 5270 of 12497, 42.17%
+2026-07-23 08:02:27,861 3823145 road_revised.py Completed 5280 of 12497, 42.25%
+2026-07-23 08:02:29,228 3823145 road_revised.py Completed 5290 of 12497, 42.33%
+2026-07-23 08:02:29,238 3823145 road_revised.py Completed 5300 of 12497, 42.41%
+2026-07-23 08:02:29,272 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5300_of_12497]: 19.07 GB
+2026-07-23 08:02:29,306 3823145 road_revised.py Completed 5310 of 12497, 42.49%
+2026-07-23 08:02:32,174 3823145 road_revised.py Completed 5320 of 12497, 42.57%
+2026-07-23 08:02:32,214 3823145 road_revised.py Completed 5330 of 12497, 42.65%
+2026-07-23 08:02:32,220 3823145 road_revised.py Completed 5340 of 12497, 42.73%
+2026-07-23 08:02:32,223 3823145 road_revised.py Completed 5350 of 12497, 42.81%
+2026-07-23 08:02:32,227 3823145 road_revised.py Completed 5360 of 12497, 42.89%
+2026-07-23 08:02:36,429 3823145 road_revised.py Completed 5370 of 12497, 42.97%
+2026-07-23 08:02:36,442 3823145 road_revised.py Completed 5380 of 12497, 43.05%
+2026-07-23 08:02:36,446 3823145 road_revised.py Completed 5390 of 12497, 43.13%
+2026-07-23 08:02:36,449 3823145 road_revised.py Completed 5400 of 12497, 43.21%
+2026-07-23 08:02:36,475 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5400_of_12497]: 19.97 GB
+2026-07-23 08:02:36,509 3823145 road_revised.py Completed 5410 of 12497, 43.29%
+2026-07-23 08:02:40,349 3823145 road_revised.py Completed 5420 of 12497, 43.37%
+2026-07-23 08:02:40,366 3823145 road_revised.py Completed 5430 of 12497, 43.45%
+2026-07-23 08:02:40,369 3823145 road_revised.py Completed 5440 of 12497, 43.53%
+2026-07-23 08:02:40,372 3823145 road_revised.py Completed 5450 of 12497, 43.61%
+2026-07-23 08:02:40,375 3823145 road_revised.py Completed 5460 of 12497, 43.69%
+2026-07-23 08:02:43,800 3823145 road_revised.py Completed 5470 of 12497, 43.77%
+2026-07-23 08:02:43,806 3823145 road_revised.py Completed 5480 of 12497, 43.85%
+2026-07-23 08:02:43,810 3823145 road_revised.py Completed 5490 of 12497, 43.93%
+2026-07-23 08:02:43,846 3823145 road_revised.py Completed 5500 of 12497, 44.01%
+2026-07-23 08:02:43,846 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5500_of_12497]: 19.98 GB
+2026-07-23 08:02:43,890 3823145 road_revised.py Completed 5510 of 12497, 44.09%
+2026-07-23 08:02:47,349 3823145 road_revised.py Completed 5520 of 12497, 44.17%
+2026-07-23 08:02:48,711 3823145 road_revised.py Completed 5530 of 12497, 44.25%
+2026-07-23 08:02:48,733 3823145 road_revised.py Completed 5540 of 12497, 44.33%
+2026-07-23 08:02:48,760 3823145 road_revised.py Completed 5550 of 12497, 44.41%
+2026-07-23 08:02:48,767 3823145 road_revised.py Completed 5560 of 12497, 44.49%
+2026-07-23 08:02:52,928 3823145 road_revised.py Completed 5570 of 12497, 44.57%
+2026-07-23 08:02:52,931 3823145 road_revised.py Completed 5580 of 12497, 44.65%
+2026-07-23 08:02:52,962 3823145 road_revised.py Completed 5590 of 12497, 44.73%
+2026-07-23 08:02:52,977 3823145 road_revised.py Completed 5600 of 12497, 44.81%
+2026-07-23 08:02:52,977 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5600_of_12497]: 20.54 GB
+2026-07-23 08:02:52,980 3823145 road_revised.py Completed 5610 of 12497, 44.89%
+2026-07-23 08:02:56,162 3823145 road_revised.py Completed 5620 of 12497, 44.97%
+2026-07-23 08:02:57,524 3823145 road_revised.py Completed 5630 of 12497, 45.05%
+2026-07-23 08:02:57,527 3823145 road_revised.py Completed 5640 of 12497, 45.13%
+2026-07-23 08:02:57,547 3823145 road_revised.py Completed 5650 of 12497, 45.21%
+2026-07-23 08:02:57,551 3823145 road_revised.py Completed 5660 of 12497, 45.29%
+2026-07-23 08:03:01,874 3823145 road_revised.py Completed 5670 of 12497, 45.37%
+2026-07-23 08:03:01,883 3823145 road_revised.py Completed 5680 of 12497, 45.45%
+2026-07-23 08:03:01,887 3823145 road_revised.py Completed 5690 of 12497, 45.53%
+2026-07-23 08:03:01,891 3823145 road_revised.py Completed 5700 of 12497, 45.61%
+2026-07-23 08:03:01,946 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5700_of_12497]: 19.73 GB
+2026-07-23 08:03:01,974 3823145 road_revised.py Completed 5710 of 12497, 45.69%
+2026-07-23 08:03:04,797 3823145 road_revised.py Completed 5720 of 12497, 45.77%
+2026-07-23 08:03:04,832 3823145 road_revised.py Completed 5730 of 12497, 45.85%
+2026-07-23 08:03:06,081 3823145 road_revised.py Completed 5740 of 12497, 45.93%
+2026-07-23 08:03:06,087 3823145 road_revised.py Completed 5750 of 12497, 46.01%
+2026-07-23 08:03:06,118 3823145 road_revised.py Completed 5760 of 12497, 46.09%
+2026-07-23 08:03:10,314 3823145 road_revised.py Completed 5770 of 12497, 46.17%
+2026-07-23 08:03:10,318 3823145 road_revised.py Completed 5780 of 12497, 46.25%
+2026-07-23 08:03:10,321 3823145 road_revised.py Completed 5790 of 12497, 46.33%
+2026-07-23 08:03:10,324 3823145 road_revised.py Completed 5800 of 12497, 46.41%
+2026-07-23 08:03:10,340 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5800_of_12497]: 21.02 GB
+2026-07-23 08:03:10,370 3823145 road_revised.py Completed 5810 of 12497, 46.49%
+2026-07-23 08:03:13,170 3823145 road_revised.py Completed 5820 of 12497, 46.57%
+2026-07-23 08:03:13,209 3823145 road_revised.py Completed 5830 of 12497, 46.65%
+2026-07-23 08:03:13,243 3823145 road_revised.py Completed 5840 of 12497, 46.73%
+2026-07-23 08:03:13,247 3823145 road_revised.py Completed 5850 of 12497, 46.81%
+2026-07-23 08:03:13,250 3823145 road_revised.py Completed 5860 of 12497, 46.89%
+2026-07-23 08:03:18,610 3823145 road_revised.py Completed 5870 of 12497, 46.97%
+2026-07-23 08:03:18,669 3823145 road_revised.py Completed 5880 of 12497, 47.05%
+2026-07-23 08:03:18,672 3823145 road_revised.py Completed 5890 of 12497, 47.13%
+2026-07-23 08:03:18,676 3823145 road_revised.py Completed 5900 of 12497, 47.21%
+2026-07-23 08:03:18,690 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_5900_of_12497]: 20.73 GB
+2026-07-23 08:03:18,694 3823145 road_revised.py Completed 5910 of 12497, 47.29%
+2026-07-23 08:03:22,426 3823145 road_revised.py Completed 5920 of 12497, 47.37%
+2026-07-23 08:03:22,518 3823145 road_revised.py Completed 5930 of 12497, 47.45%
+2026-07-23 08:03:22,591 3823145 road_revised.py Completed 5940 of 12497, 47.53%
+2026-07-23 08:03:22,598 3823145 road_revised.py Completed 5950 of 12497, 47.61%
+2026-07-23 08:03:22,602 3823145 road_revised.py Completed 5960 of 12497, 47.69%
+2026-07-23 08:03:28,102 3823145 road_revised.py Completed 5970 of 12497, 47.77%
+2026-07-23 08:03:28,111 3823145 road_revised.py Completed 5980 of 12497, 47.85%
+2026-07-23 08:03:28,115 3823145 road_revised.py Completed 5990 of 12497, 47.93%
+2026-07-23 08:03:28,146 3823145 road_revised.py Completed 6000 of 12497, 48.01%
+2026-07-23 08:03:28,146 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6000_of_12497]: 21.05 GB
+2026-07-23 08:03:28,150 3823145 road_revised.py Completed 6010 of 12497, 48.09%
+2026-07-23 08:03:30,867 3823145 road_revised.py Completed 6020 of 12497, 48.17%
+2026-07-23 08:03:30,989 3823145 road_revised.py Completed 6030 of 12497, 48.25%
+2026-07-23 08:03:31,009 3823145 road_revised.py Completed 6040 of 12497, 48.33%
+2026-07-23 08:03:31,012 3823145 road_revised.py Completed 6050 of 12497, 48.41%
+2026-07-23 08:03:31,103 3823145 road_revised.py Completed 6060 of 12497, 48.49%
+2026-07-23 08:03:35,524 3823145 road_revised.py Completed 6070 of 12497, 48.57%
+2026-07-23 08:03:35,534 3823145 road_revised.py Completed 6080 of 12497, 48.65%
+2026-07-23 08:03:35,538 3823145 road_revised.py Completed 6090 of 12497, 48.73%
+2026-07-23 08:03:35,541 3823145 road_revised.py Completed 6100 of 12497, 48.81%
+2026-07-23 08:03:35,542 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6100_of_12497]: 20.81 GB
+2026-07-23 08:03:35,545 3823145 road_revised.py Completed 6110 of 12497, 48.89%
+2026-07-23 08:03:38,504 3823145 road_revised.py Completed 6120 of 12497, 48.97%
+2026-07-23 08:03:38,531 3823145 road_revised.py Completed 6130 of 12497, 49.05%
+2026-07-23 08:03:38,538 3823145 road_revised.py Completed 6140 of 12497, 49.13%
+2026-07-23 08:03:38,542 3823145 road_revised.py Completed 6150 of 12497, 49.21%
+2026-07-23 08:03:38,546 3823145 road_revised.py Completed 6160 of 12497, 49.29%
+2026-07-23 08:03:41,979 3823145 road_revised.py Completed 6170 of 12497, 49.37%
+2026-07-23 08:03:42,011 3823145 road_revised.py Completed 6180 of 12497, 49.45%
+2026-07-23 08:03:42,019 3823145 road_revised.py Completed 6190 of 12497, 49.53%
+2026-07-23 08:03:42,023 3823145 road_revised.py Completed 6200 of 12497, 49.61%
+2026-07-23 08:03:42,023 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6200_of_12497]: 20.78 GB
+2026-07-23 08:03:43,390 3823145 road_revised.py Completed 6210 of 12497, 49.69%
+2026-07-23 08:03:46,790 3823145 road_revised.py Completed 6220 of 12497, 49.77%
+2026-07-23 08:03:46,812 3823145 road_revised.py Completed 6230 of 12497, 49.85%
+2026-07-23 08:03:46,816 3823145 road_revised.py Completed 6240 of 12497, 49.93%
+2026-07-23 08:03:46,833 3823145 road_revised.py Completed 6250 of 12497, 50.01%
+2026-07-23 08:03:46,837 3823145 road_revised.py Completed 6260 of 12497, 50.09%
+2026-07-23 08:03:50,679 3823145 road_revised.py Completed 6270 of 12497, 50.17%
+2026-07-23 08:03:50,731 3823145 road_revised.py Completed 6280 of 12497, 50.25%
+2026-07-23 08:03:50,734 3823145 road_revised.py Completed 6290 of 12497, 50.33%
+2026-07-23 08:03:50,738 3823145 road_revised.py Completed 6300 of 12497, 50.41%
+2026-07-23 08:03:50,749 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6300_of_12497]: 21.36 GB
+2026-07-23 08:03:50,794 3823145 road_revised.py Completed 6310 of 12497, 50.49%
+2026-07-23 08:03:55,091 3823145 road_revised.py Completed 6320 of 12497, 50.57%
+2026-07-23 08:03:55,125 3823145 road_revised.py Completed 6330 of 12497, 50.65%
+2026-07-23 08:03:55,148 3823145 road_revised.py Completed 6340 of 12497, 50.73%
+2026-07-23 08:03:55,151 3823145 road_revised.py Completed 6350 of 12497, 50.81%
+2026-07-23 08:03:55,155 3823145 road_revised.py Completed 6360 of 12497, 50.89%
+2026-07-23 08:03:59,049 3823145 road_revised.py Completed 6370 of 12497, 50.97%
+2026-07-23 08:03:59,092 3823145 road_revised.py Completed 6380 of 12497, 51.05%
+2026-07-23 08:03:59,151 3823145 road_revised.py Completed 6390 of 12497, 51.13%
+2026-07-23 08:03:59,164 3823145 road_revised.py Completed 6400 of 12497, 51.21%
+2026-07-23 08:03:59,165 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6400_of_12497]: 21.13 GB
+2026-07-23 08:03:59,168 3823145 road_revised.py Completed 6410 of 12497, 51.29%
+2026-07-23 08:04:02,825 3823145 road_revised.py Completed 6420 of 12497, 51.37%
+2026-07-23 08:04:02,846 3823145 road_revised.py Completed 6430 of 12497, 51.45%
+2026-07-23 08:04:02,853 3823145 road_revised.py Completed 6440 of 12497, 51.53%
+2026-07-23 08:04:02,857 3823145 road_revised.py Completed 6450 of 12497, 51.61%
+2026-07-23 08:04:02,861 3823145 road_revised.py Completed 6460 of 12497, 51.69%
+2026-07-23 08:04:06,860 3823145 road_revised.py Completed 6470 of 12497, 51.77%
+2026-07-23 08:04:06,876 3823145 road_revised.py Completed 6480 of 12497, 51.85%
+2026-07-23 08:04:06,880 3823145 road_revised.py Completed 6490 of 12497, 51.93%
+2026-07-23 08:04:06,923 3823145 road_revised.py Completed 6500 of 12497, 52.01%
+2026-07-23 08:04:06,924 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6500_of_12497]: 21.76 GB
+2026-07-23 08:04:06,967 3823145 road_revised.py Completed 6510 of 12497, 52.09%
+2026-07-23 08:04:09,785 3823145 road_revised.py Completed 6520 of 12497, 52.17%
+2026-07-23 08:04:09,806 3823145 road_revised.py Completed 6530 of 12497, 52.25%
+2026-07-23 08:04:09,809 3823145 road_revised.py Completed 6540 of 12497, 52.33%
+2026-07-23 08:04:09,827 3823145 road_revised.py Completed 6550 of 12497, 52.41%
+2026-07-23 08:04:09,834 3823145 road_revised.py Completed 6560 of 12497, 52.49%
+2026-07-23 08:04:14,472 3823145 road_revised.py Completed 6570 of 12497, 52.57%
+2026-07-23 08:04:14,499 3823145 road_revised.py Completed 6580 of 12497, 52.65%
+2026-07-23 08:04:14,503 3823145 road_revised.py Completed 6590 of 12497, 52.73%
+2026-07-23 08:04:14,506 3823145 road_revised.py Completed 6600 of 12497, 52.81%
+2026-07-23 08:04:14,551 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6600_of_12497]: 21.81 GB
+2026-07-23 08:04:14,568 3823145 road_revised.py Completed 6610 of 12497, 52.89%
+2026-07-23 08:04:17,710 3823145 road_revised.py Completed 6620 of 12497, 52.97%
+2026-07-23 08:04:17,755 3823145 road_revised.py Completed 6630 of 12497, 53.05%
+2026-07-23 08:04:17,774 3823145 road_revised.py Completed 6640 of 12497, 53.13%
+2026-07-23 08:04:17,778 3823145 road_revised.py Completed 6650 of 12497, 53.21%
+2026-07-23 08:04:17,782 3823145 road_revised.py Completed 6660 of 12497, 53.29%
+2026-07-23 08:04:24,128 3823145 road_revised.py Completed 6670 of 12497, 53.37%
+2026-07-23 08:04:24,167 3823145 road_revised.py Completed 6680 of 12497, 53.45%
+2026-07-23 08:04:24,219 3823145 road_revised.py Completed 6690 of 12497, 53.53%
+2026-07-23 08:04:24,269 3823145 road_revised.py Completed 6700 of 12497, 53.61%
+2026-07-23 08:04:24,308 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6700_of_12497]: 22.52 GB
+2026-07-23 08:04:24,339 3823145 road_revised.py Completed 6710 of 12497, 53.69%
+2026-07-23 08:04:27,295 3823145 road_revised.py Completed 6720 of 12497, 53.77%
+2026-07-23 08:04:27,317 3823145 road_revised.py Completed 6730 of 12497, 53.85%
+2026-07-23 08:04:27,362 3823145 road_revised.py Completed 6740 of 12497, 53.93%
+2026-07-23 08:04:27,416 3823145 road_revised.py Completed 6750 of 12497, 54.01%
+2026-07-23 08:04:27,419 3823145 road_revised.py Completed 6760 of 12497, 54.09%
+2026-07-23 08:04:32,781 3823145 road_revised.py Completed 6770 of 12497, 54.17%
+2026-07-23 08:04:32,794 3823145 road_revised.py Completed 6780 of 12497, 54.25%
+2026-07-23 08:04:32,797 3823145 road_revised.py Completed 6790 of 12497, 54.33%
+2026-07-23 08:04:32,800 3823145 road_revised.py Completed 6800 of 12497, 54.41%
+2026-07-23 08:04:32,824 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6800_of_12497]: 22.74 GB
+2026-07-23 08:04:32,893 3823145 road_revised.py Completed 6810 of 12497, 54.49%
+2026-07-23 08:04:37,080 3823145 road_revised.py Completed 6820 of 12497, 54.57%
+2026-07-23 08:04:37,128 3823145 road_revised.py Completed 6830 of 12497, 54.65%
+2026-07-23 08:04:37,151 3823145 road_revised.py Completed 6840 of 12497, 54.73%
+2026-07-23 08:04:37,158 3823145 road_revised.py Completed 6850 of 12497, 54.81%
+2026-07-23 08:04:37,162 3823145 road_revised.py Completed 6860 of 12497, 54.89%
+2026-07-23 08:04:41,940 3823145 road_revised.py Completed 6870 of 12497, 54.97%
+2026-07-23 08:04:41,976 3823145 road_revised.py Completed 6880 of 12497, 55.05%
+2026-07-23 08:04:41,980 3823145 road_revised.py Completed 6890 of 12497, 55.13%
+2026-07-23 08:04:41,983 3823145 road_revised.py Completed 6900 of 12497, 55.21%
+2026-07-23 08:04:41,984 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_6900_of_12497]: 23.17 GB
+2026-07-23 08:04:41,987 3823145 road_revised.py Completed 6910 of 12497, 55.29%
+2026-07-23 08:04:45,118 3823145 road_revised.py Completed 6920 of 12497, 55.37%
+2026-07-23 08:04:45,141 3823145 road_revised.py Completed 6930 of 12497, 55.45%
+2026-07-23 08:04:45,145 3823145 road_revised.py Completed 6940 of 12497, 55.53%
+2026-07-23 08:04:45,148 3823145 road_revised.py Completed 6950 of 12497, 55.61%
+2026-07-23 08:04:45,152 3823145 road_revised.py Completed 6960 of 12497, 55.69%
+2026-07-23 08:04:49,596 3823145 road_revised.py Completed 6970 of 12497, 55.77%
+2026-07-23 08:04:49,662 3823145 road_revised.py Completed 6980 of 12497, 55.85%
+2026-07-23 08:04:49,733 3823145 road_revised.py Completed 6990 of 12497, 55.93%
+2026-07-23 08:04:49,771 3823145 road_revised.py Completed 7000 of 12497, 56.01%
+2026-07-23 08:04:49,771 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7000_of_12497]: 22.73 GB
+2026-07-23 08:04:51,281 3823145 road_revised.py Completed 7010 of 12497, 56.09%
+2026-07-23 08:04:51,284 3823145 road_revised.py Completed 7020 of 12497, 56.17%
+2026-07-23 08:04:54,167 3823145 road_revised.py Completed 7030 of 12497, 56.25%
+2026-07-23 08:04:54,171 3823145 road_revised.py Completed 7040 of 12497, 56.33%
+2026-07-23 08:04:54,190 3823145 road_revised.py Completed 7050 of 12497, 56.41%
+2026-07-23 08:04:54,199 3823145 road_revised.py Completed 7060 of 12497, 56.49%
+2026-07-23 08:04:54,202 3823145 road_revised.py Completed 7070 of 12497, 56.57%
+2026-07-23 08:04:58,043 3823145 road_revised.py Completed 7080 of 12497, 56.65%
+2026-07-23 08:04:58,109 3823145 road_revised.py Completed 7090 of 12497, 56.73%
+2026-07-23 08:04:58,129 3823145 road_revised.py Completed 7100 of 12497, 56.81%
+2026-07-23 08:04:58,130 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7100_of_12497]: 23.28 GB
+2026-07-23 08:04:58,133 3823145 road_revised.py Completed 7110 of 12497, 56.89%
+2026-07-23 08:04:58,154 3823145 road_revised.py Completed 7120 of 12497, 56.97%
+2026-07-23 08:05:02,898 3823145 road_revised.py Completed 7130 of 12497, 57.05%
+2026-07-23 08:05:02,902 3823145 road_revised.py Completed 7140 of 12497, 57.13%
+2026-07-23 08:05:02,941 3823145 road_revised.py Completed 7150 of 12497, 57.21%
+2026-07-23 08:05:02,965 3823145 road_revised.py Completed 7160 of 12497, 57.29%
+2026-07-23 08:05:02,968 3823145 road_revised.py Completed 7170 of 12497, 57.37%
+2026-07-23 08:05:06,677 3823145 road_revised.py Completed 7180 of 12497, 57.45%
+2026-07-23 08:05:06,693 3823145 road_revised.py Completed 7190 of 12497, 57.53%
+2026-07-23 08:05:06,696 3823145 road_revised.py Completed 7200 of 12497, 57.61%
+2026-07-23 08:05:06,697 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7200_of_12497]: 23.31 GB
+2026-07-23 08:05:06,700 3823145 road_revised.py Completed 7210 of 12497, 57.69%
+2026-07-23 08:05:06,760 3823145 road_revised.py Completed 7220 of 12497, 57.77%
+2026-07-23 08:05:10,706 3823145 road_revised.py Completed 7230 of 12497, 57.85%
+2026-07-23 08:05:10,733 3823145 road_revised.py Completed 7240 of 12497, 57.93%
+2026-07-23 08:05:10,736 3823145 road_revised.py Completed 7250 of 12497, 58.01%
+2026-07-23 08:05:10,740 3823145 road_revised.py Completed 7260 of 12497, 58.09%
+2026-07-23 08:05:10,785 3823145 road_revised.py Completed 7270 of 12497, 58.17%
+2026-07-23 08:05:14,678 3823145 road_revised.py Completed 7280 of 12497, 58.25%
+2026-07-23 08:05:14,714 3823145 road_revised.py Completed 7290 of 12497, 58.33%
+2026-07-23 08:05:14,717 3823145 road_revised.py Completed 7300 of 12497, 58.41%
+2026-07-23 08:05:14,718 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7300_of_12497]: 23.52 GB
+2026-07-23 08:05:14,721 3823145 road_revised.py Completed 7310 of 12497, 58.49%
+2026-07-23 08:05:14,725 3823145 road_revised.py Completed 7320 of 12497, 58.57%
+2026-07-23 08:05:18,299 3823145 road_revised.py Completed 7330 of 12497, 58.65%
+2026-07-23 08:05:18,306 3823145 road_revised.py Completed 7340 of 12497, 58.73%
+2026-07-23 08:05:18,310 3823145 road_revised.py Completed 7350 of 12497, 58.81%
+2026-07-23 08:05:19,652 3823145 road_revised.py Completed 7360 of 12497, 58.89%
+2026-07-23 08:05:19,656 3823145 road_revised.py Completed 7370 of 12497, 58.97%
+2026-07-23 08:05:23,416 3823145 road_revised.py Completed 7380 of 12497, 59.05%
+2026-07-23 08:05:23,419 3823145 road_revised.py Completed 7390 of 12497, 59.13%
+2026-07-23 08:05:23,472 3823145 road_revised.py Completed 7400 of 12497, 59.21%
+2026-07-23 08:05:23,473 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7400_of_12497]: 23.69 GB
+2026-07-23 08:05:23,476 3823145 road_revised.py Completed 7410 of 12497, 59.29%
+2026-07-23 08:05:23,493 3823145 road_revised.py Completed 7420 of 12497, 59.37%
+2026-07-23 08:05:26,594 3823145 road_revised.py Completed 7430 of 12497, 59.45%
+2026-07-23 08:05:26,646 3823145 road_revised.py Completed 7440 of 12497, 59.53%
+2026-07-23 08:05:26,650 3823145 road_revised.py Completed 7450 of 12497, 59.61%
+2026-07-23 08:05:26,698 3823145 road_revised.py Completed 7460 of 12497, 59.69%
+2026-07-23 08:05:26,701 3823145 road_revised.py Completed 7470 of 12497, 59.77%
+2026-07-23 08:05:32,440 3823145 road_revised.py Completed 7480 of 12497, 59.85%
+2026-07-23 08:05:32,462 3823145 road_revised.py Completed 7490 of 12497, 59.93%
+2026-07-23 08:05:32,484 3823145 road_revised.py Completed 7500 of 12497, 60.01%
+2026-07-23 08:05:32,485 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7500_of_12497]: 24.05 GB
+2026-07-23 08:05:32,488 3823145 road_revised.py Completed 7510 of 12497, 60.09%
+2026-07-23 08:05:32,492 3823145 road_revised.py Completed 7520 of 12497, 60.17%
+2026-07-23 08:05:35,239 3823145 road_revised.py Completed 7530 of 12497, 60.25%
+2026-07-23 08:05:35,251 3823145 road_revised.py Completed 7540 of 12497, 60.33%
+2026-07-23 08:05:35,254 3823145 road_revised.py Completed 7550 of 12497, 60.41%
+2026-07-23 08:05:35,258 3823145 road_revised.py Completed 7560 of 12497, 60.49%
+2026-07-23 08:05:35,262 3823145 road_revised.py Completed 7570 of 12497, 60.57%
+2026-07-23 08:05:41,406 3823145 road_revised.py Completed 7580 of 12497, 60.65%
+2026-07-23 08:05:41,474 3823145 road_revised.py Completed 7590 of 12497, 60.73%
+2026-07-23 08:05:41,479 3823145 road_revised.py Completed 7600 of 12497, 60.81%
+2026-07-23 08:05:41,495 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7600_of_12497]: 24.88 GB
+2026-07-23 08:05:41,503 3823145 road_revised.py Completed 7610 of 12497, 60.89%
+2026-07-23 08:05:41,506 3823145 road_revised.py Completed 7620 of 12497, 60.97%
+2026-07-23 08:05:44,849 3823145 road_revised.py Completed 7630 of 12497, 61.05%
+2026-07-23 08:05:44,873 3823145 road_revised.py Completed 7640 of 12497, 61.13%
+2026-07-23 08:05:44,876 3823145 road_revised.py Completed 7650 of 12497, 61.21%
+2026-07-23 08:05:44,965 3823145 road_revised.py Completed 7660 of 12497, 61.29%
+2026-07-23 08:05:44,969 3823145 road_revised.py Completed 7670 of 12497, 61.37%
+2026-07-23 08:05:49,559 3823145 road_revised.py Completed 7680 of 12497, 61.45%
+2026-07-23 08:05:49,572 3823145 road_revised.py Completed 7690 of 12497, 61.53%
+2026-07-23 08:05:49,575 3823145 road_revised.py Completed 7700 of 12497, 61.61%
+2026-07-23 08:05:49,578 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7700_of_12497]: 24.01 GB
+2026-07-23 08:05:49,582 3823145 road_revised.py Completed 7710 of 12497, 61.69%
+2026-07-23 08:05:49,586 3823145 road_revised.py Completed 7720 of 12497, 61.77%
+2026-07-23 08:05:49,646 3823145 road_revised.py Completed 7730 of 12497, 61.85%
+2026-07-23 08:05:53,441 3823145 road_revised.py Completed 7740 of 12497, 61.93%
+2026-07-23 08:05:53,448 3823145 road_revised.py Completed 7750 of 12497, 62.01%
+2026-07-23 08:05:53,451 3823145 road_revised.py Completed 7760 of 12497, 62.09%
+2026-07-23 08:05:53,483 3823145 road_revised.py Completed 7770 of 12497, 62.17%
+2026-07-23 08:05:53,487 3823145 road_revised.py Completed 7780 of 12497, 62.25%
+2026-07-23 08:05:57,336 3823145 road_revised.py Completed 7790 of 12497, 62.33%
+2026-07-23 08:05:57,408 3823145 road_revised.py Completed 7800 of 12497, 62.41%
+2026-07-23 08:05:57,428 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7800_of_12497]: 24.42 GB
+2026-07-23 08:05:59,116 3823145 road_revised.py Completed 7810 of 12497, 62.49%
+2026-07-23 08:05:59,129 3823145 road_revised.py Completed 7820 of 12497, 62.58%
+2026-07-23 08:05:59,133 3823145 road_revised.py Completed 7830 of 12497, 62.66%
+2026-07-23 08:06:01,919 3823145 road_revised.py Completed 7840 of 12497, 62.74%
+2026-07-23 08:06:01,935 3823145 road_revised.py Completed 7850 of 12497, 62.82%
+2026-07-23 08:06:01,981 3823145 road_revised.py Completed 7860 of 12497, 62.90%
+2026-07-23 08:06:01,984 3823145 road_revised.py Completed 7870 of 12497, 62.98%
+2026-07-23 08:06:02,002 3823145 road_revised.py Completed 7880 of 12497, 63.06%
+2026-07-23 08:06:06,038 3823145 road_revised.py Completed 7890 of 12497, 63.14%
+2026-07-23 08:06:06,052 3823145 road_revised.py Completed 7900 of 12497, 63.22%
+2026-07-23 08:06:06,052 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_7900_of_12497]: 25.73 GB
+2026-07-23 08:06:06,056 3823145 road_revised.py Completed 7910 of 12497, 63.30%
+2026-07-23 08:06:06,095 3823145 road_revised.py Completed 7920 of 12497, 63.38%
+2026-07-23 08:06:06,109 3823145 road_revised.py Completed 7930 of 12497, 63.46%
+2026-07-23 08:06:11,033 3823145 road_revised.py Completed 7940 of 12497, 63.54%
+2026-07-23 08:06:11,036 3823145 road_revised.py Completed 7950 of 12497, 63.62%
+2026-07-23 08:06:11,040 3823145 road_revised.py Completed 7960 of 12497, 63.70%
+2026-07-23 08:06:11,043 3823145 road_revised.py Completed 7970 of 12497, 63.78%
+2026-07-23 08:06:11,070 3823145 road_revised.py Completed 7980 of 12497, 63.86%
+2026-07-23 08:06:14,792 3823145 road_revised.py Completed 7990 of 12497, 63.94%
+2026-07-23 08:06:14,842 3823145 road_revised.py Completed 8000 of 12497, 64.02%
+2026-07-23 08:06:14,842 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8000_of_12497]: 25.42 GB
+2026-07-23 08:06:14,846 3823145 road_revised.py Completed 8010 of 12497, 64.10%
+2026-07-23 08:06:14,852 3823145 road_revised.py Completed 8020 of 12497, 64.18%
+2026-07-23 08:06:14,884 3823145 road_revised.py Completed 8030 of 12497, 64.26%
+2026-07-23 08:06:19,501 3823145 road_revised.py Completed 8040 of 12497, 64.34%
+2026-07-23 08:06:19,551 3823145 road_revised.py Completed 8050 of 12497, 64.42%
+2026-07-23 08:06:19,569 3823145 road_revised.py Completed 8060 of 12497, 64.50%
+2026-07-23 08:06:19,573 3823145 road_revised.py Completed 8070 of 12497, 64.58%
+2026-07-23 08:06:19,599 3823145 road_revised.py Completed 8080 of 12497, 64.66%
+2026-07-23 08:06:24,318 3823145 road_revised.py Completed 8090 of 12497, 64.74%
+2026-07-23 08:06:24,322 3823145 road_revised.py Completed 8100 of 12497, 64.82%
+2026-07-23 08:06:24,374 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8100_of_12497]: 25.88 GB
+2026-07-23 08:06:24,422 3823145 road_revised.py Completed 8110 of 12497, 64.90%
+2026-07-23 08:06:24,437 3823145 road_revised.py Completed 8120 of 12497, 64.98%
+2026-07-23 08:06:24,441 3823145 road_revised.py Completed 8130 of 12497, 65.06%
+2026-07-23 08:06:27,244 3823145 road_revised.py Completed 8140 of 12497, 65.14%
+2026-07-23 08:06:27,257 3823145 road_revised.py Completed 8150 of 12497, 65.22%
+2026-07-23 08:06:27,264 3823145 road_revised.py Completed 8160 of 12497, 65.30%
+2026-07-23 08:06:28,857 3823145 road_revised.py Completed 8170 of 12497, 65.38%
+2026-07-23 08:06:28,880 3823145 road_revised.py Completed 8180 of 12497, 65.46%
+2026-07-23 08:06:32,837 3823145 road_revised.py Completed 8190 of 12497, 65.54%
+2026-07-23 08:06:32,841 3823145 road_revised.py Completed 8200 of 12497, 65.62%
+2026-07-23 08:06:32,869 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8200_of_12497]: 25.87 GB
+2026-07-23 08:06:32,917 3823145 road_revised.py Completed 8210 of 12497, 65.70%
+2026-07-23 08:06:32,956 3823145 road_revised.py Completed 8220 of 12497, 65.78%
+2026-07-23 08:06:32,959 3823145 road_revised.py Completed 8230 of 12497, 65.86%
+2026-07-23 08:06:36,754 3823145 road_revised.py Completed 8240 of 12497, 65.94%
+2026-07-23 08:06:36,778 3823145 road_revised.py Completed 8250 of 12497, 66.02%
+2026-07-23 08:06:36,782 3823145 road_revised.py Completed 8260 of 12497, 66.10%
+2026-07-23 08:06:36,785 3823145 road_revised.py Completed 8270 of 12497, 66.18%
+2026-07-23 08:06:38,384 3823145 road_revised.py Completed 8280 of 12497, 66.26%
+2026-07-23 08:06:42,291 3823145 road_revised.py Completed 8290 of 12497, 66.34%
+2026-07-23 08:06:42,317 3823145 road_revised.py Completed 8300 of 12497, 66.42%
+2026-07-23 08:06:42,318 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8300_of_12497]: 26.16 GB
+2026-07-23 08:06:42,325 3823145 road_revised.py Completed 8310 of 12497, 66.50%
+2026-07-23 08:06:42,356 3823145 road_revised.py Completed 8320 of 12497, 66.58%
+2026-07-23 08:06:42,365 3823145 road_revised.py Completed 8330 of 12497, 66.66%
+2026-07-23 08:06:45,448 3823145 road_revised.py Completed 8340 of 12497, 66.74%
+2026-07-23 08:06:45,452 3823145 road_revised.py Completed 8350 of 12497, 66.82%
+2026-07-23 08:06:45,484 3823145 road_revised.py Completed 8360 of 12497, 66.90%
+2026-07-23 08:06:45,496 3823145 road_revised.py Completed 8370 of 12497, 66.98%
+2026-07-23 08:06:45,499 3823145 road_revised.py Completed 8380 of 12497, 67.06%
+2026-07-23 08:06:51,623 3823145 road_revised.py Completed 8390 of 12497, 67.14%
+2026-07-23 08:06:51,628 3823145 road_revised.py Completed 8400 of 12497, 67.22%
+2026-07-23 08:06:51,629 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8400_of_12497]: 27.19 GB
+2026-07-23 08:06:51,632 3823145 road_revised.py Completed 8410 of 12497, 67.30%
+2026-07-23 08:06:51,636 3823145 road_revised.py Completed 8420 of 12497, 67.38%
+2026-07-23 08:06:51,640 3823145 road_revised.py Completed 8430 of 12497, 67.46%
+2026-07-23 08:06:54,649 3823145 road_revised.py Completed 8440 of 12497, 67.54%
+2026-07-23 08:06:54,652 3823145 road_revised.py Completed 8450 of 12497, 67.62%
+2026-07-23 08:06:54,656 3823145 road_revised.py Completed 8460 of 12497, 67.70%
+2026-07-23 08:06:54,659 3823145 road_revised.py Completed 8470 of 12497, 67.78%
+2026-07-23 08:06:54,663 3823145 road_revised.py Completed 8480 of 12497, 67.86%
+2026-07-23 08:06:58,637 3823145 road_revised.py Completed 8490 of 12497, 67.94%
+2026-07-23 08:07:00,387 3823145 road_revised.py Completed 8500 of 12497, 68.02%
+2026-07-23 08:07:00,387 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8500_of_12497]: 27.40 GB
+2026-07-23 08:07:00,390 3823145 road_revised.py Completed 8510 of 12497, 68.10%
+2026-07-23 08:07:00,423 3823145 road_revised.py Completed 8520 of 12497, 68.18%
+2026-07-23 08:07:00,435 3823145 road_revised.py Completed 8530 of 12497, 68.26%
+2026-07-23 08:07:03,516 3823145 road_revised.py Completed 8540 of 12497, 68.34%
+2026-07-23 08:07:03,534 3823145 road_revised.py Completed 8550 of 12497, 68.42%
+2026-07-23 08:07:03,539 3823145 road_revised.py Completed 8560 of 12497, 68.50%
+2026-07-23 08:07:03,543 3823145 road_revised.py Completed 8570 of 12497, 68.58%
+2026-07-23 08:07:03,547 3823145 road_revised.py Completed 8580 of 12497, 68.66%
+2026-07-23 08:07:07,534 3823145 road_revised.py Completed 8590 of 12497, 68.74%
+2026-07-23 08:07:07,549 3823145 road_revised.py Completed 8600 of 12497, 68.82%
+2026-07-23 08:07:07,552 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8600_of_12497]: 27.67 GB
+2026-07-23 08:07:07,580 3823145 road_revised.py Completed 8610 of 12497, 68.90%
+2026-07-23 08:07:07,583 3823145 road_revised.py Completed 8620 of 12497, 68.98%
+2026-07-23 08:07:09,280 3823145 road_revised.py Completed 8630 of 12497, 69.06%
+2026-07-23 08:07:13,049 3823145 road_revised.py Completed 8640 of 12497, 69.14%
+2026-07-23 08:07:13,053 3823145 road_revised.py Completed 8650 of 12497, 69.22%
+2026-07-23 08:07:13,057 3823145 road_revised.py Completed 8660 of 12497, 69.30%
+2026-07-23 08:07:13,060 3823145 road_revised.py Completed 8670 of 12497, 69.38%
+2026-07-23 08:07:13,063 3823145 road_revised.py Completed 8680 of 12497, 69.46%
+2026-07-23 08:07:17,422 3823145 road_revised.py Completed 8690 of 12497, 69.54%
+2026-07-23 08:07:17,432 3823145 road_revised.py Completed 8700 of 12497, 69.62%
+2026-07-23 08:07:17,433 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8700_of_12497]: 27.89 GB
+2026-07-23 08:07:17,436 3823145 road_revised.py Completed 8710 of 12497, 69.70%
+2026-07-23 08:07:17,462 3823145 road_revised.py Completed 8720 of 12497, 69.78%
+2026-07-23 08:07:17,474 3823145 road_revised.py Completed 8730 of 12497, 69.86%
+2026-07-23 08:07:22,114 3823145 road_revised.py Completed 8740 of 12497, 69.94%
+2026-07-23 08:07:22,134 3823145 road_revised.py Completed 8750 of 12497, 70.02%
+2026-07-23 08:07:22,159 3823145 road_revised.py Completed 8760 of 12497, 70.10%
+2026-07-23 08:07:22,163 3823145 road_revised.py Completed 8770 of 12497, 70.18%
+2026-07-23 08:07:22,167 3823145 road_revised.py Completed 8780 of 12497, 70.26%
+2026-07-23 08:07:26,414 3823145 road_revised.py Completed 8790 of 12497, 70.34%
+2026-07-23 08:07:26,446 3823145 road_revised.py Completed 8800 of 12497, 70.42%
+2026-07-23 08:07:26,476 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8800_of_12497]: 27.96 GB
+2026-07-23 08:07:26,563 3823145 road_revised.py Completed 8810 of 12497, 70.50%
+2026-07-23 08:07:26,567 3823145 road_revised.py Completed 8820 of 12497, 70.58%
+2026-07-23 08:07:26,570 3823145 road_revised.py Completed 8830 of 12497, 70.66%
+2026-07-23 08:07:31,668 3823145 road_revised.py Completed 8840 of 12497, 70.74%
+2026-07-23 08:07:31,672 3823145 road_revised.py Completed 8850 of 12497, 70.82%
+2026-07-23 08:07:31,678 3823145 road_revised.py Completed 8860 of 12497, 70.90%
+2026-07-23 08:07:31,682 3823145 road_revised.py Completed 8870 of 12497, 70.98%
+2026-07-23 08:07:31,685 3823145 road_revised.py Completed 8880 of 12497, 71.06%
+2026-07-23 08:07:35,408 3823145 road_revised.py Completed 8890 of 12497, 71.14%
+2026-07-23 08:07:35,440 3823145 road_revised.py Completed 8900 of 12497, 71.22%
+2026-07-23 08:07:35,440 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_8900_of_12497]: 28.48 GB
+2026-07-23 08:07:35,445 3823145 road_revised.py Completed 8910 of 12497, 71.30%
+2026-07-23 08:07:35,448 3823145 road_revised.py Completed 8920 of 12497, 71.38%
+2026-07-23 08:07:35,477 3823145 road_revised.py Completed 8930 of 12497, 71.46%
+2026-07-23 08:07:38,822 3823145 road_revised.py Completed 8940 of 12497, 71.54%
+2026-07-23 08:07:38,833 3823145 road_revised.py Completed 8950 of 12497, 71.62%
+2026-07-23 08:07:38,836 3823145 road_revised.py Completed 8960 of 12497, 71.70%
+2026-07-23 08:07:38,840 3823145 road_revised.py Completed 8970 of 12497, 71.78%
+2026-07-23 08:07:40,725 3823145 road_revised.py Completed 8980 of 12497, 71.86%
+2026-07-23 08:07:44,337 3823145 road_revised.py Completed 8990 of 12497, 71.94%
+2026-07-23 08:07:44,351 3823145 road_revised.py Completed 9000 of 12497, 72.02%
+2026-07-23 08:07:44,351 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9000_of_12497]: 28.89 GB
+2026-07-23 08:07:44,355 3823145 road_revised.py Completed 9010 of 12497, 72.10%
+2026-07-23 08:07:44,377 3823145 road_revised.py Completed 9020 of 12497, 72.18%
+2026-07-23 08:07:44,383 3823145 road_revised.py Completed 9030 of 12497, 72.26%
+2026-07-23 08:07:47,421 3823145 road_revised.py Completed 9040 of 12497, 72.34%
+2026-07-23 08:07:47,469 3823145 road_revised.py Completed 9050 of 12497, 72.42%
+2026-07-23 08:07:47,473 3823145 road_revised.py Completed 9060 of 12497, 72.50%
+2026-07-23 08:07:47,515 3823145 road_revised.py Completed 9070 of 12497, 72.58%
+2026-07-23 08:07:47,518 3823145 road_revised.py Completed 9080 of 12497, 72.66%
+2026-07-23 08:07:52,987 3823145 road_revised.py Completed 9090 of 12497, 72.74%
+2026-07-23 08:07:52,991 3823145 road_revised.py Completed 9100 of 12497, 72.82%
+2026-07-23 08:07:53,007 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9100_of_12497]: 28.67 GB
+2026-07-23 08:07:53,052 3823145 road_revised.py Completed 9110 of 12497, 72.90%
+2026-07-23 08:07:53,086 3823145 road_revised.py Completed 9120 of 12497, 72.98%
+2026-07-23 08:07:53,089 3823145 road_revised.py Completed 9130 of 12497, 73.06%
+2026-07-23 08:07:55,919 3823145 road_revised.py Completed 9140 of 12497, 73.14%
+2026-07-23 08:07:55,955 3823145 road_revised.py Completed 9150 of 12497, 73.22%
+2026-07-23 08:07:55,959 3823145 road_revised.py Completed 9160 of 12497, 73.30%
+2026-07-23 08:07:55,974 3823145 road_revised.py Completed 9170 of 12497, 73.38%
+2026-07-23 08:07:55,998 3823145 road_revised.py Completed 9180 of 12497, 73.46%
+2026-07-23 08:07:59,962 3823145 road_revised.py Completed 9190 of 12497, 73.54%
+2026-07-23 08:07:59,979 3823145 road_revised.py Completed 9200 of 12497, 73.62%
+2026-07-23 08:07:59,983 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9200_of_12497]: 28.01 GB
+2026-07-23 08:07:59,992 3823145 road_revised.py Completed 9210 of 12497, 73.70%
+2026-07-23 08:08:00,010 3823145 road_revised.py Completed 9220 of 12497, 73.78%
+2026-07-23 08:08:00,020 3823145 road_revised.py Completed 9230 of 12497, 73.86%
+2026-07-23 08:08:02,379 3823145 road_revised.py Completed 9240 of 12497, 73.94%
+2026-07-23 08:08:02,397 3823145 road_revised.py Completed 9250 of 12497, 74.02%
+2026-07-23 08:08:02,402 3823145 road_revised.py Completed 9260 of 12497, 74.10%
+2026-07-23 08:08:03,817 3823145 road_revised.py Completed 9270 of 12497, 74.18%
+2026-07-23 08:08:03,820 3823145 road_revised.py Completed 9280 of 12497, 74.26%
+2026-07-23 08:08:07,326 3823145 road_revised.py Completed 9290 of 12497, 74.34%
+2026-07-23 08:08:07,372 3823145 road_revised.py Completed 9300 of 12497, 74.42%
+2026-07-23 08:08:07,373 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9300_of_12497]: 26.98 GB
+2026-07-23 08:08:07,378 3823145 road_revised.py Completed 9310 of 12497, 74.50%
+2026-07-23 08:08:07,382 3823145 road_revised.py Completed 9320 of 12497, 74.58%
+2026-07-23 08:08:07,386 3823145 road_revised.py Completed 9330 of 12497, 74.66%
+2026-07-23 08:08:07,389 3823145 road_revised.py Completed 9340 of 12497, 74.74%
+2026-07-23 08:08:10,559 3823145 road_revised.py Completed 9350 of 12497, 74.82%
+2026-07-23 08:08:10,580 3823145 road_revised.py Completed 9360 of 12497, 74.90%
+2026-07-23 08:08:10,586 3823145 road_revised.py Completed 9370 of 12497, 74.98%
+2026-07-23 08:08:10,590 3823145 road_revised.py Completed 9380 of 12497, 75.06%
+2026-07-23 08:08:10,596 3823145 road_revised.py Completed 9390 of 12497, 75.14%
+2026-07-23 08:08:10,597 3823145 road_revised.py Completed 9400 of 12497, 75.22%
+2026-07-23 08:08:10,606 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9400_of_12497]: 26.35 GB
+2026-07-23 08:08:10,607 3823145 road_revised.py Completed 9410 of 12497, 75.30%
+2026-07-23 08:08:10,617 3823145 road_revised.py Completed 9420 of 12497, 75.38%
+2026-07-23 08:08:10,617 3823145 road_revised.py Completed 9430 of 12497, 75.46%
+2026-07-23 08:08:10,618 3823145 road_revised.py Completed 9440 of 12497, 75.54%
+2026-07-23 08:08:10,618 3823145 road_revised.py Completed 9450 of 12497, 75.62%
+2026-07-23 08:08:10,623 3823145 road_revised.py Completed 9460 of 12497, 75.70%
+2026-07-23 08:08:10,625 3823145 road_revised.py Completed 9470 of 12497, 75.78%
+2026-07-23 08:08:10,625 3823145 road_revised.py Completed 9480 of 12497, 75.86%
+2026-07-23 08:08:10,627 3823145 road_revised.py Completed 9490 of 12497, 75.94%
+2026-07-23 08:08:10,627 3823145 road_revised.py Completed 9500 of 12497, 76.02%
+2026-07-23 08:08:10,630 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9500_of_12497]: 26.35 GB
+2026-07-23 08:08:10,631 3823145 road_revised.py Completed 9510 of 12497, 76.10%
+2026-07-23 08:08:10,633 3823145 road_revised.py Completed 9520 of 12497, 76.18%
+2026-07-23 08:08:14,502 3823145 road_revised.py Completed 9530 of 12497, 76.26%
+2026-07-23 08:08:14,502 3823145 road_revised.py Completed 9540 of 12497, 76.34%
+2026-07-23 08:08:14,505 3823145 road_revised.py Completed 9550 of 12497, 76.42%
+2026-07-23 08:08:14,506 3823145 road_revised.py Completed 9560 of 12497, 76.50%
+2026-07-23 08:08:14,507 3823145 road_revised.py Completed 9570 of 12497, 76.58%
+2026-07-23 08:08:14,508 3823145 road_revised.py Completed 9580 of 12497, 76.66%
+2026-07-23 08:08:14,509 3823145 road_revised.py Completed 9590 of 12497, 76.74%
+2026-07-23 08:08:14,509 3823145 road_revised.py Completed 9600 of 12497, 76.82%
+2026-07-23 08:08:14,513 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9600_of_12497]: 25.86 GB
+2026-07-23 08:08:14,518 3823145 road_revised.py Completed 9610 of 12497, 76.90%
+2026-07-23 08:08:14,523 3823145 road_revised.py Completed 9620 of 12497, 76.98%
+2026-07-23 08:08:14,524 3823145 road_revised.py Completed 9630 of 12497, 77.06%
+2026-07-23 08:08:14,525 3823145 road_revised.py Completed 9640 of 12497, 77.14%
+2026-07-23 08:08:14,526 3823145 road_revised.py Completed 9650 of 12497, 77.22%
+2026-07-23 08:08:14,526 3823145 road_revised.py Completed 9660 of 12497, 77.30%
+2026-07-23 08:08:14,529 3823145 road_revised.py Completed 9670 of 12497, 77.38%
+2026-07-23 08:08:14,529 3823145 road_revised.py Completed 9680 of 12497, 77.46%
+2026-07-23 08:08:14,531 3823145 road_revised.py Completed 9690 of 12497, 77.54%
+2026-07-23 08:08:14,531 3823145 road_revised.py Completed 9700 of 12497, 77.62%
+2026-07-23 08:08:14,532 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9700_of_12497]: 25.86 GB
+2026-07-23 08:08:14,533 3823145 road_revised.py Completed 9710 of 12497, 77.70%
+2026-07-23 08:08:14,533 3823145 road_revised.py Completed 9720 of 12497, 77.78%
+2026-07-23 08:08:14,535 3823145 road_revised.py Completed 9730 of 12497, 77.86%
+2026-07-23 08:08:14,535 3823145 road_revised.py Completed 9740 of 12497, 77.94%
+2026-07-23 08:08:14,536 3823145 road_revised.py Completed 9750 of 12497, 78.02%
+2026-07-23 08:08:14,537 3823145 road_revised.py Completed 9760 of 12497, 78.10%
+2026-07-23 08:08:14,537 3823145 road_revised.py Completed 9770 of 12497, 78.18%
+2026-07-23 08:08:14,538 3823145 road_revised.py Completed 9780 of 12497, 78.26%
+2026-07-23 08:08:14,539 3823145 road_revised.py Completed 9790 of 12497, 78.34%
+2026-07-23 08:08:14,540 3823145 road_revised.py Completed 9800 of 12497, 78.42%
+2026-07-23 08:08:14,545 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9800_of_12497]: 25.86 GB
+2026-07-23 08:08:14,548 3823145 road_revised.py Completed 9810 of 12497, 78.50%
+2026-07-23 08:08:14,556 3823145 road_revised.py Completed 9820 of 12497, 78.58%
+2026-07-23 08:08:14,557 3823145 road_revised.py Completed 9830 of 12497, 78.66%
+2026-07-23 08:08:14,557 3823145 road_revised.py Completed 9840 of 12497, 78.74%
+2026-07-23 08:08:14,567 3823145 road_revised.py Completed 9850 of 12497, 78.82%
+2026-07-23 08:08:15,245 3823145 road_revised.py Completed 9860 of 12497, 78.90%
+2026-07-23 08:08:15,246 3823145 road_revised.py Completed 9870 of 12497, 78.98%
+2026-07-23 08:08:15,257 3823145 road_revised.py Completed 9880 of 12497, 79.06%
+2026-07-23 08:08:18,424 3823145 road_revised.py Completed 9890 of 12497, 79.14%
+2026-07-23 08:08:18,426 3823145 road_revised.py Completed 9900 of 12497, 79.22%
+2026-07-23 08:08:18,433 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_9900_of_12497]: 25.34 GB
+2026-07-23 08:08:18,438 3823145 road_revised.py Completed 9910 of 12497, 79.30%
+2026-07-23 08:08:18,439 3823145 road_revised.py Completed 9920 of 12497, 79.38%
+2026-07-23 08:08:18,446 3823145 road_revised.py Completed 9930 of 12497, 79.46%
+2026-07-23 08:08:18,447 3823145 road_revised.py Completed 9940 of 12497, 79.54%
+2026-07-23 08:08:18,463 3823145 road_revised.py Completed 9950 of 12497, 79.62%
+2026-07-23 08:08:18,470 3823145 road_revised.py Completed 9960 of 12497, 79.70%
+2026-07-23 08:08:18,471 3823145 road_revised.py Completed 9970 of 12497, 79.78%
+2026-07-23 08:08:18,541 3823145 road_revised.py Completed 9980 of 12497, 79.86%
+2026-07-23 08:08:18,767 3823145 road_revised.py Completed 9990 of 12497, 79.94%
+2026-07-23 08:08:18,961 3823145 road_revised.py Completed 10000 of 12497, 80.02%
+2026-07-23 08:08:18,961 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10000_of_12497]: 24.96 GB
+2026-07-23 08:08:19,226 3823145 road_revised.py Completed 10010 of 12497, 80.10%
+2026-07-23 08:08:19,474 3823145 road_revised.py Completed 10020 of 12497, 80.18%
+2026-07-23 08:08:19,658 3823145 road_revised.py Completed 10030 of 12497, 80.26%
+2026-07-23 08:08:19,894 3823145 road_revised.py Completed 10040 of 12497, 80.34%
+2026-07-23 08:08:20,111 3823145 road_revised.py Completed 10050 of 12497, 80.42%
+2026-07-23 08:08:20,317 3823145 road_revised.py Completed 10060 of 12497, 80.50%
+2026-07-23 08:08:20,473 3823145 road_revised.py Completed 10070 of 12497, 80.58%
+2026-07-23 08:08:20,699 3823145 road_revised.py Completed 10080 of 12497, 80.66%
+2026-07-23 08:08:20,915 3823145 road_revised.py Completed 10090 of 12497, 80.74%
+2026-07-23 08:08:21,174 3823145 road_revised.py Completed 10100 of 12497, 80.82%
+2026-07-23 08:08:21,174 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10100_of_12497]: 25.18 GB
+2026-07-23 08:08:21,303 3823145 road_revised.py Completed 10110 of 12497, 80.90%
+2026-07-23 08:08:21,557 3823145 road_revised.py Completed 10120 of 12497, 80.98%
+2026-07-23 08:08:21,738 3823145 road_revised.py Completed 10130 of 12497, 81.06%
+2026-07-23 08:08:21,935 3823145 road_revised.py Completed 10140 of 12497, 81.14%
+2026-07-23 08:08:22,176 3823145 road_revised.py Completed 10150 of 12497, 81.22%
+2026-07-23 08:08:22,356 3823145 road_revised.py Completed 10160 of 12497, 81.30%
+2026-07-23 08:08:22,631 3823145 road_revised.py Completed 10170 of 12497, 81.38%
+2026-07-23 08:08:22,867 3823145 road_revised.py Completed 10180 of 12497, 81.46%
+2026-07-23 08:08:23,066 3823145 road_revised.py Completed 10190 of 12497, 81.54%
+2026-07-23 08:08:23,266 3823145 road_revised.py Completed 10200 of 12497, 81.62%
+2026-07-23 08:08:23,266 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10200_of_12497]: 25.34 GB
+2026-07-23 08:08:23,477 3823145 road_revised.py Completed 10210 of 12497, 81.70%
+2026-07-23 08:08:23,711 3823145 road_revised.py Completed 10220 of 12497, 81.78%
+2026-07-23 08:08:24,013 3823145 road_revised.py Completed 10230 of 12497, 81.86%
+2026-07-23 08:08:24,248 3823145 road_revised.py Completed 10240 of 12497, 81.94%
+2026-07-23 08:08:24,434 3823145 road_revised.py Completed 10250 of 12497, 82.02%
+2026-07-23 08:08:28,708 3823145 road_revised.py Completed 10260 of 12497, 82.10%
+2026-07-23 08:08:28,708 3823145 road_revised.py Completed 10270 of 12497, 82.18%
+2026-07-23 08:08:28,711 3823145 road_revised.py Completed 10280 of 12497, 82.26%
+2026-07-23 08:08:28,756 3823145 road_revised.py Completed 10290 of 12497, 82.34%
+2026-07-23 08:08:28,757 3823145 road_revised.py Completed 10300 of 12497, 82.42%
+2026-07-23 08:08:28,766 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10300_of_12497]: 25.57 GB
+2026-07-23 08:08:28,766 3823145 road_revised.py Completed 10310 of 12497, 82.50%
+2026-07-23 08:08:28,767 3823145 road_revised.py Completed 10320 of 12497, 82.58%
+2026-07-23 08:08:28,774 3823145 road_revised.py Completed 10330 of 12497, 82.66%
+2026-07-23 08:08:28,781 3823145 road_revised.py Completed 10340 of 12497, 82.74%
+2026-07-23 08:08:28,785 3823145 road_revised.py Completed 10350 of 12497, 82.82%
+2026-07-23 08:08:28,786 3823145 road_revised.py Completed 10360 of 12497, 82.90%
+2026-07-23 08:08:28,792 3823145 road_revised.py Completed 10370 of 12497, 82.98%
+2026-07-23 08:08:28,793 3823145 road_revised.py Completed 10380 of 12497, 83.06%
+2026-07-23 08:08:28,866 3823145 road_revised.py Completed 10390 of 12497, 83.14%
+2026-07-23 08:08:29,084 3823145 road_revised.py Completed 10400 of 12497, 83.22%
+2026-07-23 08:08:29,084 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10400_of_12497]: 25.17 GB
+2026-07-23 08:08:29,359 3823145 road_revised.py Completed 10410 of 12497, 83.30%
+2026-07-23 08:08:29,546 3823145 road_revised.py Completed 10420 of 12497, 83.38%
+2026-07-23 08:08:29,821 3823145 road_revised.py Completed 10430 of 12497, 83.46%
+2026-07-23 08:08:29,985 3823145 road_revised.py Completed 10440 of 12497, 83.54%
+2026-07-23 08:08:30,204 3823145 road_revised.py Completed 10450 of 12497, 83.62%
+2026-07-23 08:08:30,474 3823145 road_revised.py Completed 10460 of 12497, 83.70%
+2026-07-23 08:08:30,711 3823145 road_revised.py Completed 10470 of 12497, 83.78%
+2026-07-23 08:08:30,892 3823145 road_revised.py Completed 10480 of 12497, 83.86%
+2026-07-23 08:08:31,147 3823145 road_revised.py Completed 10490 of 12497, 83.94%
+2026-07-23 08:08:31,365 3823145 road_revised.py Completed 10500 of 12497, 84.02%
+2026-07-23 08:08:31,365 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10500_of_12497]: 25.32 GB
+2026-07-23 08:08:31,536 3823145 road_revised.py Completed 10510 of 12497, 84.10%
+2026-07-23 08:08:31,762 3823145 road_revised.py Completed 10520 of 12497, 84.18%
+2026-07-23 08:08:31,978 3823145 road_revised.py Completed 10530 of 12497, 84.26%
+2026-07-23 08:08:32,217 3823145 road_revised.py Completed 10540 of 12497, 84.34%
+2026-07-23 08:08:32,444 3823145 road_revised.py Completed 10550 of 12497, 84.42%
+2026-07-23 08:08:32,620 3823145 road_revised.py Completed 10560 of 12497, 84.50%
+2026-07-23 08:08:32,846 3823145 road_revised.py Completed 10570 of 12497, 84.58%
+2026-07-23 08:08:33,655 3823145 road_revised.py Completed 10580 of 12497, 84.66%
+2026-07-23 08:08:33,866 3823145 road_revised.py Completed 10590 of 12497, 84.74%
+2026-07-23 08:08:34,096 3823145 road_revised.py Completed 10600 of 12497, 84.82%
+2026-07-23 08:08:34,096 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10600_of_12497]: 25.39 GB
+2026-07-23 08:08:34,357 3823145 road_revised.py Completed 10610 of 12497, 84.90%
+2026-07-23 08:08:37,528 3823145 road_revised.py Completed 10620 of 12497, 84.98%
+2026-07-23 08:08:37,529 3823145 road_revised.py Completed 10630 of 12497, 85.06%
+2026-07-23 08:08:37,537 3823145 road_revised.py Completed 10640 of 12497, 85.14%
+2026-07-23 08:08:37,584 3823145 road_revised.py Completed 10650 of 12497, 85.22%
+2026-07-23 08:08:37,589 3823145 road_revised.py Completed 10660 of 12497, 85.30%
+2026-07-23 08:08:37,590 3823145 road_revised.py Completed 10670 of 12497, 85.38%
+2026-07-23 08:08:37,590 3823145 road_revised.py Completed 10680 of 12497, 85.46%
+2026-07-23 08:08:37,591 3823145 road_revised.py Completed 10690 of 12497, 85.54%
+2026-07-23 08:08:37,591 3823145 road_revised.py Completed 10700 of 12497, 85.62%
+2026-07-23 08:08:37,593 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10700_of_12497]: 25.44 GB
+2026-07-23 08:08:37,601 3823145 road_revised.py Completed 10710 of 12497, 85.70%
+2026-07-23 08:08:37,835 3823145 road_revised.py Completed 10720 of 12497, 85.78%
+2026-07-23 08:08:38,060 3823145 road_revised.py Completed 10730 of 12497, 85.86%
+2026-07-23 08:08:38,273 3823145 road_revised.py Completed 10740 of 12497, 85.94%
+2026-07-23 08:08:38,472 3823145 road_revised.py Completed 10750 of 12497, 86.02%
+2026-07-23 08:08:38,695 3823145 road_revised.py Completed 10760 of 12497, 86.10%
+2026-07-23 08:08:38,917 3823145 road_revised.py Completed 10770 of 12497, 86.18%
+2026-07-23 08:08:39,132 3823145 road_revised.py Completed 10780 of 12497, 86.26%
+2026-07-23 08:08:39,292 3823145 road_revised.py Completed 10790 of 12497, 86.34%
+2026-07-23 08:08:39,583 3823145 road_revised.py Completed 10800 of 12497, 86.42%
+2026-07-23 08:08:39,583 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10800_of_12497]: 25.18 GB
+2026-07-23 08:08:39,774 3823145 road_revised.py Completed 10810 of 12497, 86.50%
+2026-07-23 08:08:40,039 3823145 road_revised.py Completed 10820 of 12497, 86.58%
+2026-07-23 08:08:40,303 3823145 road_revised.py Completed 10830 of 12497, 86.66%
+2026-07-23 08:08:40,537 3823145 road_revised.py Completed 10840 of 12497, 86.74%
+2026-07-23 08:08:40,775 3823145 road_revised.py Completed 10850 of 12497, 86.82%
+2026-07-23 08:08:40,980 3823145 road_revised.py Completed 10860 of 12497, 86.90%
+2026-07-23 08:08:41,197 3823145 road_revised.py Completed 10870 of 12497, 86.98%
+2026-07-23 08:08:41,375 3823145 road_revised.py Completed 10880 of 12497, 87.06%
+2026-07-23 08:08:41,674 3823145 road_revised.py Completed 10890 of 12497, 87.14%
+2026-07-23 08:08:41,893 3823145 road_revised.py Completed 10900 of 12497, 87.22%
+2026-07-23 08:08:41,900 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_10900_of_12497]: 25.25 GB
+2026-07-23 08:08:42,027 3823145 road_revised.py Completed 10910 of 12497, 87.30%
+2026-07-23 08:08:42,266 3823145 road_revised.py Completed 10920 of 12497, 87.38%
+2026-07-23 08:08:42,421 3823145 road_revised.py Completed 10930 of 12497, 87.46%
+2026-07-23 08:08:42,669 3823145 road_revised.py Completed 10940 of 12497, 87.54%
+2026-07-23 08:08:42,941 3823145 road_revised.py Completed 10950 of 12497, 87.62%
+2026-07-23 08:08:43,185 3823145 road_revised.py Completed 10960 of 12497, 87.70%
+2026-07-23 08:08:43,274 3823145 road_revised.py Completed 10970 of 12497, 87.78%
+2026-07-23 08:08:47,777 3823145 road_revised.py Completed 10980 of 12497, 87.86%
+2026-07-23 08:08:47,778 3823145 road_revised.py Completed 10990 of 12497, 87.94%
+2026-07-23 08:08:47,779 3823145 road_revised.py Completed 11000 of 12497, 88.02%
+2026-07-23 08:08:47,780 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11000_of_12497]: 25.71 GB
+2026-07-23 08:08:47,780 3823145 road_revised.py Completed 11010 of 12497, 88.10%
+2026-07-23 08:08:47,781 3823145 road_revised.py Completed 11020 of 12497, 88.18%
+2026-07-23 08:08:47,788 3823145 road_revised.py Completed 11030 of 12497, 88.26%
+2026-07-23 08:08:47,788 3823145 road_revised.py Completed 11040 of 12497, 88.34%
+2026-07-23 08:08:47,792 3823145 road_revised.py Completed 11050 of 12497, 88.42%
+2026-07-23 08:08:47,793 3823145 road_revised.py Completed 11060 of 12497, 88.50%
+2026-07-23 08:08:47,793 3823145 road_revised.py Completed 11070 of 12497, 88.58%
+2026-07-23 08:08:47,794 3823145 road_revised.py Completed 11080 of 12497, 88.66%
+2026-07-23 08:08:47,794 3823145 road_revised.py Completed 11090 of 12497, 88.74%
+2026-07-23 08:08:47,795 3823145 road_revised.py Completed 11100 of 12497, 88.82%
+2026-07-23 08:08:47,797 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11100_of_12497]: 25.71 GB
+2026-07-23 08:08:47,797 3823145 road_revised.py Completed 11110 of 12497, 88.90%
+2026-07-23 08:08:47,966 3823145 road_revised.py Completed 11120 of 12497, 88.98%
+2026-07-23 08:08:48,204 3823145 road_revised.py Completed 11130 of 12497, 89.06%
+2026-07-23 08:08:48,407 3823145 road_revised.py Completed 11140 of 12497, 89.14%
+2026-07-23 08:08:48,632 3823145 road_revised.py Completed 11150 of 12497, 89.22%
+2026-07-23 08:08:48,847 3823145 road_revised.py Completed 11160 of 12497, 89.30%
+2026-07-23 08:08:49,055 3823145 road_revised.py Completed 11170 of 12497, 89.38%
+2026-07-23 08:08:49,309 3823145 road_revised.py Completed 11180 of 12497, 89.46%
+2026-07-23 08:08:49,517 3823145 road_revised.py Completed 11190 of 12497, 89.54%
+2026-07-23 08:08:49,730 3823145 road_revised.py Completed 11200 of 12497, 89.62%
+2026-07-23 08:08:49,730 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11200_of_12497]: 25.56 GB
+2026-07-23 08:08:49,982 3823145 road_revised.py Completed 11210 of 12497, 89.70%
+2026-07-23 08:08:50,125 3823145 road_revised.py Completed 11220 of 12497, 89.78%
+2026-07-23 08:08:50,408 3823145 road_revised.py Completed 11230 of 12497, 89.86%
+2026-07-23 08:08:50,625 3823145 road_revised.py Completed 11240 of 12497, 89.94%
+2026-07-23 08:08:50,838 3823145 road_revised.py Completed 11250 of 12497, 90.02%
+2026-07-23 08:08:51,062 3823145 road_revised.py Completed 11260 of 12497, 90.10%
+2026-07-23 08:08:51,255 3823145 road_revised.py Completed 11270 of 12497, 90.18%
+2026-07-23 08:08:51,478 3823145 road_revised.py Completed 11280 of 12497, 90.26%
+2026-07-23 08:08:51,730 3823145 road_revised.py Completed 11290 of 12497, 90.34%
+2026-07-23 08:08:52,569 3823145 road_revised.py Completed 11300 of 12497, 90.42%
+2026-07-23 08:08:52,573 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11300_of_12497]: 25.62 GB
+2026-07-23 08:08:52,733 3823145 road_revised.py Completed 11310 of 12497, 90.50%
+2026-07-23 08:08:52,993 3823145 road_revised.py Completed 11320 of 12497, 90.58%
+2026-07-23 08:08:53,213 3823145 road_revised.py Completed 11330 of 12497, 90.66%
+2026-07-23 08:08:56,553 3823145 road_revised.py Completed 11340 of 12497, 90.74%
+2026-07-23 08:08:56,554 3823145 road_revised.py Completed 11350 of 12497, 90.82%
+2026-07-23 08:08:56,556 3823145 road_revised.py Completed 11360 of 12497, 90.90%
+2026-07-23 08:08:56,557 3823145 road_revised.py Completed 11370 of 12497, 90.98%
+2026-07-23 08:08:56,557 3823145 road_revised.py Completed 11380 of 12497, 91.06%
+2026-07-23 08:08:56,558 3823145 road_revised.py Completed 11390 of 12497, 91.14%
+2026-07-23 08:08:56,558 3823145 road_revised.py Completed 11400 of 12497, 91.22%
+2026-07-23 08:08:56,562 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11400_of_12497]: 25.67 GB
+2026-07-23 08:08:56,579 3823145 road_revised.py Completed 11410 of 12497, 91.30%
+2026-07-23 08:08:56,581 3823145 road_revised.py Completed 11420 of 12497, 91.38%
+2026-07-23 08:08:56,582 3823145 road_revised.py Completed 11430 of 12497, 91.46%
+2026-07-23 08:08:56,582 3823145 road_revised.py Completed 11440 of 12497, 91.54%
+2026-07-23 08:08:56,735 3823145 road_revised.py Completed 11450 of 12497, 91.62%
+2026-07-23 08:08:56,969 3823145 road_revised.py Completed 11460 of 12497, 91.70%
+2026-07-23 08:08:57,235 3823145 road_revised.py Completed 11470 of 12497, 91.78%
+2026-07-23 08:08:57,432 3823145 road_revised.py Completed 11480 of 12497, 91.86%
+2026-07-23 08:08:57,689 3823145 road_revised.py Completed 11490 of 12497, 91.94%
+2026-07-23 08:08:57,777 3823145 road_revised.py Completed 11500 of 12497, 92.02%
+2026-07-23 08:08:57,777 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11500_of_12497]: 25.37 GB
+2026-07-23 08:08:58,055 3823145 road_revised.py Completed 11510 of 12497, 92.10%
+2026-07-23 08:08:58,353 3823145 road_revised.py Completed 11520 of 12497, 92.18%
+2026-07-23 08:08:58,520 3823145 road_revised.py Completed 11530 of 12497, 92.26%
+2026-07-23 08:08:58,726 3823145 road_revised.py Completed 11540 of 12497, 92.34%
+2026-07-23 08:08:58,948 3823145 road_revised.py Completed 11550 of 12497, 92.42%
+2026-07-23 08:08:59,097 3823145 road_revised.py Completed 11560 of 12497, 92.50%
+2026-07-23 08:08:59,308 3823145 road_revised.py Completed 11570 of 12497, 92.58%
+2026-07-23 08:08:59,563 3823145 road_revised.py Completed 11580 of 12497, 92.66%
+2026-07-23 08:08:59,769 3823145 road_revised.py Completed 11590 of 12497, 92.74%
+2026-07-23 08:09:00,000 3823145 road_revised.py Completed 11600 of 12497, 92.82%
+2026-07-23 08:09:00,001 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11600_of_12497]: 25.46 GB
+2026-07-23 08:09:00,186 3823145 road_revised.py Completed 11610 of 12497, 92.90%
+2026-07-23 08:09:00,416 3823145 road_revised.py Completed 11620 of 12497, 92.98%
+2026-07-23 08:09:00,668 3823145 road_revised.py Completed 11630 of 12497, 93.06%
+2026-07-23 08:09:00,940 3823145 road_revised.py Completed 11640 of 12497, 93.14%
+2026-07-23 08:09:01,073 3823145 road_revised.py Completed 11650 of 12497, 93.22%
+2026-07-23 08:09:01,242 3823145 road_revised.py Completed 11660 of 12497, 93.30%
+2026-07-23 08:09:01,490 3823145 road_revised.py Completed 11670 of 12497, 93.38%
+2026-07-23 08:09:01,727 3823145 road_revised.py Completed 11680 of 12497, 93.46%
+2026-07-23 08:09:01,928 3823145 road_revised.py Completed 11690 of 12497, 93.54%
+2026-07-23 08:09:02,132 3823145 road_revised.py Completed 11700 of 12497, 93.62%
+2026-07-23 08:09:02,133 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11700_of_12497]: 25.54 GB
+2026-07-23 08:09:02,375 3823145 road_revised.py Completed 11710 of 12497, 93.70%
+2026-07-23 08:09:06,366 3823145 road_revised.py Completed 11720 of 12497, 93.78%
+2026-07-23 08:09:06,366 3823145 road_revised.py Completed 11730 of 12497, 93.86%
+2026-07-23 08:09:06,423 3823145 road_revised.py Completed 11740 of 12497, 93.94%
+2026-07-23 08:09:06,423 3823145 road_revised.py Completed 11750 of 12497, 94.02%
+2026-07-23 08:09:06,424 3823145 road_revised.py Completed 11760 of 12497, 94.10%
+2026-07-23 08:09:06,424 3823145 road_revised.py Completed 11770 of 12497, 94.18%
+2026-07-23 08:09:06,424 3823145 road_revised.py Completed 11780 of 12497, 94.26%
+2026-07-23 08:09:06,425 3823145 road_revised.py Completed 11790 of 12497, 94.34%
+2026-07-23 08:09:06,425 3823145 road_revised.py Completed 11800 of 12497, 94.42%
+2026-07-23 08:09:06,443 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11800_of_12497]: 25.85 GB
+2026-07-23 08:09:06,456 3823145 road_revised.py Completed 11810 of 12497, 94.50%
+2026-07-23 08:09:06,457 3823145 road_revised.py Completed 11820 of 12497, 94.58%
+2026-07-23 08:09:06,457 3823145 road_revised.py Completed 11830 of 12497, 94.66%
+2026-07-23 08:09:06,458 3823145 road_revised.py Completed 11840 of 12497, 94.74%
+2026-07-23 08:09:06,458 3823145 road_revised.py Completed 11850 of 12497, 94.82%
+2026-07-23 08:09:06,629 3823145 road_revised.py Completed 11860 of 12497, 94.90%
+2026-07-23 08:09:06,809 3823145 road_revised.py Completed 11870 of 12497, 94.98%
+2026-07-23 08:09:07,035 3823145 road_revised.py Completed 11880 of 12497, 95.06%
+2026-07-23 08:09:07,241 3823145 road_revised.py Completed 11890 of 12497, 95.14%
+2026-07-23 08:09:07,477 3823145 road_revised.py Completed 11900 of 12497, 95.22%
+2026-07-23 08:09:07,477 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_11900_of_12497]: 25.64 GB
+2026-07-23 08:09:07,726 3823145 road_revised.py Completed 11910 of 12497, 95.30%
+2026-07-23 08:09:07,932 3823145 road_revised.py Completed 11920 of 12497, 95.38%
+2026-07-23 08:09:08,104 3823145 road_revised.py Completed 11930 of 12497, 95.46%
+2026-07-23 08:09:08,323 3823145 road_revised.py Completed 11940 of 12497, 95.54%
+2026-07-23 08:09:08,452 3823145 road_revised.py Completed 11950 of 12497, 95.62%
+2026-07-23 08:09:08,638 3823145 road_revised.py Completed 11960 of 12497, 95.70%
+2026-07-23 08:09:08,850 3823145 road_revised.py Completed 11970 of 12497, 95.78%
+2026-07-23 08:09:09,041 3823145 road_revised.py Completed 11980 of 12497, 95.86%
+2026-07-23 08:09:09,238 3823145 road_revised.py Completed 11990 of 12497, 95.94%
+2026-07-23 08:09:09,520 3823145 road_revised.py Completed 12000 of 12497, 96.02%
+2026-07-23 08:09:09,539 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_12000_of_12497]: 25.71 GB
+2026-07-23 08:09:09,639 3823145 road_revised.py Completed 12010 of 12497, 96.10%
+2026-07-23 08:09:09,936 3823145 road_revised.py Completed 12020 of 12497, 96.18%
+2026-07-23 08:09:10,095 3823145 road_revised.py Completed 12030 of 12497, 96.26%
+2026-07-23 08:09:10,353 3823145 road_revised.py Completed 12040 of 12497, 96.34%
+2026-07-23 08:09:10,505 3823145 road_revised.py Completed 12050 of 12497, 96.42%
+2026-07-23 08:09:10,764 3823145 road_revised.py Completed 12060 of 12497, 96.50%
+2026-07-23 08:09:10,897 3823145 road_revised.py Completed 12070 of 12497, 96.58%
+2026-07-23 08:09:11,074 3823145 road_revised.py Completed 12080 of 12497, 96.66%
+2026-07-23 08:09:11,273 3823145 road_revised.py Completed 12090 of 12497, 96.74%
+2026-07-23 08:09:12,060 3823145 road_revised.py Completed 12100 of 12497, 96.82%
+2026-07-23 08:09:12,066 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_12100_of_12497]: 25.77 GB
+2026-07-23 08:09:12,162 3823145 road_revised.py Completed 12110 of 12497, 96.90%
+2026-07-23 08:09:12,345 3823145 road_revised.py Completed 12120 of 12497, 96.98%
+2026-07-23 08:09:12,553 3823145 road_revised.py Completed 12130 of 12497, 97.06%
+2026-07-23 08:09:12,764 3823145 road_revised.py Completed 12140 of 12497, 97.14%
+2026-07-23 08:09:12,858 3823145 road_revised.py Completed 12150 of 12497, 97.22%
+2026-07-23 08:09:13,083 3823145 road_revised.py Completed 12160 of 12497, 97.30%
+2026-07-23 08:09:16,118 3823145 road_revised.py Completed 12170 of 12497, 97.38%
+2026-07-23 08:09:16,120 3823145 road_revised.py Completed 12180 of 12497, 97.46%
+2026-07-23 08:09:16,123 3823145 road_revised.py Completed 12190 of 12497, 97.54%
+2026-07-23 08:09:16,123 3823145 road_revised.py Completed 12200 of 12497, 97.62%
+2026-07-23 08:09:16,123 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_12200_of_12497]: 25.91 GB
+2026-07-23 08:09:16,124 3823145 road_revised.py Completed 12210 of 12497, 97.70%
+2026-07-23 08:09:16,124 3823145 road_revised.py Completed 12220 of 12497, 97.78%
+2026-07-23 08:09:16,125 3823145 road_revised.py Completed 12230 of 12497, 97.86%
+2026-07-23 08:09:16,130 3823145 road_revised.py Completed 12240 of 12497, 97.94%
+2026-07-23 08:09:16,130 3823145 road_revised.py Completed 12250 of 12497, 98.02%
+2026-07-23 08:09:16,131 3823145 road_revised.py Completed 12260 of 12497, 98.10%
+2026-07-23 08:09:16,163 3823145 road_revised.py Completed 12270 of 12497, 98.18%
+2026-07-23 08:09:16,468 3823145 road_revised.py Completed 12280 of 12497, 98.26%
+2026-07-23 08:09:16,642 3823145 road_revised.py Completed 12290 of 12497, 98.34%
+2026-07-23 08:09:16,879 3823145 road_revised.py Completed 12300 of 12497, 98.42%
+2026-07-23 08:09:16,879 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_12300_of_12497]: 25.59 GB
+2026-07-23 08:09:17,049 3823145 road_revised.py Completed 12310 of 12497, 98.50%
+2026-07-23 08:09:17,278 3823145 road_revised.py Completed 12320 of 12497, 98.58%
+2026-07-23 08:09:17,504 3823145 road_revised.py Completed 12330 of 12497, 98.66%
+2026-07-23 08:09:17,703 3823145 road_revised.py Completed 12340 of 12497, 98.74%
+2026-07-23 08:09:17,948 3823145 road_revised.py Completed 12350 of 12497, 98.82%
+2026-07-23 08:09:18,148 3823145 road_revised.py Completed 12360 of 12497, 98.90%
+2026-07-23 08:09:18,300 3823145 road_revised.py Completed 12370 of 12497, 98.98%
+2026-07-23 08:09:18,546 3823145 road_revised.py Completed 12380 of 12497, 99.06%
+2026-07-23 08:09:18,718 3823145 road_revised.py Completed 12390 of 12497, 99.14%
+2026-07-23 08:09:18,896 3823145 road_revised.py Completed 12400 of 12497, 99.22%
+2026-07-23 08:09:18,896 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_12400_of_12497]: 25.67 GB
+2026-07-23 08:09:19,119 3823145 road_revised.py Completed 12410 of 12497, 99.30%
+2026-07-23 08:09:19,399 3823145 road_revised.py Completed 12420 of 12497, 99.38%
+2026-07-23 08:09:19,545 3823145 road_revised.py Completed 12430 of 12497, 99.46%
+2026-07-23 08:09:19,715 3823145 road_revised.py Completed 12440 of 12497, 99.54%
+2026-07-23 08:09:19,910 3823145 road_revised.py Completed 12450 of 12497, 99.62%
+2026-07-23 08:09:20,117 3823145 road_revised.py Completed 12460 of 12497, 99.70%
+2026-07-23 08:09:20,332 3823145 road_revised.py Completed 12470 of 12497, 99.78%
+2026-07-23 08:09:20,537 3823145 road_revised.py Completed 12480 of 12497, 99.86%
+2026-07-23 08:09:20,703 3823145 road_revised.py Completed 12490 of 12497, 99.94%
+2026-07-23 08:09:20,807 3823145 road_revised.py Completed 12497 of 12497, 100.00%
+2026-07-23 08:09:20,807 3823145 road_revised.py RSS checkpoint [iter1_lcp_progress_12497_of_12497]: 25.71 GB
+2026-07-23 08:09:20,807 3823145 road_revised.py Pool dispatch (imap_unordered consumption) time: 831.890 seconds (chunksize=1).
+2026-07-23 08:09:20,902 3823145 road_revised.py The least-cost path flow allocation time: 832.2960286140442.
+2026-07-23 08:09:20,902 3823145 road_revised.py RSS checkpoint [iter1_lcp_pool_done]: 25.71 GB
+2026-07-23 08:09:23,902 3823145 road_revised.py Non_allocated_flow: 78000076.47654171
+2026-07-23 08:09:24,422 3823145 road_revised.py Assigning stable od_id values 0 to 9684056 for 9684057 path rows.
+2026-07-23 08:12:49,013 3823145 road_revised.py od_id assignment phase: 204.59 seconds
+2026-07-23 08:12:49,014 3823145 road_revised.py RSS checkpoint [iter1_before_itter_path]: 35.05 GB
+2026-07-23 08:12:49,014 3823145 road_revised.py Create temp_flow_matrix table in duckdb...
+2026-07-23 08:12:49,024 3823145 road_revised.py Processing 9684057 OD path rows in chunks of 484203 rows.
+2026-07-23 08:12:50,160 3823145 road_revised.py Aggregating path costs and edge totals in chunked DuckDB compact mode...
+DuckDB compact pass 1::   0%|          | 0/20 [00:00<?, ?chunk/s]2026-07-23 08:16:00,394 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_1_484203_of_9684057]: 68.84 GB
+DuckDB compact pass 1::   5%|▌         | 1/20 [02:30<47:46, 150.86s/chunk]2026-07-23 08:18:28,081 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_484204_968406_of_9684057]: 69.33 GB
+DuckDB compact pass 1::  10%|█         | 2/20 [04:58<44:41, 148.99s/chunk]2026-07-23 08:21:13,474 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_968407_1452609_of_9684057]: 70.89 GB
+DuckDB compact pass 1::  15%|█▌        | 3/20 [07:43<44:20, 156.48s/chunk]2026-07-23 08:23:31,931 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_1452610_1936812_of_9684057]: 66.09 GB
+DuckDB compact pass 1::  20%|██        | 4/20 [10:02<39:49, 149.37s/chunk]2026-07-23 08:25:46,115 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_1936813_2421015_of_9684057]: 68.25 GB
+DuckDB compact pass 1::  25%|██▌       | 5/20 [12:16<35:58, 143.89s/chunk]2026-07-23 08:27:59,573 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_2421016_2905218_of_9684057]: 68.94 GB
+DuckDB compact pass 1::  30%|███       | 6/20 [14:30<32:44, 140.34s/chunk]2026-07-23 08:30:07,167 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_2905219_3389421_of_9684057]: 67.50 GB
+DuckDB compact pass 1::  35%|███▌      | 7/20 [16:37<29:30, 136.17s/chunk]2026-07-23 08:32:23,582 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_3389422_3873624_of_9684057]: 69.58 GB
+DuckDB compact pass 1::  40%|████      | 8/20 [18:54<27:15, 136.25s/chunk]2026-07-23 08:34:39,620 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_3873625_4357827_of_9684057]: 70.39 GB
+DuckDB compact pass 1::  45%|████▌     | 9/20 [21:10<24:58, 136.19s/chunk]2026-07-23 08:37:19,118 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_4357828_4842030_of_9684057]: 70.38 GB
+DuckDB compact pass 1::  50%|█████     | 10/20 [23:49<23:53, 143.38s/chunk]2026-07-23 08:39:43,330 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_4842031_5326233_of_9684057]: 68.73 GB
+DuckDB compact pass 1::  55%|█████▌    | 11/20 [26:13<21:32, 143.64s/chunk]2026-07-23 08:42:18,777 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_5326234_5810436_of_9684057]: 72.41 GB
+DuckDB compact pass 1::  60%|██████    | 12/20 [28:49<19:37, 147.23s/chunk]2026-07-23 08:44:51,828 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_5810437_6294639_of_9684057]: 71.00 GB
+DuckDB compact pass 1::  65%|██████▌   | 13/20 [31:22<17:22, 148.99s/chunk]2026-07-23 08:47:34,722 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_6294640_6778842_of_9684057]: 69.58 GB
+DuckDB compact pass 1::  70%|███████   | 14/20 [34:05<15:19, 153.19s/chunk]2026-07-23 08:50:36,270 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_6778843_7263045_of_9684057]: 71.41 GB
+DuckDB compact pass 1::  75%|███████▌  | 15/20 [37:06<13:28, 161.74s/chunk]2026-07-23 08:53:46,845 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_7263046_7747248_of_9684057]: 68.33 GB
+DuckDB compact pass 1::  80%|████████  | 16/20 [40:17<11:21, 170.42s/chunk]2026-07-23 08:57:19,928 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_7747249_8231451_of_9684057]: 61.21 GB
+DuckDB compact pass 1::  85%|████████▌ | 17/20 [43:50<09:09, 183.25s/chunk]2026-07-23 09:00:45,006 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_8231452_8715654_of_9684057]: 64.02 GB
+DuckDB compact pass 1::  90%|█████████ | 18/20 [47:15<06:19, 189.81s/chunk]2026-07-23 09:03:26,396 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_8715655_9199857_of_9684057]: 59.61 GB
+DuckDB compact pass 1::  95%|█████████▌| 19/20 [49:56<03:01, 181.27s/chunk]2026-07-23 09:06:12,946 3823145 road_revised.py RSS checkpoint [itter_path_pass1_chunk_9199858_9684057_of_9684057]: 61.50 GB
+DuckDB compact pass 1:: 100%|██████████| 20/20 [52:43<00:00, 176.85s/chunk]DuckDB compact pass 1:: 100%|██████████| 20/20 [52:43<00:00, 158.17s/chunk]
+2026-07-23 09:06:13,266 3823145 road_revised.py DuckDB compact pass 1 complete.
+DuckDB compact pass 2::   0%|          | 0/20 [00:00<?, ?chunk/s]2026-07-23 09:06:39,695 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_1_484203_of_9684057]: 49.61 GB
+DuckDB compact pass 2::   5%|▌         | 1/20 [00:26<08:21, 26.41s/chunk]2026-07-23 09:07:01,904 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_484204_968406_of_9684057]: 49.34 GB
+DuckDB compact pass 2::  10%|█         | 2/20 [00:48<07:10, 23.94s/chunk]2026-07-23 09:07:26,256 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_968407_1452609_of_9684057]: 49.55 GB
+DuckDB compact pass 2::  15%|█▌        | 3/20 [01:12<06:50, 24.13s/chunk]2026-07-23 09:07:47,462 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_1452610_1936812_of_9684057]: 51.15 GB
+DuckDB compact pass 2::  20%|██        | 4/20 [01:34<06:07, 22.97s/chunk]2026-07-23 09:08:10,842 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_1936813_2421015_of_9684057]: 50.68 GB
+DuckDB compact pass 2::  25%|██▌       | 5/20 [01:57<05:46, 23.12s/chunk]2026-07-23 09:08:33,075 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_2421016_2905218_of_9684057]: 49.79 GB
+DuckDB compact pass 2::  30%|███       | 6/20 [02:19<05:19, 22.82s/chunk]2026-07-23 09:08:53,225 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_2905219_3389421_of_9684057]: 50.92 GB
+DuckDB compact pass 2::  35%|███▌      | 7/20 [02:39<04:45, 21.95s/chunk]2026-07-23 09:09:13,976 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_3389422_3873624_of_9684057]: 51.99 GB
+DuckDB compact pass 2::  40%|████      | 8/20 [03:00<04:18, 21.57s/chunk]2026-07-23 09:09:35,511 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_3873625_4357827_of_9684057]: 50.73 GB
+DuckDB compact pass 2::  45%|████▌     | 9/20 [03:22<03:57, 21.56s/chunk]2026-07-23 09:09:58,971 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_4357828_4842030_of_9684057]: 51.67 GB
+DuckDB compact pass 2::  50%|█████     | 10/20 [03:45<03:41, 22.14s/chunk]2026-07-23 09:10:20,368 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_4842031_5326233_of_9684057]: 51.05 GB
+DuckDB compact pass 2::  55%|█████▌    | 11/20 [04:07<03:17, 21.92s/chunk]2026-07-23 09:10:43,070 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_5326234_5810436_of_9684057]: 51.80 GB
+DuckDB compact pass 2::  60%|██████    | 12/20 [04:29<02:57, 22.15s/chunk]2026-07-23 09:11:07,138 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_5810437_6294639_of_9684057]: 51.45 GB
+DuckDB compact pass 2::  65%|██████▌   | 13/20 [04:53<02:39, 22.73s/chunk]2026-07-23 09:11:31,649 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_6294640_6778842_of_9684057]: 50.81 GB
+DuckDB compact pass 2::  70%|███████   | 14/20 [05:18<02:19, 23.27s/chunk]2026-07-23 09:11:57,076 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_6778843_7263045_of_9684057]: 50.15 GB
+DuckDB compact pass 2::  75%|███████▌  | 15/20 [05:43<01:59, 23.92s/chunk]2026-07-23 09:12:24,006 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_7263046_7747248_of_9684057]: 54.66 GB
+DuckDB compact pass 2::  80%|████████  | 16/20 [06:10<01:39, 24.83s/chunk]2026-07-23 09:12:55,001 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_7747249_8231451_of_9684057]: 50.79 GB
+DuckDB compact pass 2::  85%|████████▌ | 17/20 [06:41<01:20, 26.68s/chunk]2026-07-23 09:13:23,577 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_8231452_8715654_of_9684057]: 50.07 GB
+DuckDB compact pass 2::  90%|█████████ | 18/20 [07:10<00:54, 27.25s/chunk]2026-07-23 09:13:46,643 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_8715655_9199857_of_9684057]: 51.54 GB
+DuckDB compact pass 2::  95%|█████████▌| 19/20 [07:33<00:25, 25.99s/chunk]2026-07-23 09:14:11,929 3823145 road_revised.py RSS checkpoint [itter_path_pass2_chunk_9199858_9684057_of_9684057]: 49.77 GB
+DuckDB compact pass 2:: 100%|██████████| 20/20 [07:58<00:00, 25.78s/chunk]DuckDB compact pass 2:: 100%|██████████| 20/20 [07:58<00:00, 23.93s/chunk]
+2026-07-23 09:15:20,294 3823145 road_revised.py Complete creating temp_flow_matrix table in Duckdb!
+2026-07-23 09:15:20,582 3823145 road_revised.py RSS checkpoint [iter1_after_itter_path]: 98.87 GB
+2026-07-23 09:15:20,624 3823145 road_revised.py Post-realization assigned_iter_sum for iteration 1: 2312630.356931696
+2026-07-23 09:15:20,625 3823145 road_revised.py Writing OD path output for iteration 1 with mode=full_odpfc...
+2026-07-23 09:21:28,518 3823145 road_revised.py Finished INSERT INTO odpfc for iteration 1.
+2026-07-23 09:21:28,561 3823145 road_revised.py Computing cost components for iteration 1...
+2026-07-23 09:21:28,820 3823145 road_revised.py Iteration 1 cost components: fuel=579923544.5077617, time=638700502.5170043, toll=0.0, fare=0.0, total_so_far=1218624047.024766
+2026-07-23 09:21:28,820 3823145 road_revised.py Computing edge flows with UNNEST(e_id) for iteration 1.
+2026-07-23 09:22:34,910 3823145 road_revised.py Loaded 223290 edge-flow rows from UNNEST path.
+2026-07-23 09:22:34,914 3823145 road_revised.py Updating road_links with iteration 1 edge flows...
+2026-07-23 09:22:35,314 3823145 road_revised.py Updating edge speeds: 
+2026-07-23 09:22:35,389 3823145 road_revised.py Finished road_links update for iteration 1.
+2026-07-23 09:22:35,389 3823145 road_revised.py Updating remain_od for iteration 1...
+2026-07-23 09:22:40,350 3823145 road_revised.py The total remain flow (after adjustment) is: 68604558.86557427.
+2026-07-23 09:22:40,350 3823145 road_revised.py Pass A convergence: remain_fraction=0.46068908 assigned_fraction=0.53931092 iteration=1
+2026-07-23 09:22:40,352 3823145 road_revised.py Iteration progress: assigned_delta=80312706.83347324, progress_rel=53.93109151%, stagnant_iterations=0/3.
+2026-07-23 09:22:40,353 3823145 road_revised.py Cleaning transient path-realization tables for iteration 1...
+2026-07-23 09:22:51,887 3823145 road_revised.py Finished cleanup for iteration 1.
+2026-07-23 09:22:52,470 3823145 road_revised.py RSS checkpoint [iter1_end]: 14.45 GB
+2026-07-23 09:22:53,423 3823145 road_revised.py Stop: Maximum iterations reached (1) with 68604558.86557414 extra isolated flows. 
+2026-07-23 09:22:53,423 3823145 road_revised.py Stop: Maximum iterations reached (1)!
+2026-07-23 09:22:54,089 3823145 road_revised.py Writing final odpfc output from DuckDB table to /scratch/akothaw/multimodal_hazard_data/results/base_scenario/opt_lcpchunk1000_cpu8/odpfc.pq
+2026-07-23 09:27:05,586 3823145 road_revised.py Finished final odpfc DuckDB table export.
+2026-07-23 09:27:07,877 3823145 road_revised.py The flow simulation is completed!
+2026-07-23 09:27:07,878 3823145 road_revised.py total travel cost is ($): 1218624047.024766
+2026-07-23 09:27:07,878 3823145 road_revised.py total time-equiv cost is ($): 638700502.5170043
+2026-07-23 09:27:07,878 3823145 road_revised.py total operating cost is ($): 579923544.5077617
+2026-07-23 09:27:07,878 3823145 road_revised.py total toll cost is ($): 0.0
+2026-07-23 09:27:11,637 3823145 1_network_flow_model_revision.py Direct DuckDB output mode wrote edge_flows.gpq and trip_isolations.pq. Baseline path artifact mode: full_odpfc.
+2026-07-23 09:27:11,637 3823145 1_network_flow_model_revision.py The total simulation time: 5529.09593462944
