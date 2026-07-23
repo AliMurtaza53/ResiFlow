@@ -41,7 +41,9 @@ export NIRD_RESULTS_VARIANT=convergence_cpu8
 export NIRD_BASELINE_DB_PATH=/scratch/akothaw/multimodal_hazard_data/convergence_cpu8.duckdb
 
 # Goal 15 validated fixes -- keep these regardless of core count
-export NIRD_LCP_DEST_CHUNK_SIZE=300
+# 1000 validated 2026-07-23 (job 9049761): -22.7% LCP dispatch time for
+# negligible memory cost. See docs/ORC_HOPPER_SETUP.md section 7.
+export NIRD_LCP_DEST_CHUNK_SIZE=1000
 export NIRD_FLOW_DB_BATCH_SIZE=50000
 export NIRD_DUCKDB_MEMORY_LIMIT=100GB
 export NIRD_LOG_RSS_CHECKPOINTS=1

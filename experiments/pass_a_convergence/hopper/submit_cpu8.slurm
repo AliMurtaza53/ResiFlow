@@ -29,7 +29,15 @@ export NIRD_RESULTS_VARIANT=scale_test_cpu8
 export NIRD_BASELINE_DB_PATH=/scratch/akothaw/multimodal_hazard_data/scale_test_cpu8.duckdb
 
 # Goal 15 validated fixes -- keep these regardless of core count
-export NIRD_LCP_DEST_CHUNK_SIZE=300
+# LCP_DEST_CHUNK_SIZE raised 300->1000 (2026-07-23, job 9049761): fewer
+# per-origin task splits means igraph rebuilds each origin's Dijkstra tree
+# fewer times (get_shortest_paths rebuilds the tree per call regardless of
+# destination-batch size) -- cut LCP pool dispatch 17.93min->13.86min
+# (-22.7%) for negligible extra memory (25.71GB vs ~24GB at that phase).
+# 0 (fully disabled) was tested and OOM-killed by the kernel at this OD
+# scale (job 9049760) -- 1000 is validated-safe, do not go further without
+# retesting. See docs/ORC_HOPPER_SETUP.md section 7.
+export NIRD_LCP_DEST_CHUNK_SIZE=1000
 export NIRD_FLOW_DB_BATCH_SIZE=50000
 export NIRD_DUCKDB_MEMORY_LIMIT=100GB
 export NIRD_LOG_RSS_CHECKPOINTS=1

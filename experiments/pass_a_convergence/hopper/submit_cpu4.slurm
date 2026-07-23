@@ -30,7 +30,11 @@ export NIRD_RESULTS_VARIANT=scale_test_cpu4
 export NIRD_BASELINE_DB_PATH=/scratch/akothaw/multimodal_hazard_data/scale_test_cpu4.duckdb
 
 # Goal 15 validated fixes -- keep these regardless of core count
-export NIRD_LCP_DEST_CHUNK_SIZE=300
+# 1000 validated at cpu8 2026-07-23 (job 9049761): -22.7% LCP dispatch
+# time for negligible memory cost. Mechanism (fewer per-origin Dijkstra
+# tree rebuilds) is core-count-independent, not retested at cpu4 directly.
+# See docs/ORC_HOPPER_SETUP.md section 7.
+export NIRD_LCP_DEST_CHUNK_SIZE=1000
 export NIRD_FLOW_DB_BATCH_SIZE=50000
 export NIRD_DUCKDB_MEMORY_LIMIT=100GB
 export NIRD_LOG_RSS_CHECKPOINTS=1

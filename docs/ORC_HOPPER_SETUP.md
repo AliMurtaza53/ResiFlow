@@ -262,13 +262,13 @@ Once the cpu4/cpu8/cpu16 scaling tests confirmed cpu8 (128G, `duckdb_chunked_com
 tuning. Five one-factor-at-a-time experiments isolate each lever against that baseline;
 none of them are convergence runs (`MAX_FLOW_ITERATIONS=1`, same as the scaling tests).
 
-| # | Script | Variable under test | Baseline value | New value |
-|---|---|---|---|---|
-| 1 | `submit_cpu8_opt_fuse.slurm` | `NIRD_DUCKDB_CHUNKED_FUSE_PASS1` | unset (off) | `1` |
-| 2 | `submit_cpu8_opt_chunk10.slurm` | `num_of_chunk` (CLI arg) | `20` | `10` |
-| 3 | `submit_cpu8_opt_chunk40.slurm` | `num_of_chunk` (CLI arg) | `20` | `40` |
-| 4 | `submit_cpu8_opt_lcpchunk1000.slurm` | `NIRD_LCP_DEST_CHUNK_SIZE` | `300` | `1000` |
-| 5 | `submit_cpu8_opt_lcpchunk0.slurm` | `NIRD_LCP_DEST_CHUNK_SIZE` | `300` | `0` (disabled) |
+| # | Script | Variable under test | Baseline value | New value | **Result (2026-07-23)** |
+|---|---|---|---|---|---|
+| 1 | `submit_cpu8_opt_fuse.slurm` | `NIRD_DUCKDB_CHUNKED_FUSE_PASS1` | unset (off) | `1` | **OOM** (job 9049762, 93.1GiB) -- rejected, see below |
+| 2 | `submit_cpu8_opt_chunk10.slurm` | `num_of_chunk` (CLI arg) | `20` | `10` | **OOM** (job 9049758, 93.1GiB) -- confirms 20 is near the safe floor |
+| 3 | `submit_cpu8_opt_chunk40.slurm` | `num_of_chunk` (CLI arg) | `20` | `40` | Completed, pass1 **57.8min** vs 43.9min baseline (+32%, slower) -- rejected |
+| 4 | `submit_cpu8_opt_lcpchunk1000.slurm` | `NIRD_LCP_DEST_CHUNK_SIZE` | `300` | `1000` | Completed, LCP dispatch **13.86min** vs 17.93min baseline (**-22.7%**) -- **adopted as new default** |
+| 5 | `submit_cpu8_opt_lcpchunk0.slurm` | `NIRD_LCP_DEST_CHUNK_SIZE` | `300` | `0` (disabled) | **OS OOM-killed** (job 9049760, RSS 121+GB mid-dispatch) -- confirms 0 is unsafe at this OD scale |
 
 **#1 -- pass-1 query fusion.** The `duckdb_chunked_compact` path ran two independent
 `CROSS JOIN UNNEST(t.path)` queries per chunk (`edge_total_parts` and `od_results_iter`),
@@ -304,6 +304,44 @@ they stack additively.
 (same output schema, different query plan) -- diff its `odpfc.pq` / `edge_flows.gpq`
 against the baseline run's output before trusting the timing win. #2-#5 don't change any
 query logic, only chunk sizing, so their outputs should match the baseline exactly.
+
+### Results and what they mean
+
+**#1 fusion -- rejected, and why the hypothesis was wrong.** The idea was "don't
+explode+join the same rows twice." That's true for *CPU* work, but wrong for *memory*:
+DuckDB's original two-query version pipelines each `CROSS JOIN UNNEST -> JOIN -> GROUP BY`
+as a single streaming operation -- peak memory is bounded by the aggregate's hash table,
+not by the exploded row count, since the exploded intermediate is never fully
+materialized. Forcing `CREATE TABLE chunk_exploded AS SELECT ...` breaks that pipelining
+and requires holding the *entire* exploded chunk in memory so it can be scanned twice
+afterward. At this data scale that materialization costs more than the redundant
+computation it was meant to avoid. `NIRD_DUCKDB_CHUNKED_FUSE_PASS1` stays default-off
+permanently -- do not re-enable without first testing at a much smaller OD scale.
+
+**#2/#3 chunk count -- 20 confirmed as the local optimum.** 10 is too few (chunks too
+large, OOMs); 40 is too many (per-query planning/compilation overhead dominates, 32%
+slower than baseline). No change made.
+
+**#4/#5 LCP destination chunking -- 1000 adopted, 0 rejected.** 1000 is a clean,
+mechanism-backed win: task count dropped from 34374 to 12497 (closely tracking the
+1000/300 batch-size ratio), LCP dispatch time dropped 22.7%, and the memory cost was
+negligible (25.71GB vs baseline's ~24GB) because that phase runs *before* `itter_path`
+with lots of headroom. This result is trustworthy in isolation because the LCP phase
+completes entirely before pass 1 starts, so nothing else in the run can confound it.
+0 (fully disabled) was OOM-killed by the kernel at ~41% through dispatch (RSS 121+GB) --
+confirms the real ceiling sits between 1000 and unbounded, not worth probing further
+without a smaller OD scale or more memory headroom. **`NIRD_LCP_DEST_CHUNK_SIZE=1000`
+is now the default in `submit_cpu4/8/16.slurm` and `submit_cpu8_convergence.slurm`.**
+
+**A caution about trusting single-run deltas on this cluster:** the lcpchunk1000 run's
+*total* time (92min) looked worse than baseline (83.5min) even though its LCP phase was
+genuinely faster -- its pass 1 alone took 53.4min vs the baseline's 43.9min, despite pass 1
+being architecturally unaffected by LCP chunk size. That's almost certainly shared
+`/scratch` I/O contention with other users' jobs, not a real effect -- run-to-run noise on
+this cluster looks to be on the order of 15-20%. Isolated, mechanism-backed phase timings
+(like the LCP-phase number here) are more trustworthy than total-runtime deltas from a
+single run; treat differences smaller than ~20% between single runs as inconclusive
+without a repeat run.
 
 ## 8. Sync and verify before every submission
 
