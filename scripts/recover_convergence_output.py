@@ -13,7 +13,15 @@ actually stopped (crashed, cancelled, or finished) -- DuckDB does not support a
 read-only connection from a second process while the run's own process still
 holds the file open read-write.
 
-Usage (on Hopper, after the job has stopped):
+IMPORTANT -- run this on a compute-node allocation (sbatch/srun), NOT on a
+Hopper login node. The accumulated odpfc table across N iterations can be far
+bigger than the ~9.68M-row single-iteration table that already needed ~100GB
+and chunking earlier in this project (see docs/ORC_HOPPER_SETUP.md section 7)
+-- login nodes are shared and memory-restricted, and this script's queries
+will get silently OOM-killed there with just a bare "Killed" message and no
+further detail. Use experiments/pass_a_convergence/hopper/submit_recover.slurm.
+
+Usage (inside a compute allocation, after the job has stopped):
     python recover_convergence_output.py \
         --db /scratch/akothaw/multimodal_hazard_data/convergence_cpu8.duckdb \
         --out-dir /scratch/akothaw/multimodal_hazard_data/results/base_scenario/convergence_cpu8_recovered
@@ -37,16 +45,45 @@ def main() -> None:
         default="/scratch/akothaw/multimodal_hazard_data/results/base_scenario/convergence_cpu8_recovered",
         help="Directory to write the recovered parquet files into.",
     )
+    parser.add_argument(
+        "--memory-limit",
+        default=os.environ.get("NIRD_DUCKDB_MEMORY_LIMIT", "100GB"),
+        help="DuckDB PRAGMA memory_limit -- same lesson as the rest of this project: "
+        "unbounded aggregation over a large accumulated table risks OOM.",
+    )
+    parser.add_argument(
+        "--temp-directory",
+        default=os.environ.get("NIRD_DUCKDB_TEMP_DIRECTORY", ""),
+        help="DuckDB PRAGMA temp_directory (spill target). Defaults to a directory "
+        "next to --out-dir if not given.",
+    )
+    parser.add_argument(
+        "--threads",
+        type=int,
+        default=int(os.environ.get("SLURM_CPUS_PER_TASK", "8")),
+        help="DuckDB PRAGMA threads.",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.db):
         raise SystemExit(f"DuckDB file not found: {args.db}")
     os.makedirs(args.out_dir, exist_ok=True)
 
+    temp_dir = args.temp_directory or os.path.join(args.out_dir, "duckdb_tmp_recover")
+    os.makedirs(temp_dir, exist_ok=True)
+
     conn = duckdb.connect(args.db, read_only=True)
+    conn.execute(f"PRAGMA threads={max(1, args.threads)}")
+    conn.execute(f"PRAGMA memory_limit='{args.memory_limit}'")
+    conn.execute(f"PRAGMA temp_directory='{temp_dir}'")
+    print(f"DuckDB: threads={args.threads}, memory_limit={args.memory_limit}, temp_directory={temp_dir}")
 
     tables = {r[0] for r in conn.execute("SHOW TABLES").fetchall()}
     print(f"Tables present in {args.db}: {sorted(tables)}")
+
+    if "odpfc" in tables:
+        n_raw = conn.execute("SELECT COUNT(*) FROM odpfc").fetchone()[0]
+        print(f"odpfc raw row count (before GROUP BY collapse): {n_raw:,}")
 
     # 1. odpfc -- exact same aggregation as the official final export
     # (road_revised.py ~line 3909-3924): collapses duplicate origin/
