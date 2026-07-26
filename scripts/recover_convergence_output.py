@@ -153,17 +153,21 @@ def main() -> None:
     # onto the original road_links parquet separately if geometry is needed.
     if "odpfc" in tables:
         edge_out = os.path.join(args.out_dir, "edge_flow_totals_recovered.pq")
+        # DuckDB doesn't support a bare UNNEST(...) in the SELECT list
+        # combined with GROUP BY (BinderException) -- has to be the same
+        # CROSS JOIN UNNEST pattern road_revised.py uses everywhere else.
         conn.execute(
             f"""
             COPY (
-                SELECT UNNEST(path) AS e_id, SUM(flow) AS total_flow
-                FROM odpfc
-                GROUP BY e_id
+                SELECT u.e_id, SUM(o.flow) AS total_flow
+                FROM odpfc o
+                CROSS JOIN UNNEST(o.path) AS u(e_id)
+                GROUP BY u.e_id
             ) TO '{edge_out}' (FORMAT PARQUET);
             """
         )
         n_edges = conn.execute(
-            "SELECT COUNT(DISTINCT e_id) FROM (SELECT UNNEST(path) AS e_id FROM odpfc)"
+            "SELECT COUNT(DISTINCT u.e_id) FROM odpfc o CROSS JOIN UNNEST(o.path) AS u(e_id)"
         ).fetchone()[0]
         print(f"edge flow totals -> {edge_out}  ({n_edges} distinct edges)")
 
