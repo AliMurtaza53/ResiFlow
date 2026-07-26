@@ -12,6 +12,9 @@ config.json
 .env
 .env.local
 
+# Large local hazard downloads (see inputs/va_multihazard_raw/README.md)
+inputs/va_multihazard_raw/
+
 # Run outputs
 results/
 logs/
