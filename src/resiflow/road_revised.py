@@ -2645,6 +2645,42 @@ def network_flow_model(
     """
 
     road_links_columns = road_links.columns.tolist()
+
+    # Intrazonal (origin==destination) rows are a normal feature of any
+    # zone-level OD matrix -- they represent trips that never leave the
+    # zone, so there's nothing for the router to traverse. get_shortest_paths
+    # correctly returns an empty path for them, but the isolation check
+    # (len(path) == 0) elsewhere in this loop can't distinguish "trivially
+    # already there" from "genuinely unreachable" -- both would land in the
+    # same isolated/Non_allocated_flow bucket. On the 2026-07 convergence
+    # run this was ~52% of total demand (77.8M of 148.9M), versus ~0.15%
+    # actual connectivity gaps (see docs/ORC_HOPPER_SETUP.md). Filtering
+    # here, before total_remain/initial_sumod are computed, covers every
+    # caller (script 1 and script 4 both route through this function)
+    # rather than requiring each call site to remember to filter.
+    exclude_intrazonal = os.environ.get(
+        "RESIFLOW_EXCLUDE_INTRAZONAL_OD",
+        os.environ.get("NIRD_EXCLUDE_INTRAZONAL_OD", "1"),
+    ).strip().lower() in {"1", "true", "yes"}
+    if exclude_intrazonal:
+        self_pair_mask = remain_od["origin_node"] == remain_od["destination_node"]
+        if self_pair_mask.any():
+            self_pair_flow = float(
+                pd.to_numeric(remain_od.loc[self_pair_mask, "Car21"], errors="coerce")
+                .fillna(0)
+                .sum()
+            )
+            logging.info(
+                "Excluding %d intrazonal (origin==destination) OD rows carrying "
+                "%.3f total flow from network assignment "
+                "(RESIFLOW_EXCLUDE_INTRAZONAL_OD=1, default). Set to 0 to restore "
+                "the old behavior of routing them (and having them misclassified "
+                "as isolated).",
+                int(self_pair_mask.sum()),
+                self_pair_flow,
+            )
+            remain_od = remain_od.loc[~self_pair_mask].reset_index(drop=True)
+
     total_remain = float(pd.to_numeric(remain_od["Car21"], errors="coerce").fillna(0).sum())
     logging.info(f"The initial supply is {total_remain}")
     number_of_edges = len(list(network.es))

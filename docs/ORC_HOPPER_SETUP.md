@@ -421,3 +421,49 @@ parallel per-origin.
 | `_duckdb.OutOfMemoryException: failed to pin block ...` | `NIRD_DUCKDB_MEMORY_LIMIT` too low relative to `--mem` and core count | See "how to set `NIRD_DUCKDB_MEMORY_LIMIT`" above |
 | Same OOM persists even after raising `NIRD_DUCKDB_MEMORY_LIMIT` close to `--mem`, with node memory still unused | Default `itter_path` strategy runs the path-explode join unchunked over the whole OD table | Set `NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact` -- see "The bigger lever" above |
 | Env vars like `NIRD_LCP_DEST_CHUNK_SIZE` seem to have no effect | Cloned `main` instead of the branch with the fix | Check you're on `perf/lcp-dest-chunked-dispatch` (or wherever it's been merged to) |
+
+## 11. Data correctness: intrazonal OD rows were being counted as isolated
+
+**Not a performance issue -- a modeling-correctness one, found while investigating a
+real convergence run's numbers (2026-07, job 9052646/9062837).** The convergence
+log reports `assigned_fraction`/`remain_fraction` based on how much of `remain_od`'s
+`Car21` demand has been removed from the pool each iteration, for ANY reason --
+successfully routed, *or* permanently written off as isolated (no feasible path).
+On that run, only 4.4% of total demand was ever actually routed after 10 iterations,
+yet `assigned_fraction` read 57.14%, because **52.23% of total demand (77.8M of
+148.9M) was intrazonal** -- OD rows where `origin_node == destination_node`, one per
+origin (3,143 rows), a completely normal feature of any zone-level OD matrix (LODES
+and FAF5 both have a "stayed in the same zone" diagonal). A same-node pair has no
+edges to traverse, so `get_shortest_paths` correctly returns an empty path for it --
+but the isolation check (`len(path) == 0`) can't distinguish "trivially already
+there" from "genuinely unreachable," so both landed in the same
+isolated/`Non_allocated_flow` bucket. The actual network-connectivity gap, once
+intrazonal rows are excluded, is ~0.15% -- consistent with the raw network graph
+being 99.6%+ one connected component (verified locally against
+`faf5_road_links.gpq`/`faf5_road_nodes.gpq`; this and the OD-coverage cross-check
+were done entirely locally, no Hopper compute needed for the diagnosis).
+
+**Fix:** `network_flow_model()` now excludes intrazonal rows from `remain_od` before
+`total_remain`/`initial_sumod` are computed (`src/resiflow/road_revised.py`, top of
+the function), so both script 1 and script 4 -- which both call this function
+directly -- get the fix without needing to filter at each call site. Controlled by
+`RESIFLOW_EXCLUDE_INTRAZONAL_OD` / `NIRD_EXCLUDE_INTRAZONAL_OD`, default `1`; set to
+`0` to restore the old behavior (routing them and having them misclassified as
+isolated) if ever needed for direct before/after comparison.
+
+**Validated locally** (no Hopper needed) with a 200K-row sample of the real
+freight+passenger OD data: the log line `Excluding 64 intrazonal ... carrying
+1523550.568 total flow` matched the sample's own `self_pair_flow=1,523,550.568`
+exactly, and the corrected `total_remain` (1,203,916.42) equals
+`total - self_pair_flow` (2,727,466.99 - 1,523,550.57) exactly. Genuine isolation
+in that sample dropped to ~1.0%, in line with the ~0.15% figure from the full OD
+coverage check.
+
+**If re-deriving old convergence numbers:** any `assigned_fraction`/`remain_fraction`
+logged before this fix (including the entire cpu4/8/16 scaling comparison and the
+5 optimization experiments earlier in this project's history) used the inflated
+~149M denominator and are not directly comparable to runs after this fix -- the
+*timing and memory* conclusions from that work still hold (those were about wall-
+clock and RSS, not demand accounting), but any "% assigned" figures from before this
+fix should be treated as measuring "% resolved (routed or written off)," not "%
+successfully routed."
