@@ -1,0 +1,9 @@
+Traceback (most recent call last):
+  File "/scratch/akothaw/multimodal_hazard_data/code/ResiFlow/scripts/recover_convergence_output.py", line 175, in <module>
+    main()
+  File "/scratch/akothaw/multimodal_hazard_data/code/ResiFlow/scripts/recover_convergence_output.py", line 156, in main
+    conn.execute(
+_duckdb.BinderException: Binder Error: UNNEST not supported here
+
+LINE 3:                 SELECT UNNEST(path) AS e_id, SUM(flow) AS total_flow
+                               ^

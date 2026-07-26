@@ -1,0 +1,5 @@
+DuckDB: threads=8, memory_limit=100GB, temp_directory=/scratch/akothaw/multimodal_hazard_data/duckdb_tmp_recover
+Tables present in /scratch/akothaw/multimodal_hazard_data/convergence_cpu8.duckdb: ['edge_total_parts', 'isolated_od', 'od_results_iter', 'odpfc', 'remain_od', 'temp_flow_matrix_input']
+odpfc raw row count (before GROUP BY collapse): 96,294,326
+odpfc -> /scratch/akothaw/multimodal_hazard_data/results/base_scenario/convergence_cpu8_recovered/odpfc_recovered.pq  (96294326 rows, 6,500,583.4 total flow)
+isolated_od -> /scratch/akothaw/multimodal_hazard_data/results/base_scenario/convergence_cpu8_recovered/trip_isolations_recovered.pq  (140292 rows)
