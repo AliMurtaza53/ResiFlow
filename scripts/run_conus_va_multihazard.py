@@ -2,17 +2,29 @@
 """Orchestrate the real VA multi-hazard comparison against a CONUS baseline.
 
 Unlike scripts/testbed/run_multihazard_sioux_falls.py (synthetic toy network,
-builds its own workspace), this assumes a completed CONUS Pass A baseline
-already exists (edge_flows.gpq / baseline.duckdb under
-<soge_clusters parent>/results/base_scenario/<baseline-results-variant>/) --
-see experiments/pass_a_convergence/hopper/submit_cpu8_convergence.slurm. This
-script does NOT run Pass A; it only runs the per-hazard disruption/damage/
+builds its own workspace), this points at a completed CONUS Pass A baseline
+(edge_flows.gpq / baseline.duckdb under
+<soge_clusters parent>/results/base_scenario/<results-variant>/) -- see
+experiments/pass_a_convergence/hopper/submit_cpu8_convergence.slurm. This
+script does NOT run Pass A; it runs the per-hazard disruption/damage/
 rerouting sequence, per docs/PIPELINE_OVERVIEW.md's documented CONUS flow:
 
     Script 2 (disruption) -> Script 3 + 3_postprocess (direct damage) ->
     export_event_damaged_edges -> Pass B (Script 1, event_candidates mode,
     cheap -- only re-solves ODs whose paths cross damaged edges) -> Script 4
     (indirect/rerouting cost, combines with direct)
+
+Every step -- reading the Pass A baseline AND writing this run's own
+disruption/damage/rerouting outputs -- uses the SAME --results-variant.
+This mirrors scripts/testbed/run_multihazard_sioux_falls.py's proven
+single-variant pattern (see MULTIHAZARD_VARIANT there): the pipeline's
+get_results_variant() resolves one variant name for both purposes, so there
+is no separate "baseline" vs. "this run" variant to plumb -- an earlier
+version of this script tried to split them via a
+NIRD_BASE_SCENARIO_OUT_DIR override that pipeline.py's base-scenario loader
+never actually reads, which silently broke Script 2's base-scenario load.
+Different hazard events are told apart by scenario_param/event_id within
+that one variant's folder, exactly like the toy testbed's summary table.
 
 Hazard events are read from --hazards-manifest (schema: parameters/
 hazards.va_real.example.json) rather than hardcoded, so adding/changing a
@@ -23,8 +35,7 @@ Example::
 
     python scripts/run_conus_va_multihazard.py \
         --hazards-manifest /scratch/.../hazards.json \
-        --baseline-results-variant convergence_cpu8 \
-        --results-variant va_multihazard_real
+        --results-variant convergence_cpu8
 """
 
 from __future__ import annotations
@@ -60,20 +71,15 @@ def load_events(manifest_path: Path) -> list[dict]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--hazards-manifest", type=Path, required=True)
     parser.add_argument(
-        "--baseline-results-variant",
-        required=True,
-        help="Results variant of the already-completed CONUS Pass A baseline "
-        "(e.g. convergence_cpu8) -- this script reuses its edge_flows.gpq/"
-        "baseline.duckdb, it does not regenerate them.",
-    )
-    parser.add_argument(
         "--results-variant",
-        default="va_multihazard_real",
-        help="Results variant this run's own outputs (disruption/damage/"
-        "rerouting) are written under.",
+        required=True,
+        help="Results variant that already holds the completed CONUS Pass A "
+        "baseline (edge_flows.gpq/baseline.duckdb) -- this run's own "
+        "disruption/damage/rerouting outputs are written into the same "
+        "variant, differentiated by scenario_param/event_id.",
     )
     parser.add_argument("--num-chunks", type=int, default=20)
     parser.add_argument("--num-cpu", type=int, default=8)
@@ -89,6 +95,9 @@ def main() -> int:
     base_env["RESIFLOW_HAZARDS_MANIFEST"] = str(args.hazards_manifest.resolve())
     base_env["RESIFLOW_RESULTS_VARIANT"] = args.results_variant
     base_env["NIRD_RESULTS_VARIANT"] = args.results_variant
+    base_env["NIRD_BASE_SCENARIO_OUT_DIR"] = str(
+        results_root / "base_scenario" / args.results_variant
+    )
 
     for event in events:
         env = base_env.copy()
@@ -110,14 +119,7 @@ def main() -> int:
 
         print(f"\n=== {hazard_type} (subtype={subtype}) scenario_param={scenario_param} event={event_id} ===")
 
-        # Script 2: disruption. Its own outputs go under RESIFLOW_RESULTS_VARIANT
-        # (this run's variant), but the pre-disruption base_scenario links it
-        # reads come from the already-completed CONUS baseline variant.
-        base_scenario_env = env.copy()
-        base_scenario_env["NIRD_BASE_SCENARIO_OUT_DIR"] = str(
-            results_root / "base_scenario" / args.baseline_results_variant
-        )
-        run_script("2_intersection_analysis.py", [scenario_param, event_id], base_scenario_env)
+        run_script("2_intersection_analysis.py", [scenario_param, event_id], env)
         run_script("3_damage_analysis.py", [], env)
         run_script("3_postprocess_damage.py", [], env)
 
@@ -138,13 +140,11 @@ def main() -> int:
         )
 
         # Pass B: cheap re-solve of only the VA-area-affected candidate ODs,
-        # written back into the CONUS baseline's own results variant (that's
-        # where Script 4 expects event_disrupted_candidates/ to live).
+        # written back into the same results variant (that's where Script 4
+        # expects event_disrupted_candidates/ to live).
         pass_b_env = env.copy()
         pass_b_env["NIRD_EVENT_DAMAGED_EDGES_PATH"] = str(damaged_edges_path)
         pass_b_env["NIRD_BASELINE_PATH_OUTPUT_MODE"] = "event_candidates"
-        pass_b_env["RESIFLOW_RESULTS_VARIANT"] = args.baseline_results_variant
-        pass_b_env["NIRD_RESULTS_VARIANT"] = args.baseline_results_variant
         run_script("1_network_flow_model_revision.py", [args.num_chunks, args.num_cpu], pass_b_env)
 
         run_script(
