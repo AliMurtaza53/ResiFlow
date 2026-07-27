@@ -14,6 +14,7 @@ config.json
 
 # Large local hazard downloads (see inputs/va_multihazard_raw/README.md)
 inputs/va_multihazard_raw/
+inputs/va_multihazard_aligned/
 
 # Run outputs
 results/

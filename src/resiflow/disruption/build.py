@@ -324,6 +324,7 @@ def run_disruption(
     if resolved_type == "landslide":
         from resiflow.disruption.landslide import intersections_with_landslide
         from resiflow.disruption.pipeline_intensity import run_intensity_disruption
+        from resiflow.hazards.real_va import resolve_real_source
         from resiflow.hazards.sioux_falls_multihazard import LandslideHazardSource
 
         if base_path is None:
@@ -331,9 +332,9 @@ def run_disruption(
 
             base_path = Path(load_config()["paths"]["soge_clusters"])
         if hazard_source is None:
-            from resiflow.utils import load_config
-
-            hazard_source = LandslideHazardSource(Path(load_config()["paths"]["soge_clusters"]))
+            hazard_source = resolve_real_source(base_path, "landslide") or LandslideHazardSource(
+                base_path
+            )
         run_intensity_disruption(
             path_key,
             event_key,

@@ -58,6 +58,7 @@ def align_raster(
     grid: dict,
     unit_scale: float = 1.0,
     resampling: Resampling = Resampling.bilinear,
+    max_valid: float | None = None,
 ) -> dict:
     """Reproject + resample + clip a hazard raster onto ``grid``.
 
@@ -66,6 +67,11 @@ def align_raster(
     same ``grid`` share an identical pixel grid (origin, resolution, shape),
     which is what makes them pixel-for-pixel comparable, not just
     same-CRS/same-resolution independently.
+
+    ``max_valid`` (in source units, applied before ``unit_scale``) masks out
+    values above it as nodata -- for known masking-boundary artifacts in a
+    specific source raster (e.g. a handful of residual spike pixels sitting
+    right at an upstream nodata cutoff), not a general-purpose outlier filter.
     """
     target_crs = canonical_crs(grid["crs"])
     res = grid["resolution"]
@@ -77,7 +83,9 @@ def align_raster(
     output_path.parent.mkdir(parents=True, exist_ok=True)
     with rasterio_env():
         with rasterio.open(input_path) as src:
-            src_data = src.read(1, masked=True)
+            src_data = src.read(1, masked=True).astype("float64")
+            if max_valid is not None:
+                src_data = np.ma.masked_greater(src_data, max_valid)
             if unit_scale != 1.0:
                 src_data = src_data * unit_scale
             dst_data = np.full((dst_height, dst_width), np.nan, dtype="float32")
@@ -141,6 +149,13 @@ def main() -> None:
         action="store_true",
         help="Use nearest-neighbor instead of bilinear (e.g. for categorical/class rasters)",
     )
+    parser.add_argument(
+        "--max-valid",
+        type=float,
+        default=None,
+        help="Mask values above this (in source units, before --unit-scale) as "
+        "nodata -- for known masking-boundary artifacts in a specific source raster.",
+    )
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", force=True)
@@ -164,6 +179,7 @@ def main() -> None:
         grid,
         unit_scale=args.unit_scale,
         resampling=Resampling.nearest if args.nearest else Resampling.bilinear,
+        max_valid=args.max_valid,
     )
     logging.info(
         "%s -> %s | shape=%s | valid_pixels=%d | value_range=%s",
