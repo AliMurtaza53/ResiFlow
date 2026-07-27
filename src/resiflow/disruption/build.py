@@ -299,6 +299,7 @@ def run_disruption(
     if resolved_type == "earthquake":
         from resiflow.disruption.earthquake import intersections_with_earthquake
         from resiflow.disruption.pipeline_intensity import run_intensity_disruption
+        from resiflow.hazards.real_va import resolve_real_source
         from resiflow.hazards.sioux_falls_multihazard import EarthquakeHazardSource
 
         if base_path is None:
@@ -306,9 +307,9 @@ def run_disruption(
 
             base_path = Path(load_config()["paths"]["soge_clusters"])
         if hazard_source is None:
-            from resiflow.utils import load_config
-
-            hazard_source = EarthquakeHazardSource(Path(load_config()["paths"]["soge_clusters"]))
+            hazard_source = resolve_real_source(base_path, "earthquake") or EarthquakeHazardSource(
+                base_path
+            )
         run_intensity_disruption(
             path_key,
             event_key,
@@ -346,7 +347,14 @@ def run_disruption(
 
     if resolved_type == "winter_storm":
         from resiflow.disruption.pipeline_winter_storm import run_winter_storm_disruption
+        from resiflow.hazards.real_va import resolve_real_source
 
+        if base_path is None:
+            from resiflow.utils import load_config
+
+            base_path = Path(load_config()["paths"]["soge_clusters"])
+        if hazard_source is None:
+            hazard_source = resolve_real_source(base_path, "winter_storm")
         run_winter_storm_disruption(
             path_key,
             event_key,
@@ -368,6 +376,14 @@ def run_disruption(
         base_path = Path(load_config()["paths"]["soge_clusters"])
     else:
         base_path = Path(base_path)
+
+    if hazard_source is None:
+        import os as _os
+
+        from resiflow.hazards.real_va import resolve_real_source
+
+        flood_subtype = _os.environ.get("RESIFLOW_FLOOD_SUBTYPE", "flood_surface")
+        hazard_source = resolve_real_source(base_path, "flood", flood_subtype=flood_subtype)
 
     if hazard_source is None:
         from resiflow.hazards.sioux_falls_multihazard import resolve_multihazard_flood_source

@@ -13,16 +13,23 @@ MULTIHAZARD_DIR = "sioux_falls_multihazard"
 
 
 class SiouxFallsMultihazardSource:
-    """Read event rasters from inputs/sioux_falls_multihazard/<subtype>/event_<key>.tif."""
+    """Read event rasters from inputs/<multihazard_dir>/<subtype>/event_<key>.tif.
+
+    ``multihazard_dir`` defaults to the synthetic testbed tree but is a class
+    attribute specifically so real-data sources (see hazards/real_va.py) can
+    subclass this with a different root instead of duplicating the directory
+    scan / event-file-map logic.
+    """
 
     hazard_type: str = "generic"
     hazard_subtype: str = "generic"
     intensity_unit: str = "unitless"
     raster_field: str = "intensity"
+    multihazard_dir: str = MULTIHAZARD_DIR
 
     def __init__(self, base_path: Path) -> None:
         self.base_path = Path(base_path)
-        self._root = self.base_path / "inputs" / MULTIHAZARD_DIR / self.hazard_subtype
+        self._root = self.base_path / "inputs" / self.multihazard_dir / self.hazard_subtype
         self._clip_path = first_existing(
             [
                 self.base_path / "study_area" / "fairfax_study_area.gpkg",
