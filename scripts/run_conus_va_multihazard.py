@@ -97,11 +97,17 @@ def main() -> int:
     parser.add_argument(
         "--pass-b-max-iterations",
         type=int,
-        default=10,
+        default=5,
         help="Bound on Pass B's own iteration loop (independent of the "
-        "baseline's iteration count) -- a single damaged-edge perturbation "
-        "should converge faster than the original full assignment, but this "
-        "still needs a cap for the same reason Pass A does.",
+        "baseline's iteration count). Pass B currently re-solves the FULL "
+        "CONUS demand cold-start (no warm-start from the Pass A baseline "
+        "exists yet -- see docs/VA_MULTIHAZARD_COMPARISON.md), so it needs "
+        "roughly as many iterations as Pass A itself to fully converge. "
+        "Bounded low here as a documented limitation for this pass -- "
+        "rerouting costs are directional, not fully converged. Raise this "
+        "once warm-start lands, or if you have the SLURM time budget "
+        "(~35-40min/iteration observed on Hopper at cpu8) to let it run "
+        "longer.",
     )
     parser.add_argument("--summary-csv", type=Path, default=None)
     args = parser.parse_args()
