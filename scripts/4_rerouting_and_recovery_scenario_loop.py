@@ -73,16 +73,52 @@ def odpfc_source_exists(path: Path) -> bool:
     return False
 
 
-def load_odpfc_source(path: Path) -> pd.DataFrame:
-    """Load OD path output from a single Parquet file or odpfc_parts directory."""
+def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
+    """Load only the OD rows whose realized path crosses a damaged edge.
+
+    An unfiltered load (previously ``pd.read_parquet``/unfiltered
+    ``read_parquet(...).fetchdf()``) works fine against a small toy baseline
+    but OOMs immediately against a CONUS-scale baseline's odpfc (hundreds of
+    GB) -- this baseline is typically the Pass A convergence run itself
+    (``base_scenario/<results_variant>/odpfc.pq``), read here as Script 4's
+    fallback when no Pass-B-specific event_candidates output exists. Mirrors
+    load_path_index_disrupted_candidates's filtered-query approach; simpler
+    here since odpfc's ``path`` column already stores e_id strings directly
+    (no edge_lookup index translation needed).
+    """
+    conn = duckdb.connect()
+    duckdb_memory_limit = os.environ.get("NIRD_DUCKDB_MEMORY_LIMIT", "24GB")
+    conn.execute(f"PRAGMA memory_limit='{duckdb_memory_limit}'")
+    duckdb_temp_dir = os.environ.get("NIRD_DUCKDB_TEMP_DIRECTORY")
+    if duckdb_temp_dir:
+        conn.execute(f"PRAGMA temp_directory='{duckdb_temp_dir}'")
+    damaged_df = pd.DataFrame({"e_id": sorted(str(e) for e in damaged_edges)})
+    conn.register("damaged_edges", damaged_df)
     if path.is_dir():
         pattern = (path / "*.pq").as_posix().replace("'", "''")
-        logging.info("Loading partitioned odpfc parts from %s", path)
-        return duckdb.connect().execute(
-            f"SELECT * FROM read_parquet('{pattern}')"
-        ).fetchdf()
-    logging.info("Loading single odpfc parquet from %s", path)
-    return pd.read_parquet(path)
+        source_sql = f"read_parquet('{pattern}')"
+        logging.info("Loading filtered odpfc parts from %s", path)
+    else:
+        single_path = path.as_posix().replace("'", "''")
+        source_sql = f"read_parquet('{single_path}')"
+        logging.info("Loading filtered single odpfc parquet from %s", path)
+    result = conn.execute(
+        f"""
+        SELECT o.*
+        FROM {source_sql} o
+        WHERE EXISTS (
+            SELECT 1 FROM UNNEST(o.path) AS u(e_id)
+            WHERE u.e_id IN (SELECT e_id FROM damaged_edges)
+        )
+        """
+    ).fetchdf()
+    conn.unregister("damaged_edges")
+    conn.close()
+    logging.info(
+        "Filtered odpfc source produced %s candidate rows (of a much larger baseline).",
+        len(result),
+    )
+    return result
 
 
 def overlay_assignment_flows(
@@ -639,7 +675,7 @@ def main(
         if "od_id" not in disrupted_candidates.columns:
             disrupted_candidates["od_id"] = disrupted_candidates.index
     else:
-        disrupted_candidates = load_odpfc_source(Path(candidate_source_path))
+        disrupted_candidates = load_odpfc_source(Path(candidate_source_path), flooded_edges)
         if "path" in disrupted_candidates.columns:
             if VECTORIZE_PATH_PARSING:
                 disrupted_candidates["path"] = to_edge_id_list_vectorized(

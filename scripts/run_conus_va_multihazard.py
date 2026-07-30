@@ -3,39 +3,50 @@
 
 Unlike scripts/testbed/run_multihazard_sioux_falls.py (synthetic toy network,
 builds its own workspace), this points at a completed CONUS Pass A baseline
-(edge_flows.gpq / baseline.duckdb under
+(edge_flows.gpq / odpfc.pq under
 <soge_clusters parent>/results/base_scenario/<results-variant>/) -- see
-experiments/pass_a_convergence/hopper/submit_cpu8_convergence.slurm. This
+experiments/pass_a_convergence/hopper/submit_cpu8_bounded18.slurm. This
 script does NOT run Pass A; it runs the per-hazard disruption/damage/
-rerouting sequence, per docs/PIPELINE_OVERVIEW.md's documented CONUS flow:
+rerouting sequence:
 
     Script 2 (disruption) -> Script 3 + 3_postprocess (direct damage) ->
-    export_event_damaged_edges -> Pass B (Script 1, event_candidates mode)
-    -> Script 4 (indirect/rerouting cost, combines with direct)
+    Script 4 (indirect/rerouting cost, combines with direct)
 
-IMPORTANT -- Pass B is NOT cheap in the way earlier docs/comments in this
-repo described it. NIRD_BASELINE_PATH_OUTPUT_MODE=event_candidates only
-filters what gets WRITTEN after routing (road_revised.py's
-create_full_temp_flow_matrix / event_candidates_out_dir logic) -- the LCP
-dispatch and full OD-path realization still run over the ENTIRE CONUS
-network, same as Pass A. Confirmed by a real OOM on Hopper (2026-07-29):
-Pass B logged the exact same "3143/3143" full OD dispatch and
-"total=148,917,265.699" full demand as Pass A, then died in the same
-itter_path aggregation step Pass A used to OOM at, because this script was
-run interactively without the DuckDB memory/chunking tuning Pass A needs --
-see below, now baked in here instead of relying on the caller's shell.
+NO Pass B step. An earlier version of this script ran Script 1 a second time
+per event in "event_candidates" mode ("Pass B"), intended as a cheap re-solve
+of only the ODs affected by that event's damaged edges. It wasn't cheap:
+NIRD_BASELINE_PATH_OUTPUT_MODE=event_candidates only filters what gets
+WRITTEN after routing -- the LCP dispatch and OD-path realization still
+cold-start over the ENTIRE CONUS demand, with no capacity reduction applied
+for the damaged edge at all (Script 1 never merges disruption/damage info
+into road_links for that mode -- capacity reduction only happens inside
+Script 4). So Pass B was solving the exact same problem Pass A already
+solved, just less converged, for real compute cost (confirmed OOM/time-limit
+failures on Hopper, 2026-07-29/30).
+
+Script 4 (scripts/4_rerouting_and_recovery_scenario_loop.py) already has a
+fallback chain for exactly this situation (see its main(), ~line 505+):
+legacy per-event odpfc -> Pass B's event_disrupted_candidates (now unused) ->
+**the baseline's own odpfc.pq** -- i.e. Pass A's already-computed, already-
+converged output -- -> odpfc_parts -> path_index artifacts. Since this
+script uses one shared --results-variant for both the baseline and this
+run's own outputs, that odpfc.pq fallback points directly at the real Pass A
+baseline. The only fix needed was load_odpfc_source() in Script 4, which
+used to load the WHOLE odpfc file into memory (fine for a small toy
+baseline, not for a CONUS-scale one) -- it's now a DuckDB query filtered to
+only the OD rows whose path crosses a damaged edge, same shape as the
+existing path_index fallback's query. Net effect: no redundant re-solve,
+*more* accurate (uses Pass A's full convergence, not a bounded Pass B),
+and much faster.
 
 Every step -- reading the Pass A baseline AND writing this run's own
 disruption/damage/rerouting outputs -- uses the SAME --results-variant.
 This mirrors scripts/testbed/run_multihazard_sioux_falls.py's proven
 single-variant pattern (see MULTIHAZARD_VARIANT there): the pipeline's
 get_results_variant() resolves one variant name for both purposes, so there
-is no separate "baseline" vs. "this run" variant to plumb -- an earlier
-version of this script tried to split them via a
-NIRD_BASE_SCENARIO_OUT_DIR override that pipeline.py's base-scenario loader
-never actually reads, which silently broke Script 2's base-scenario load.
-Different hazard events are told apart by scenario_param/event_id within
-that one variant's folder, exactly like the toy testbed's summary table.
+is no separate "baseline" vs. "this run" variant to plumb. Different hazard
+events are told apart by scenario_param/event_id within that one variant's
+folder, exactly like the toy testbed's summary table.
 
 Hazard events are read from --hazards-manifest (schema: parameters/
 hazards.va_real.example.json) rather than hardcoded, so adding/changing a
@@ -46,7 +57,7 @@ Example::
 
     python scripts/run_conus_va_multihazard.py \
         --hazards-manifest /scratch/.../hazards.json \
-        --results-variant convergence_cpu8
+        --results-variant convergence_cpu8_bounded18
 """
 
 from __future__ import annotations
@@ -88,27 +99,12 @@ def main() -> int:
         "--results-variant",
         required=True,
         help="Results variant that already holds the completed CONUS Pass A "
-        "baseline (edge_flows.gpq/baseline.duckdb) -- this run's own "
+        "baseline (edge_flows.gpq/odpfc.pq) -- this run's own "
         "disruption/damage/rerouting outputs are written into the same "
         "variant, differentiated by scenario_param/event_id.",
     )
     parser.add_argument("--num-chunks", type=int, default=20)
     parser.add_argument("--num-cpu", type=int, default=8)
-    parser.add_argument(
-        "--pass-b-max-iterations",
-        type=int,
-        default=5,
-        help="Bound on Pass B's own iteration loop (independent of the "
-        "baseline's iteration count). Pass B currently re-solves the FULL "
-        "CONUS demand cold-start (no warm-start from the Pass A baseline "
-        "exists yet -- see docs/VA_MULTIHAZARD_COMPARISON.md), so it needs "
-        "roughly as many iterations as Pass A itself to fully converge. "
-        "Bounded low here as a documented limitation for this pass -- "
-        "rerouting costs are directional, not fully converged. Raise this "
-        "once warm-start lands, or if you have the SLURM time budget "
-        "(~35-40min/iteration observed on Hopper at cpu8) to let it run "
-        "longer.",
-    )
     parser.add_argument("--summary-csv", type=Path, default=None)
     args = parser.parse_args()
 
@@ -121,25 +117,14 @@ def main() -> int:
     base_env["RESIFLOW_HAZARDS_MANIFEST"] = str(args.hazards_manifest.resolve())
     base_env["RESIFLOW_RESULTS_VARIANT"] = args.results_variant
     base_env["NIRD_RESULTS_VARIANT"] = args.results_variant
-    base_env["NIRD_BASE_SCENARIO_OUT_DIR"] = str(
-        results_root / "base_scenario" / args.results_variant
-    )
-    # Pass B re-runs the SAME full-CONUS-scale LCP dispatch + OD path
-    # realization as Pass A (see module docstring) -- it needs the identical
-    # DuckDB memory/chunking tuning proven in
-    # experiments/pass_a_convergence/hopper/submit_cpu8_bounded18.slurm.
-    # setdefault so an explicit SLURM wrapper's own exports still win.
-    base_env.setdefault("NIRD_PATH_REALIZATION_STRATEGY", "duckdb_chunked_compact")
+    # Script 4's odpfc.pq fallback query can scan a large baseline file --
+    # give it the same memory/temp-dir tuning proven on Hopper for CONUS-
+    # scale DuckDB work (see submit_cpu8_bounded18.slurm). setdefault so an
+    # explicit SLURM wrapper's own exports still win.
     base_env.setdefault("NIRD_DUCKDB_MEMORY_LIMIT", "100GB")
-    base_env.setdefault("NIRD_LCP_DEST_CHUNK_SIZE", "1000")
-    base_env.setdefault("NIRD_FLOW_DB_BATCH_SIZE", "50000")
-    base_env.setdefault("NIRD_LCP_SORT_BY_DEST_COUNT", "1")
     base_env.setdefault(
         "NIRD_DUCKDB_TEMP_DIRECTORY", str(soge_clusters.parent / "duckdb_tmp_va_multihazard")
     )
-    base_env.setdefault("OMP_NUM_THREADS", "1")
-    base_env.setdefault("MKL_NUM_THREADS", "1")
-    base_env.setdefault("OPENBLAS_NUM_THREADS", "1")
 
     for event in events:
         env = base_env.copy()
@@ -164,33 +149,6 @@ def main() -> int:
         run_script("2_intersection_analysis.py", [scenario_param, event_id], env)
         run_script("3_damage_analysis.py", [], env)
         run_script("3_postprocess_damage.py", [], env)
-
-        # tables/ lives under soge_clusters; export_event_damaged_edges.py
-        # resolves that root itself via config -- just tell it where to write.
-        damaged_edges_path = (
-            soge_clusters / "tables" / f"event_damaged_edges_{scenario_param}_{event_id}.pq"
-        )
-        run_script(
-            "export_event_damaged_edges.py",
-            [
-                "--depth-key", scenario_param,
-                "--event-keys", event_id,
-                "--output", damaged_edges_path,
-                "--results-variant", args.results_variant,
-            ],
-            env,
-        )
-
-        # Pass B: full-network re-solve (see module docstring -- NOT cheap in
-        # dispatch), but writes only the event-candidate paths touching
-        # damaged edges, back into the same results variant (that's where
-        # Script 4 expects event_disrupted_candidates/ to live).
-        pass_b_env = env.copy()
-        pass_b_env["NIRD_EVENT_DAMAGED_EDGES_PATH"] = str(damaged_edges_path)
-        pass_b_env["NIRD_BASELINE_PATH_OUTPUT_MODE"] = "event_candidates"
-        pass_b_env.setdefault("RESIFLOW_MAX_FLOW_ITERATIONS", str(args.pass_b_max_iterations))
-        pass_b_env.setdefault("NIRD_MAX_FLOW_ITERATIONS", str(args.pass_b_max_iterations))
-        run_script("1_network_flow_model_revision.py", [args.num_chunks, args.num_cpu], pass_b_env)
 
         run_script(
             "4_rerouting_and_recovery_scenario_loop.py",
