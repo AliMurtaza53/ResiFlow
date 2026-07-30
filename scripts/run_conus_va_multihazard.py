@@ -10,9 +10,20 @@ script does NOT run Pass A; it runs the per-hazard disruption/damage/
 rerouting sequence, per docs/PIPELINE_OVERVIEW.md's documented CONUS flow:
 
     Script 2 (disruption) -> Script 3 + 3_postprocess (direct damage) ->
-    export_event_damaged_edges -> Pass B (Script 1, event_candidates mode,
-    cheap -- only re-solves ODs whose paths cross damaged edges) -> Script 4
-    (indirect/rerouting cost, combines with direct)
+    export_event_damaged_edges -> Pass B (Script 1, event_candidates mode)
+    -> Script 4 (indirect/rerouting cost, combines with direct)
+
+IMPORTANT -- Pass B is NOT cheap in the way earlier docs/comments in this
+repo described it. NIRD_BASELINE_PATH_OUTPUT_MODE=event_candidates only
+filters what gets WRITTEN after routing (road_revised.py's
+create_full_temp_flow_matrix / event_candidates_out_dir logic) -- the LCP
+dispatch and full OD-path realization still run over the ENTIRE CONUS
+network, same as Pass A. Confirmed by a real OOM on Hopper (2026-07-29):
+Pass B logged the exact same "3143/3143" full OD dispatch and
+"total=148,917,265.699" full demand as Pass A, then died in the same
+itter_path aggregation step Pass A used to OOM at, because this script was
+run interactively without the DuckDB memory/chunking tuning Pass A needs --
+see below, now baked in here instead of relying on the caller's shell.
 
 Every step -- reading the Pass A baseline AND writing this run's own
 disruption/damage/rerouting outputs -- uses the SAME --results-variant.
@@ -83,6 +94,15 @@ def main() -> int:
     )
     parser.add_argument("--num-chunks", type=int, default=20)
     parser.add_argument("--num-cpu", type=int, default=8)
+    parser.add_argument(
+        "--pass-b-max-iterations",
+        type=int,
+        default=10,
+        help="Bound on Pass B's own iteration loop (independent of the "
+        "baseline's iteration count) -- a single damaged-edge perturbation "
+        "should converge faster than the original full assignment, but this "
+        "still needs a cap for the same reason Pass A does.",
+    )
     parser.add_argument("--summary-csv", type=Path, default=None)
     args = parser.parse_args()
 
@@ -98,6 +118,22 @@ def main() -> int:
     base_env["NIRD_BASE_SCENARIO_OUT_DIR"] = str(
         results_root / "base_scenario" / args.results_variant
     )
+    # Pass B re-runs the SAME full-CONUS-scale LCP dispatch + OD path
+    # realization as Pass A (see module docstring) -- it needs the identical
+    # DuckDB memory/chunking tuning proven in
+    # experiments/pass_a_convergence/hopper/submit_cpu8_bounded18.slurm.
+    # setdefault so an explicit SLURM wrapper's own exports still win.
+    base_env.setdefault("NIRD_PATH_REALIZATION_STRATEGY", "duckdb_chunked_compact")
+    base_env.setdefault("NIRD_DUCKDB_MEMORY_LIMIT", "100GB")
+    base_env.setdefault("NIRD_LCP_DEST_CHUNK_SIZE", "1000")
+    base_env.setdefault("NIRD_FLOW_DB_BATCH_SIZE", "50000")
+    base_env.setdefault("NIRD_LCP_SORT_BY_DEST_COUNT", "1")
+    base_env.setdefault(
+        "NIRD_DUCKDB_TEMP_DIRECTORY", str(soge_clusters.parent / "duckdb_tmp_va_multihazard")
+    )
+    base_env.setdefault("OMP_NUM_THREADS", "1")
+    base_env.setdefault("MKL_NUM_THREADS", "1")
+    base_env.setdefault("OPENBLAS_NUM_THREADS", "1")
 
     for event in events:
         env = base_env.copy()
@@ -139,12 +175,15 @@ def main() -> int:
             env,
         )
 
-        # Pass B: cheap re-solve of only the VA-area-affected candidate ODs,
-        # written back into the same results variant (that's where Script 4
-        # expects event_disrupted_candidates/ to live).
+        # Pass B: full-network re-solve (see module docstring -- NOT cheap in
+        # dispatch), but writes only the event-candidate paths touching
+        # damaged edges, back into the same results variant (that's where
+        # Script 4 expects event_disrupted_candidates/ to live).
         pass_b_env = env.copy()
         pass_b_env["NIRD_EVENT_DAMAGED_EDGES_PATH"] = str(damaged_edges_path)
         pass_b_env["NIRD_BASELINE_PATH_OUTPUT_MODE"] = "event_candidates"
+        pass_b_env.setdefault("RESIFLOW_MAX_FLOW_ITERATIONS", str(args.pass_b_max_iterations))
+        pass_b_env.setdefault("NIRD_MAX_FLOW_ITERATIONS", str(args.pass_b_max_iterations))
         run_script("1_network_flow_model_revision.py", [args.num_chunks, args.num_cpu], pass_b_env)
 
         run_script(
