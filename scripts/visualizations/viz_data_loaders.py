@@ -547,15 +547,68 @@ def validate_multihazard_summary(
     return present
 
 
+# Categorical palette: colorblind-safe 8-hue set (OKLab-validated adjacent
+# pairs, worst-case CVD dE 9.1 light/8.4 dark) -- see the dataviz skill's
+# references/palette.md. Slots 1-4 used here in documented default order;
+# extend with slot 5+ (magenta) only if a 5th hazard is ever added, and
+# re-check the adjacent-pair guarantee still holds for that count.
+HAZARD_PALETTE: dict[str, str] = {
+    "flood_surface": "#2a78d6",  # slot 1: blue
+    "flood_river": "#2a78d6",
+    "flood_coastal": "#2a78d6",
+    "earthquake": "#eb6834",  # slot 2: orange
+    "landslide": "#1baf7a",  # slot 3: aqua
+    "winter_storm": "#eda100",  # slot 4: yellow
+}
+_INK_PRIMARY = "#0b0b0b"
+_INK_SECONDARY = "#52514e"
+_INK_MUTED = "#898781"
+_GRIDLINE = "#e1e0d9"
+_SURFACE = "#fcfcfb"
+
+
+def _hazard_color(hazard_type: str, hazard_subtype: str = "") -> str:
+    key = hazard_subtype or hazard_type
+    return HAZARD_PALETTE.get(str(key).lower(), _INK_MUTED)
+
+
+def _style_axis(ax) -> None:
+    ax.set_facecolor(_SURFACE)
+    for side in ("top", "right"):
+        ax.spines[side].set_visible(False)
+    for side in ("left", "bottom"):
+        ax.spines[side].set_color(_INK_MUTED)
+        ax.spines[side].set_linewidth(0.8)
+    ax.yaxis.grid(True, color=_GRIDLINE, linewidth=0.8, zorder=0)
+    ax.set_axisbelow(True)
+    ax.tick_params(colors=_INK_SECONDARY, labelsize=9)
+    ax.xaxis.label.set_color(_INK_SECONDARY)
+    ax.yaxis.label.set_color(_INK_SECONDARY)
+
+
 def plot_multihazard_cost_panels(
     summary: pd.DataFrame,
     *,
     variant: str | None = None,
+    direct_cost_caveat: str | None = (
+        "Direct costs: illustrative placeholder pending HAZUS-sourced "
+        "unit-repair-cost tables"
+    ),
 ):
-    """Two-row cluster chart: floods (top), other hazards (bottom).
+    """Two-panel comparison: direct vs. indirect cost, and freight vs.
+    passenger indirect cost, both by hazard type.
 
-    Each hazard cluster has a direct bar and a stacked indirect bar
-    (freight + passenger rerouting costs).
+    Panel A answers "how do direct and indirect costs compare?" -- for each
+    hazard, a solid bar (direct) beside a hatched bar (indirect, freight +
+    passenger combined). Panel B answers "how does indirect cost split by
+    mode?" -- for each hazard, solid (freight) beside hatched (passenger).
+    Color encodes hazard identity consistently across both panels (the
+    dimension a reader tracks across the whole figure); the solid/hatched
+    texture is the secondary channel distinguishing the two bars within each
+    hazard, so the split reads without relying on hue alone.
+
+    ``direct_cost_caveat`` renders as a figure-level footnote -- pass None
+    once direct costs are backed by real hazard-specific unit-cost tables.
     """
     import matplotlib.pyplot as plt
     import numpy as np
@@ -566,43 +619,69 @@ def plot_multihazard_cost_panels(
     resolved_variant = variant or (
         str(summary["variant"].iloc[0]) if "variant" in summary.columns else ""
     )
-    floods = summary.loc[summary["panel_row"] == "floods"].reset_index(drop=True)
-    other = summary.loc[summary["panel_row"] == "other"].reset_index(drop=True)
+    df = summary.reset_index(drop=True)
+    labels = df["hazard_label"].astype(str).tolist()
+    colors = [
+        _hazard_color(row.get("hazard_type", ""), row.get("hazard_subtype", ""))
+        for _, row in df.iterrows()
+    ]
+    direct = pd.to_numeric(df["direct_damage_usd"], errors="coerce").fillna(0.0)
+    freight = pd.to_numeric(df["rerouting_cost_freight_usd"], errors="coerce").fillna(0.0)
+    passenger = pd.to_numeric(df["rerouting_cost_passenger_usd"], errors="coerce").fillna(0.0)
+    indirect_total = freight + passenger
 
-    fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharey=True)
+    max_abs = float(pd.concat([direct, indirect_total, freight, passenger]).abs().max() or 0.0)
+    unit = resolve_cost_display_unit(max_abs, variant=resolved_variant)
+    divisor = {"usd": 1.0, "kusd": 1e3, "musd": 1e6, "busd": 1e9}[unit]
+    unit_label = {"usd": "USD", "kusd": "USD (thousands)", "musd": "USD (millions)", "busd": "USD (billions)"}[unit]
 
-    def _draw_row(ax, subdf: pd.DataFrame, title: str) -> None:
-        if subdf.empty:
-            ax.set_visible(False)
-            return
-        labels = subdf["hazard_label"].astype(str).tolist()
-        x = np.arange(len(labels))
-        bar_w = 0.35
-        direct = pd.to_numeric(subdf["direct_damage_usd"], errors="coerce").fillna(0.0)
-        freight = pd.to_numeric(subdf["rerouting_cost_freight_usd"], errors="coerce").fillna(0.0)
-        passenger = pd.to_numeric(subdf["rerouting_cost_passenger_usd"], errors="coerce").fillna(0.0)
-        ax.bar(x - bar_w / 2, direct, bar_w, label="Direct", color="#54a24b")
-        ax.bar(x + bar_w / 2, freight, bar_w, label="Indirect (freight)", color="#f58518")
+    plt.rcParams["font.family"] = "sans-serif"
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(12, 5), facecolor=_SURFACE)
+    x = np.arange(len(labels))
+    bar_w = 0.36
+
+    def _paired_bars(ax, solid_vals, hatched_vals, solid_label, hatched_label):
         ax.bar(
-            x + bar_w / 2,
-            passenger,
-            bar_w,
-            bottom=freight,
-            label="Indirect (passenger)",
-            color="#4c78a8",
+            x - bar_w / 2, solid_vals / divisor, bar_w,
+            color=colors, edgecolor=_INK_PRIMARY, linewidth=0.6, zorder=2,
         )
+        ax.bar(
+            x + bar_w / 2, hatched_vals / divisor, bar_w,
+            color=colors, edgecolor=_INK_PRIMARY, linewidth=0.6,
+            hatch="////", alpha=0.55, zorder=2,
+        )
+        for xi, v in zip(x - bar_w / 2, solid_vals / divisor):
+            ax.annotate(f"{v:,.1f}", (xi, v), xytext=(0, 3), textcoords="offset points",
+                        ha="center", va="bottom", fontsize=7.5, color=_INK_SECONDARY)
+        for xi, v in zip(x + bar_w / 2, hatched_vals / divisor):
+            ax.annotate(f"{v:,.1f}", (xi, v), xytext=(0, 3), textcoords="offset points",
+                        ha="center", va="bottom", fontsize=7.5, color=_INK_SECONDARY)
         ax.set_xticks(x)
-        ax.set_xticklabels(labels, rotation=12, ha="right")
-        ax.set_title(title)
-        ax.set_ylabel("USD")
-        ax.legend(loc="upper right", fontsize=8)
+        ax.set_xticklabels(labels, rotation=15, ha="right")
+        ymin, ymax = ax.get_ylim()
+        ax.set_ylim(ymin, ymax * 1.22)  # headroom so the legend clears the tallest bar/label
+        _style_axis(ax)
+        from matplotlib.patches import Patch
+        legend_handles = [
+            Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6, label=solid_label),
+            Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6,
+                  hatch="////", alpha=0.55, label=hatched_label),
+        ]
+        ax.legend(handles=legend_handles, loc="upper right", fontsize=8.5, frameon=False)
 
-    _draw_row(axes[0], floods, "Flood subtypes")
-    _draw_row(axes[1], other, "Other hazards")
-    unit_hint = "KUSD-scale testbed" if is_testbed_variant(resolved_variant) else "USD"
-    fig.suptitle(f"Direct vs indirect costs by hazard ({unit_hint})", fontsize=13)
+    _paired_bars(ax_a, direct, indirect_total, "Direct", "Indirect (freight + passenger)")
+    ax_a.set_title("Direct vs. indirect cost", fontsize=12, color=_INK_PRIMARY, loc="left")
+    ax_a.set_ylabel(unit_label, fontsize=9.5)
+
+    _paired_bars(ax_b, freight, passenger, "Freight", "Passenger")
+    ax_b.set_title("Indirect cost by mode", fontsize=12, color=_INK_PRIMARY, loc="left")
+    ax_b.set_ylabel(unit_label, fontsize=9.5)
+
+    fig.suptitle("Multi-hazard cost comparison", fontsize=14, color=_INK_PRIMARY, y=1.02)
+    if direct_cost_caveat:
+        fig.text(0.01, -0.02, f"* {direct_cost_caveat}", fontsize=8, color=_INK_MUTED, ha="left")
     fig.tight_layout()
-    return fig, axes
+    return fig, (ax_a, ax_b)
 
 
 def resolve_county_od_path(input_root: Path) -> Path | None:
