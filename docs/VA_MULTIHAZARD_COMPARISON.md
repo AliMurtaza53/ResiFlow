@@ -49,6 +49,29 @@ query (same shape as the existing `path_index` fallback), so it now scans instea
 materializes. Net effect: faster (no redundant re-solve), and *more* accurate (uses
 Pass A's full 18-iteration convergence rather than a bounded Pass B).
 
+## Open: direct-cost source and freight industry breakdown
+
+**Direct costs** (Script 3) currently price all four hazards off the same flood-only
+depth-damage-ratio curve (`damage_curves/damage_ratio_road_flood.xlsx`) — a known
+shim. Real HAZUS unit-repair-cost tables per hazard are the intended real source;
+needs the exact published figures from the user (same "supply the table, don't
+invent" pattern as landslide's HAZUS PGD coefficients), not yet started.
+
+**Freight-by-industry breakdown** (advisor ask, 2026-07-31): real 2022 FAF5
+county-level truck OD data already exists locally, tagged by SCTG-G5 commodity
+group — `soge_clusters/census_datasets/faf5_od_matrix_by_sctg.pq` (40M rows, same
+`origin_node`/`destination_node`/`Car21` schema the main assignment already uses,
+plus an `sctgG5` tag per row) and a precomputed national summary
+(`faf5_sctg_daily_trucks.csv`: Manufactured goods 26.8%, Ag/fish/forestry 23.4%,
+Mining 21.0%, Petroleum & coal 16.0%, Mixed & other 12.8%). Confirmed via repo-wide
+grep: **not currently referenced anywhere in `demand.py`, Script 1, or Script 4** —
+the assignment/rerouting pipeline has zero commodity-level disaggregation today.
+`plot_freight_industry_breakdown()` (new, `viz_data_loaders.py`) renders this using
+the real national shares as a proxy, applied proportionally to each hazard's freight
+total. Real per-hazard shares need Script 4's disrupted-candidate OD pairs joined
+against `faf5_od_matrix_by_sctg.pq` on the shared origin/destination keys — a scoped
+follow-up, not yet implemented.
+
 ## Fragility curve status
 
 | Hazard | Status |
@@ -68,3 +91,8 @@ Pass A's full 18-iteration convergence rather than a bounded Pass B).
   Pass B was redundant compute entirely and removed it -- Script 4 now reads
   candidate OD pairs directly from Pass A's own `odpfc.pq` via a scale-fixed
   fallback query (see "Resolved" section above).
+- **2026-07-31**: Redesigned the cost comparison viz (`plot_multihazard_cost_panels`)
+  into direct-vs-indirect and freight-vs-passenger panels with a colorblind-safe
+  palette; added `plot_freight_industry_breakdown()` using real (not invented)
+  national SCTG-G5 shares, pending real per-hazard wiring (see above). Published as
+  a mockup preview artifact pending real Hopper results.
