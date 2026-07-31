@@ -10,9 +10,15 @@
 # SIGKILL'd on hopper1's login node (2026-07-30) with no Python traceback,
 # the classic OOM-on-shared-node signature already documented in
 # docs/ORC_HOPPER_SETUP.md.
+#
+# --mem=128G to match NIRD_DUCKDB_MEMORY_LIMIT=100GB (orchestrator default,
+# same as Pass A's own proven config) -- an earlier --mem=96G run OOM'd
+# because DuckDB was told it could use more (100GB) than the job's actual
+# memory ceiling (96GB), the same headroom mistake Pass A's tuning already
+# had to learn from (see submit_cpu8_convergence.slurm).
 #SBATCH --time=03:00:00
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=96G
+#SBATCH --mem=128G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_run_multihazard_%j.out
 #SBATCH --error=/home/akothaw/multimodal_hazard_project/logs_run_multihazard_%j.err
 
