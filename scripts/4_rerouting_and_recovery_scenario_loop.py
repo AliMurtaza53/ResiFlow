@@ -102,14 +102,21 @@ def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
         single_path = path.as_posix().replace("'", "''")
         source_sql = f"read_parquet('{single_path}')"
         logging.info("Loading filtered single odpfc parquet from %s", path)
+    # A correlated EXISTS(SELECT ... FROM UNNEST(o.path) ...) per outer row
+    # does not vectorize well in DuckDB and took >2.5h without finishing
+    # against the real ~386GB CONUS baseline (confirmed on Hopper,
+    # 2026-07-31) -- a single unbounded CROSS JOIN UNNEST + JOIN (the same
+    # primitive load_path_index_disrupted_candidates already uses) is a
+    # semi-join DuckDB can vectorize properly. SELECT DISTINCT collapses the
+    # duplicate o.* rows produced when a path crosses more than one damaged
+    # edge (same od_id, identical column values, so DISTINCT is exact, not
+    # an approximation).
     result = conn.execute(
         f"""
-        SELECT o.*
+        SELECT DISTINCT o.*
         FROM {source_sql} o
-        WHERE EXISTS (
-            SELECT 1 FROM UNNEST(o.path) AS u(e_id)
-            WHERE u.e_id IN (SELECT e_id FROM damaged_edges)
-        )
+        CROSS JOIN UNNEST(o.path) AS u(e_id)
+        JOIN damaged_edges d ON d.e_id = u.e_id
         """
     ).fetchdf()
     conn.unregister("damaged_edges")

@@ -16,7 +16,16 @@
 # because DuckDB was told it could use more (100GB) than the job's actual
 # memory ceiling (96GB), the same headroom mistake Pass A's tuning already
 # had to learn from (see submit_cpu8_convergence.slurm).
-#SBATCH --time=03:00:00
+#
+# --time=06:00:00: a 3h budget was hit mid-query (not OOM, not crashed --
+# load_odpfc_source's original correlated EXISTS(SELECT...FROM UNNEST...)
+# query just didn't finish in time against the real ~386GB odpfc.pq).
+# Rewritten to a CROSS JOIN UNNEST + JOIN (a vectorizable semi-join DuckDB
+# can actually parallelize, same primitive load_path_index_disrupted_
+# candidates already used) -- should be much faster, but doubling the
+# budget here as a margin since this exact query hasn't been timed yet at
+# real CONUS scale.
+#SBATCH --time=06:00:00
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=128G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_run_multihazard_%j.out
