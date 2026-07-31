@@ -1,0 +1,28 @@
+#!/bin/bash
+#SBATCH --job-name=va_multihazard_run
+#SBATCH --partition=normal
+# Runs the (Pass-B-free) multi-hazard orchestrator: Script 2 (disruption,
+# full CONUS road network x VA-sized raster) -> Script 3 + 3_postprocess
+# (direct damage) -> Script 4 (rerouting cost, reads Pass A's own odpfc.pq
+# via a DuckDB-filtered scan) for each of the 4 real hazard events. NOT
+# login-node-safe -- Script 2 loads/intersects the full 483K-edge CONUS
+# network, and Script 4 scans a ~386GB baseline odpfc file; both got
+# SIGKILL'd on hopper1's login node (2026-07-30) with no Python traceback,
+# the classic OOM-on-shared-node signature already documented in
+# docs/ORC_HOPPER_SETUP.md.
+#SBATCH --time=03:00:00
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=96G
+#SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_run_multihazard_%j.out
+#SBATCH --error=/home/akothaw/multimodal_hazard_project/logs_run_multihazard_%j.err
+
+module purge
+source /home/akothaw/miniforge/bin/activate /scratch/akothaw/conda_envs/nird
+
+export RESIFLOW_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
+export NIRD_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
+
+python /scratch/akothaw/multimodal_hazard_data/code/ResiFlow/scripts/run_conus_va_multihazard.py \
+  --hazards-manifest ~/multimodal_hazard_project/hazards.json \
+  --results-variant convergence_cpu8_bounded18 \
+  --num-chunks 20 --num-cpu $SLURM_CPUS_PER_TASK
