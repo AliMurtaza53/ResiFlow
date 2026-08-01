@@ -89,6 +89,7 @@ def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
     conn = duckdb.connect()
     duckdb_memory_limit = os.environ.get("NIRD_DUCKDB_MEMORY_LIMIT", "24GB")
     conn.execute(f"PRAGMA memory_limit='{duckdb_memory_limit}'")
+    conn.execute("PRAGMA preserve_insertion_order=false")
     duckdb_temp_dir = os.environ.get("NIRD_DUCKDB_TEMP_DIRECTORY")
     if duckdb_temp_dir:
         conn.execute(f"PRAGMA temp_directory='{duckdb_temp_dir}'")
@@ -105,18 +106,29 @@ def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
     # A correlated EXISTS(SELECT ... FROM UNNEST(o.path) ...) per outer row
     # does not vectorize well in DuckDB and took >2.5h without finishing
     # against the real ~386GB CONUS baseline (confirmed on Hopper,
-    # 2026-07-31) -- a single unbounded CROSS JOIN UNNEST + JOIN (the same
-    # primitive load_path_index_disrupted_candidates already uses) is a
-    # semi-join DuckDB can vectorize properly. SELECT DISTINCT collapses the
-    # duplicate o.* rows produced when a path crosses more than one damaged
-    # edge (same od_id, identical column values, so DISTINCT is exact, not
-    # an approximation).
-    result = conn.execute(
+    # 2026-07-31). A single-query CROSS JOIN UNNEST + JOIN + SELECT DISTINCT
+    # o.* was faster but OOM'd trying to allocate 128GB in one shot -- it
+    # carries the FULL wide row (including the path array itself) through
+    # the UNNEST explosion for every row, before the join can narrow
+    # anything down: for 9.68M rows with dozens of edges/path, that's the
+    # heaviest column duplicated dozens of times per row, pre-filter.
+    # Two-stage fixes this: stage 1 explodes+joins carrying only the
+    # (lightweight, scalar) od_id, so nothing wide is duplicated; stage 2
+    # fetches full rows only for that already-small od_id set.
+    conn.execute(
         f"""
-        SELECT DISTINCT o.*
+        CREATE TEMP TABLE hit_od_ids AS
+        SELECT DISTINCT o.od_id
         FROM {source_sql} o
         CROSS JOIN UNNEST(o.path) AS u(e_id)
         JOIN damaged_edges d ON d.e_id = u.e_id
+        """
+    )
+    result = conn.execute(
+        f"""
+        SELECT o.*
+        FROM {source_sql} o
+        SEMI JOIN hit_od_ids h ON h.od_id = o.od_id
         """
     ).fetchdf()
     conn.unregister("damaged_edges")
