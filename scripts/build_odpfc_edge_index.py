@@ -13,11 +13,25 @@ finishing on the direct-UNNEST approach, having presumably taken a similar
 (unmeasured, interrupted-by-OOM) amount of time for a 1-damaged-edge hazard
 a day earlier.
 
-This script does the expensive explode exactly ONCE, chunked by od_id range
-(bounded, observable progress -- not one opaque multi-hour query) and
-streamed straight to parquet via COPY (no fetchdf() materialization into
-Python memory). Script 4's loader then does a cheap filtered lookup against
-this index instead of re-exploding per event.
+This script does the expensive explode exactly ONCE and streams it straight
+to parquet via a single COPY (no fetchdf() materialization into Python
+memory). Script 4's loader then does a cheap filtered lookup against this
+index instead of re-exploding per event.
+
+An earlier version of this script chunked by od_id range
+(``WHERE o.od_id BETWEEN start AND end``) to bound memory and show visible
+progress. That backfired badly on Hopper (2026-08-01): 3 of 346 chunks
+completed in 4h10m (~83 min/chunk -- ~20 days projected). The WHERE filter
+does not appear to push down through CROSS JOIN UNNEST, so every chunk was
+re-exploding the ENTIRE ~9.68M-row (well beyond that once accumulated
+across 18 iterations) table before filtering -- 346x the cost of doing it
+once, not a bounded subset of it. Fixed by dropping value-based chunking
+entirely: DuckDB's push-based vectorized execution should pipeline a plain
+project+explode+COPY (no blocking DISTINCT/GROUP BY/ORDER BY) without
+materializing the full exploded output in memory -- memory is bounded by
+internal buffer/vector and parquet-writer row-group sizes, not by total
+output size. This trades away per-chunk progress visibility for paying the
+explode cost exactly once instead of 346 times.
 
 Usage (on a compute node, not the login node -- see submit_build_edge_index.slurm)::
 
@@ -33,13 +47,11 @@ import os
 from pathlib import Path
 
 import duckdb
-from tqdm import tqdm
 
 
 def build_edge_od_index(
     odpfc_path: Path,
     output_dir: Path,
-    chunk_size: int = 500_000,
     memory_limit: str = "90GB",
     temp_dir: str | None = None,
     threads: int | None = None,
@@ -56,40 +68,28 @@ def build_edge_od_index(
     if temp_dir:
         conn.execute(f"PRAGMA temp_directory='{temp_dir}'")
 
-    max_od_id = conn.execute(f"SELECT MAX(od_id) FROM read_parquet('{odpfc_sql}')").fetchone()[0]
-    if max_od_id is None:
-        raise SystemExit(f"No rows found in {odpfc_path}")
-    max_od_id = int(max_od_id)
-
     output_dir.mkdir(parents=True, exist_ok=True)
-    total_rows = 0
-    for start in tqdm(range(0, max_od_id + 1, chunk_size), desc="Building edge/od_id index", unit="chunk"):
-        end = min(start + chunk_size - 1, max_od_id)
-        part_path = output_dir / f"part_{start:012d}.pq"
-        part_sql = str(part_path).replace("'", "''")
-        conn.execute(
-            f"""
-            COPY (
-                SELECT o.od_id, u.e_id
-                FROM read_parquet('{odpfc_sql}') o
-                CROSS JOIN UNNEST(o.path) AS u(e_id)
-                WHERE o.od_id BETWEEN {start} AND {end}
-            ) TO '{part_sql}' (FORMAT PARQUET)
-            """
-        )
-        rows = conn.execute(f"SELECT COUNT(*) FROM read_parquet('{part_sql}')").fetchone()[0]
-        total_rows += rows
-
+    part_path = output_dir / "part_000000000000.pq"
+    part_sql = str(part_path).replace("'", "''")
+    print(f"Streaming explode -> {part_path} (single pass, no chunking; this is the long step)")
+    conn.execute(
+        f"""
+        COPY (
+            SELECT o.od_id, u.e_id
+            FROM read_parquet('{odpfc_sql}') o
+            CROSS JOIN UNNEST(o.path) AS u(e_id)
+        ) TO '{part_sql}' (FORMAT PARQUET)
+        """
+    )
+    total_rows = conn.execute(f"SELECT COUNT(*) FROM read_parquet('{part_sql}')").fetchone()[0]
     conn.close()
-    print(f"Wrote edge/od_id index: {output_dir} ({total_rows:,} rows across "
-          f"{len(list(output_dir.glob('part_*.pq')))} parts)")
+    print(f"Wrote edge/od_id index: {output_dir} ({total_rows:,} rows)")
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--odpfc", type=Path, required=True, help="Path to the baseline's odpfc.pq")
     parser.add_argument("--output", type=Path, required=True, help="Output directory for index parts")
-    parser.add_argument("--chunk-size", type=int, default=500_000, help="od_id range per chunk")
     parser.add_argument("--memory-limit", default=os.environ.get("NIRD_DUCKDB_MEMORY_LIMIT", "90GB"))
     parser.add_argument("--temp-directory", default=os.environ.get("NIRD_DUCKDB_TEMP_DIRECTORY"))
     parser.add_argument("--threads", type=int, default=None)
@@ -98,7 +98,6 @@ def main() -> int:
     build_edge_od_index(
         args.odpfc,
         args.output,
-        chunk_size=args.chunk_size,
         memory_limit=args.memory_limit,
         temp_dir=args.temp_directory,
         threads=args.threads,
