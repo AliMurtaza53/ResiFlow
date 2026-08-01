@@ -81,10 +81,18 @@ def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
     but OOMs immediately against a CONUS-scale baseline's odpfc (hundreds of
     GB) -- this baseline is typically the Pass A convergence run itself
     (``base_scenario/<results_variant>/odpfc.pq``), read here as Script 4's
-    fallback when no Pass-B-specific event_candidates output exists. Mirrors
-    load_path_index_disrupted_candidates's filtered-query approach; simpler
-    here since odpfc's ``path`` column already stores e_id strings directly
-    (no edge_lookup index translation needed).
+    fallback when no Pass-B-specific event_candidates output exists.
+
+    Root-cause history (2026-07-31/08-01, confirmed on Hopper): CROSS JOIN
+    UNNEST(path) has to touch every edge of every one of the baseline's
+    ~9.68M paths to find matches, regardless of how many edges you're
+    matching against -- a hazard with 95 damaged edges ran 6+ hours without
+    finishing on a from-scratch explode. Doing that explode once PER HAZARD
+    EVENT (up to 4x for this project) was the real, avoidable cost -- see
+    scripts/build_odpfc_edge_index.py, which does the explode exactly once
+    into a persistent (e_id, od_id) index. If that index exists, use it (a
+    cheap filtered lookup, no UNNEST at query time); otherwise fall back to
+    the direct explode (fine for a small toy baseline, slow at CONUS scale).
     """
     conn = duckdb.connect()
     duckdb_memory_limit = os.environ.get("NIRD_DUCKDB_MEMORY_LIMIT", "24GB")
@@ -103,27 +111,36 @@ def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
         single_path = path.as_posix().replace("'", "''")
         source_sql = f"read_parquet('{single_path}')"
         logging.info("Loading filtered single odpfc parquet from %s", path)
-    # A correlated EXISTS(SELECT ... FROM UNNEST(o.path) ...) per outer row
-    # does not vectorize well in DuckDB and took >2.5h without finishing
-    # against the real ~386GB CONUS baseline (confirmed on Hopper,
-    # 2026-07-31). A single-query CROSS JOIN UNNEST + JOIN + SELECT DISTINCT
-    # o.* was faster but OOM'd trying to allocate 128GB in one shot -- it
-    # carries the FULL wide row (including the path array itself) through
-    # the UNNEST explosion for every row, before the join can narrow
-    # anything down: for 9.68M rows with dozens of edges/path, that's the
-    # heaviest column duplicated dozens of times per row, pre-filter.
-    # Two-stage fixes this: stage 1 explodes+joins carrying only the
-    # (lightweight, scalar) od_id, so nothing wide is duplicated; stage 2
-    # fetches full rows only for that already-small od_id set.
-    conn.execute(
-        f"""
-        CREATE TEMP TABLE hit_od_ids AS
-        SELECT DISTINCT o.od_id
-        FROM {source_sql} o
-        CROSS JOIN UNNEST(o.path) AS u(e_id)
-        JOIN damaged_edges d ON d.e_id = u.e_id
-        """
-    )
+
+    index_dir = path.parent / "odpfc_edge_index"
+    if index_dir.is_dir() and any(index_dir.glob("part_*.pq")):
+        index_pattern = (index_dir / "part_*.pq").as_posix().replace("'", "''")
+        logging.info("Using prebuilt edge/od_id index at %s", index_dir)
+        conn.execute(
+            f"""
+            CREATE TEMP TABLE hit_od_ids AS
+            SELECT DISTINCT idx.od_id
+            FROM read_parquet('{index_pattern}') idx
+            JOIN damaged_edges d ON d.e_id = idx.e_id
+            """
+        )
+    else:
+        logging.warning(
+            "No prebuilt edge/od_id index at %s -- falling back to a direct "
+            "UNNEST explode, which is slow at CONUS scale (confirmed 6h+ for "
+            "a 95-damaged-edge hazard). Run scripts/build_odpfc_edge_index.py "
+            "once against this baseline to avoid repeating this per hazard event.",
+            index_dir,
+        )
+        conn.execute(
+            f"""
+            CREATE TEMP TABLE hit_od_ids AS
+            SELECT DISTINCT o.od_id
+            FROM {source_sql} o
+            CROSS JOIN UNNEST(o.path) AS u(e_id)
+            JOIN damaged_edges d ON d.e_id = u.e_id
+            """
+        )
     result = conn.execute(
         f"""
         SELECT o.*
