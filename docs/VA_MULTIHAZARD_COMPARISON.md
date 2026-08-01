@@ -62,7 +62,11 @@ tweak — it was recognizing the explode only needs to happen **once per baselin
 not once per hazard.
 
 `scripts/build_odpfc_edge_index.py` builds a persistent `(e_id, od_id)` index,
-chunked by `od_id` range (bounded memory, visible progress), streamed to parquet.
+streamed to parquet in a single pass. (First attempt chunked this by `od_id`
+range for visible progress, which backfired: the `WHERE` filter didn't push
+down through `CROSS JOIN UNNEST`, so every chunk re-exploded the entire table --
+confirmed on Hopper as ~83 min/chunk, ~20 days projected across 346 chunks.
+Fixed by dropping chunking entirely; see the script's docstring.)
 `load_odpfc_source` checks for `<baseline_variant>/odpfc_edge_index/` first and
 does a cheap filtered lookup against it if present (no UNNEST at query time);
 falls back to the direct explode only if no index exists (toy baselines
