@@ -49,6 +49,26 @@ query (same shape as the existing `path_index` fallback), so it now scans instea
 materializes. Net effect: faster (no redundant re-solve), and *more* accurate (uses
 Pass A's full 18-iteration convergence rather than a bounded Pass B).
 
+## Resolved: per-hazard-event odpfc re-explode replaced with a one-time index (2026-08-01)
+
+Even after the Pass B fix, `load_odpfc_source`'s replacement query (`CROSS JOIN
+UNNEST(path)`) has to touch every edge of every one of the baseline's ~9.68M paths
+to find matches, regardless of how many damaged edges it's matching against — and
+it was doing that explode from scratch **per hazard event** (up to 4x). A
+1-damaged-edge hazard got far enough to hit an OOM (128GB single-allocation, fixed
+separately) before finishing; a 95-damaged-edge hazard (earthquake) ran 6+ hours
+without finishing at all under the same query. The real fix wasn't another query
+tweak — it was recognizing the explode only needs to happen **once per baseline**,
+not once per hazard.
+
+`scripts/build_odpfc_edge_index.py` builds a persistent `(e_id, od_id)` index,
+chunked by `od_id` range (bounded memory, visible progress), streamed to parquet.
+`load_odpfc_source` checks for `<baseline_variant>/odpfc_edge_index/` first and
+does a cheap filtered lookup against it if present (no UNNEST at query time);
+falls back to the direct explode only if no index exists (toy baselines
+unaffected). Run `experiments/va_multihazard/hopper/submit_build_edge_index.slurm`
+once per baseline variant before `submit_run_multihazard.slurm`.
+
 ## Open: direct-cost source and freight industry breakdown
 
 **Direct costs** (Script 3) currently price all four hazards off the same flood-only
