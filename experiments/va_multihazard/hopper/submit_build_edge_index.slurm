@@ -29,6 +29,9 @@
 #SBATCH --mem=128G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_edge_index_%j.out
 #SBATCH --error=/home/akothaw/multimodal_hazard_project/logs_edge_index_%j.err
+# hop059 excluded: confirmed broken site module tree there (2026-08-02),
+# see submit_run_multihazard.slurm's comment for the sacct evidence.
+#SBATCH --exclude=hop059
 
 module purge
 source /home/akothaw/miniforge/bin/activate /scratch/akothaw/conda_envs/nird

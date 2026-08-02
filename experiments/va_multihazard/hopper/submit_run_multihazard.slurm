@@ -30,6 +30,12 @@
 #SBATCH --mem=128G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_run_multihazard_%j.out
 #SBATCH --error=/home/akothaw/multimodal_hazard_project/logs_run_multihazard_%j.err
+# hop059 excluded: two consecutive jobs (9224623, 9224625, 2026-08-02) both
+# failed there in <40s with a broken site module tree (Lmod errors on
+# hosts/hopper and ohpc modulefiles -- nothing this script references),
+# before Python ever started. Confirmed via `sacct --format=NodeList` that
+# both ran on hop059. Node-local issue, not this job's environment/code.
+#SBATCH --exclude=hop059
 
 module purge
 source /home/akothaw/miniforge/bin/activate /scratch/akothaw/conda_envs/nird
