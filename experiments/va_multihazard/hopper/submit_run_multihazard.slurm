@@ -11,11 +11,16 @@
 # the classic OOM-on-shared-node signature already documented in
 # docs/ORC_HOPPER_SETUP.md.
 #
-# --mem=128G to match NIRD_DUCKDB_MEMORY_LIMIT=100GB (orchestrator default,
-# same as Pass A's own proven config) -- an earlier --mem=96G run OOM'd
-# because DuckDB was told it could use more (100GB) than the job's actual
-# memory ceiling (96GB), the same headroom mistake Pass A's tuning already
-# had to learn from (see submit_cpu8_convergence.slurm).
+# --mem=160G / NIRD_DUCKDB_MEMORY_LIMIT=130GB (30GB headroom): raised from
+# 128G/100GB after a real OOM on the earthquake event (401, 95 damaged
+# edges) -- the index-lookup query's SELECT DISTINCT od_id dedup scales with
+# how many OD pairs match, and 95 edges matches far more paths than a
+# single-edge flood closure does, so it needs a bigger hash structure than
+# the 28GB of prior headroom allowed. Confirmed via `scontrol show node` +
+# `sinfo` (2026-08-02) that normal-partition nodes have 180GB physical RAM
+# (RealMemory=180000MB), not 128GB -- the original 128G/100GB pairing was an
+# arbitrary carry-over from Pass A's config, not a real ceiling for this
+# node type; there was real headroom being left unused.
 #
 # --time=06:00:00: a 3h budget was hit mid-query (not OOM, not crashed --
 # load_odpfc_source's original correlated EXISTS(SELECT...FROM UNNEST...)
@@ -27,7 +32,7 @@
 # real CONUS scale.
 #SBATCH --time=06:00:00
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=128G
+#SBATCH --mem=160G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_run_multihazard_%j.out
 #SBATCH --error=/home/akothaw/multimodal_hazard_project/logs_run_multihazard_%j.err
 # hop059 excluded: two consecutive jobs (9224623, 9224625, 2026-08-02) both
@@ -42,6 +47,9 @@ source /home/akothaw/miniforge/bin/activate /scratch/akothaw/conda_envs/nird
 
 export RESIFLOW_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
 export NIRD_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
+# Overrides the orchestrator's own 100GB default (base_env.setdefault(...)
+# only applies when unset) -- see the --mem comment above for why.
+export NIRD_DUCKDB_MEMORY_LIMIT=130GB
 
 python /scratch/akothaw/multimodal_hazard_data/code/ResiFlow/scripts/run_conus_va_multihazard.py \
   --hazards-manifest ~/multimodal_hazard_project/hazards.json \
