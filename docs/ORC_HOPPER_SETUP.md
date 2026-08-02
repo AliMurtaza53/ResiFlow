@@ -94,10 +94,16 @@ cd ResiFlow
 # [tool.setuptools.packages.find] where = ["src"]). Without this step you
 # will get ModuleNotFoundError: No module named 'resiflow'.
 pip install -e . --no-deps   # --no-deps: the conda-forge installs above already cover the binary-heavy deps
-pip install nismod-snail psutil openpyxl   # remaining pyproject.toml deps not pulled in above
+pip install nismod-snail psutil openpyxl snkit tqdm   # remaining pyproject.toml deps not pulled in above
 
-# Sanity check before running anything real:
-python -c "import resiflow, igraph, duckdb, geopandas, rasterio, psutil; print('ok')"
+# Sanity check before running anything real -- import every core dependency,
+# not just a handful (snkit and tqdm were both missing from this list for a
+# while: `pip install -e .` prints a "requires X, which is not installed"
+# warning for exactly this reason, but it's easy to scroll past. A rebuild on
+# 2026-08-02 hit this for real: the environment "sanity-checked" clean
+# because `import resiflow` alone doesn't transitively import every module,
+# then failed 25 seconds into a real SLURM job on `import snkit`).
+python -c "import resiflow, igraph, duckdb, geopandas, rasterio, psutil, snkit, tqdm; print('ok')"
 ```
 
 `psutil` matters specifically because `NIRD_LOG_RSS_CHECKPOINTS=1` silently
