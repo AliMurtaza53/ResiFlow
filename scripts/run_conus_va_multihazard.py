@@ -117,11 +117,24 @@ def main() -> int:
     base_env["RESIFLOW_HAZARDS_MANIFEST"] = str(args.hazards_manifest.resolve())
     base_env["RESIFLOW_RESULTS_VARIANT"] = args.results_variant
     base_env["NIRD_RESULTS_VARIANT"] = args.results_variant
-    # Script 4's odpfc.pq fallback query can scan a large baseline file --
-    # give it the same memory/temp-dir tuning proven on Hopper for CONUS-
-    # scale DuckDB work (see submit_cpu8_bounded18.slurm). setdefault so an
-    # explicit SLURM wrapper's own exports still win.
+    # Script 4's odpfc.pq fallback query AND its own internal rerouting
+    # network_flow_model() call (a genuinely separate, smaller re-solve for
+    # just the disrupted candidates -- not Pass B, still needed) both go
+    # through the same itter_path/DuckDB aggregation code Pass A does. This
+    # env var got dropped when Pass B was eliminated on the wrong assumption
+    # it was Pass-B-specific tuning -- it isn't; anything calling
+    # network_flow_model needs it, and its absence (silently defaulting to
+    # the unchunked legacy_compact_sql strategy) caused a real OOM in
+    # Script 4's rerouting step even at a much smaller scale (148K rows) than
+    # CONUS-wide Pass A ever ran at (confirmed on Hopper, 2026-08-02). Full
+    # config restored to match Pass A's own proven tuning
+    # (submit_cpu8_bounded18.slurm). setdefault throughout so an explicit
+    # SLURM wrapper's own exports still win.
+    base_env.setdefault("NIRD_PATH_REALIZATION_STRATEGY", "duckdb_chunked_compact")
     base_env.setdefault("NIRD_DUCKDB_MEMORY_LIMIT", "100GB")
+    base_env.setdefault("NIRD_LCP_DEST_CHUNK_SIZE", "1000")
+    base_env.setdefault("NIRD_FLOW_DB_BATCH_SIZE", "50000")
+    base_env.setdefault("NIRD_LCP_SORT_BY_DEST_COUNT", "1")
     base_env.setdefault(
         "NIRD_DUCKDB_TEMP_DIRECTORY", str(soge_clusters.parent / "duckdb_tmp_va_multihazard")
     )
