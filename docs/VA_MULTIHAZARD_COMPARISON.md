@@ -73,7 +73,7 @@ falls back to the direct explode only if no index exists (toy baselines
 unaffected). Run `experiments/va_multihazard/hopper/submit_build_edge_index.slurm`
 once per baseline variant before `submit_run_multihazard.slurm`.
 
-## Open: direct-cost source and freight industry breakdown
+## Open: direct-cost source
 
 **Direct costs** (Script 3) currently price all four hazards off the same flood-only
 depth-damage-ratio curve (`damage_curves/damage_ratio_road_flood.xlsx`) — a known
@@ -81,20 +81,45 @@ shim. Real HAZUS unit-repair-cost tables per hazard are the intended real source
 needs the exact published figures from the user (same "supply the table, don't
 invent" pattern as landslide's HAZUS PGD coefficients), not yet started.
 
-**Freight-by-industry breakdown** (advisor ask, 2026-07-31): real 2022 FAF5
-county-level truck OD data already exists locally, tagged by SCTG-G5 commodity
-group — `soge_clusters/census_datasets/faf5_od_matrix_by_sctg.pq` (40M rows, same
-`origin_node`/`destination_node`/`Car21` schema the main assignment already uses,
-plus an `sctgG5` tag per row) and a precomputed national summary
-(`faf5_sctg_daily_trucks.csv`: Manufactured goods 26.8%, Ag/fish/forestry 23.4%,
-Mining 21.0%, Petroleum & coal 16.0%, Mixed & other 12.8%). Confirmed via repo-wide
-grep: **not currently referenced anywhere in `demand.py`, Script 1, or Script 4** —
-the assignment/rerouting pipeline has zero commodity-level disaggregation today.
-`plot_freight_industry_breakdown()` (new, `viz_data_loaders.py`) renders this using
-the real national shares as a proxy, applied proportionally to each hazard's freight
-total. Real per-hazard shares need Script 4's disrupted-candidate OD pairs joined
-against `faf5_od_matrix_by_sctg.pq` on the shared origin/destination keys — a scoped
-follow-up, not yet implemented.
+## Resolved: freight-by-industry breakdown now uses each hazard's real commodity mix (2026-08-03)
+
+The freight-industry panel (advisor ask, 2026-07-31) originally applied a flat
+national SCTG-G5 proxy (`SCTG_NATIONAL_SHARES`, from `faf5_sctg_daily_trucks.csv`)
+identically to every hazard, just rescaled by that hazard's own freight total. Since
+the shape was identical across hazards, the panel differed from the direct-vs-
+indirect panel only by a scalar and carried no information beyond it (flagged when
+reviewing the rendered mockup).
+
+**Fix:** `scripts/compute_freight_industry_mix.py` (new) joins Script 4's own
+disrupted freight OD pairs — the *same* candidate set that produces that event's
+`rerouting_cost_freight_usd` — against `faf5_od_matrix_by_sctg.pq` on
+`(origin_node, destination_node)`, and sums that matrix's `Car21` by `sctgG5` over
+just those disrupted pairs. This works because `faf5_od_matrix_by_sctg.pq`'s `Car21`
+is a true partition of the base `faf5_od_matrix.pq`'s `Car21`: verified locally that
+summing the 5 `sctgG5` groups reproduces the base file's `Car21` exactly (zero
+difference) for all ~9.77M OD pairs — so weighting by the disrupted pairs' `Car21`
+correctly attributes commodity shares of the flow that is actually being rerouted,
+not an independent estimate.
+
+Deliberately reuses (via `importlib`, not duplication) Script 4's own
+`load_odpfc_source` / `load_path_index_disrupted_candidates` / candidate-source
+fallback resolution / `overlay_assignment_flows`, so the OD pairs joined are
+identical to what Script 4 used for the cost this panel decomposes. Run once per
+hazard event, after that event's Script 4 run, writing
+`rerouting_analysis/<variant>/<scenario_param>/<event_id>/freight_industry_mix.json`
+— now wired into `run_conus_va_multihazard.py`'s per-event loop automatically.
+`load_freight_industry_mix()` (`viz_data_loaders.py`) reads these back into
+`plot_freight_industry_breakdown()`'s `industry_shares` param; hazards without a
+completed run still fall back to the national proxy individually, so a partially-
+finished multihazard run renders without erroring.
+
+Verified end-to-end (not just unit-tested) against a real local baseline
+(`results_variant=revision`, scenario_param=30, event_id=1, 124 damaged edges, 368
+disrupted freight OD pairs): produced real shares (Ag/fish/forestry 36.3%, Manuf.
+goods 37.7%, Mixed & other 14.1%, Petroleum & coal 5.5%, Mining 6.4%) visibly
+different in shape from the national proxy (23.4% / 26.8% / 12.8% / 16.0% / 21.0%
+respectively) — confirming the join is sensitive to each event's actual disrupted
+corridors rather than reproducing the flat proxy.
 
 ## Fragility curve status
 
@@ -120,3 +145,8 @@ follow-up, not yet implemented.
   palette; added `plot_freight_industry_breakdown()` using real (not invented)
   national SCTG-G5 shares, pending real per-hazard wiring (see above). Published as
   a mockup preview artifact pending real Hopper results.
+- **2026-08-03**: Wired real per-hazard freight commodity mixes (see "Resolved"
+  section above) -- `scripts/compute_freight_industry_mix.py` joins Script 4's
+  disrupted freight OD pairs against `faf5_od_matrix_by_sctg.pq`, now run
+  automatically per event by `run_conus_va_multihazard.py`. Verified end-to-end
+  against a real local baseline; pytest stayed at 103 passed / 3 skipped.

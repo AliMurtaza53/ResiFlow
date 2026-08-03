@@ -73,9 +73,18 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 VIZ_DIR = REPO_ROOT / "scripts" / "visualizations"
+if str(VIZ_DIR) not in sys.path:
+    sys.path.insert(0, str(VIZ_DIR))
 PYTHON = sys.executable
 
 from resiflow.utils import load_config  # noqa: E402 (after sys.path setup above)
+from viz_data_loaders import MULTIHAZARD_PANEL_ORDER  # noqa: E402
+
+# hazard_type/flood_subtype -> the exact display label build_multihazard_summary_table()
+# uses (e.g. "Flood surface", "Earthquake") -- load_freight_industry_mix() keys its
+# lookup by that same label, so --hazard-label here must match it exactly, not the
+# raw hazard_type/subtype strings.
+HAZARD_LABELS = {(h, s): label for h, s, label in MULTIHAZARD_PANEL_ORDER}
 
 
 def run_script(name: str, args: list, env: dict) -> None:
@@ -169,8 +178,38 @@ def main() -> int:
             env,
         )
 
-    if str(VIZ_DIR) not in sys.path:
-        sys.path.insert(0, str(VIZ_DIR))
+        # Real per-hazard freight commodity mix (replaces the flat national
+        # SCTG proxy plot_freight_industry_breakdown() used before this was
+        # wired -- see docs/VA_MULTIHAZARD_COMPARISON.md "Open: ... freight
+        # industry breakdown"). Reuses Script 4's own disrupted-candidate
+        # loading, so it must run after Script 4 (needs road_links/damage
+        # outputs Script 4 also depends on), not in place of it. Writes into
+        # the same rerouting_analysis/<variant>/<scenario_param>/<event_id>/
+        # directory Script 4 already writes cost CSVs into.
+        industry_mix_out = (
+            results_root
+            / "rerouting_analysis"
+            / args.results_variant
+            / str(scenario_param)
+            / str(event_id)
+            / "freight_industry_mix.json"
+        )
+        hazard_label = HAZARD_LABELS.get((hazard_type, subtype), subtype or hazard_type)
+        run_script(
+            "compute_freight_industry_mix.py",
+            [
+                scenario_param,
+                event_id,
+                "--results-variant",
+                args.results_variant,
+                "--hazard-label",
+                hazard_label,
+                "--output",
+                industry_mix_out,
+            ],
+            env,
+        )
+
     from viz_data_loaders import build_multihazard_summary_table, validate_multihazard_summary
 
     summary = build_multihazard_summary_table(results_root, args.results_variant, event_key=1)
