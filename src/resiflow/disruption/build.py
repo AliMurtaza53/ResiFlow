@@ -307,9 +307,14 @@ def run_disruption(
 
             base_path = Path(load_config()["paths"]["soge_clusters"])
         if hazard_source is None:
-            hazard_source = resolve_real_source(base_path, "earthquake") or EarthquakeHazardSource(
-                base_path
+            earthquake_subtype = (
+                scenario.hazard_subtype
+                or os.environ.get("RESIFLOW_EARTHQUAKE_SUBTYPE", "").strip()
+                or None
             )
+            hazard_source = resolve_real_source(
+                base_path, "earthquake", hazard_subtype=earthquake_subtype
+            ) or EarthquakeHazardSource(base_path)
         run_intensity_disruption(
             path_key,
             event_key,
