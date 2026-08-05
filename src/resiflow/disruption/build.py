@@ -388,7 +388,11 @@ def run_disruption(
 
         from resiflow.hazards.real_va import resolve_real_source
 
-        flood_subtype = _os.environ.get("RESIFLOW_FLOOD_SUBTYPE", "flood_surface")
+        flood_subtype = (
+            scenario.hazard_subtype
+            or _os.environ.get("RESIFLOW_FLOOD_SUBTYPE", "").strip()
+            or "flood_surface"
+        )
         hazard_source = resolve_real_source(base_path, "flood", flood_subtype=flood_subtype)
 
     if hazard_source is None:

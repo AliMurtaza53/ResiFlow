@@ -23,21 +23,56 @@ derived PGD raster comes from `scripts/compute_landslide_pgd.py`
 EPSG:4326 is USGS ShakeMap's standard product CRS but is an assumption here, not
 read from the file itself.
 
-## Resolved: earthquake default switched to real ShakeMap PGA (2026-08-03)
+## Evaluated: two new raw hazard rasters (2026-08-03)
 
 User supplied two new raw hazard rasters for evaluation: `Harvey_Depths_3m_Final.gdb.zip`
 (Hurricane Harvey flood depths) and `M5_8_ShakeMap_raster.zip` (USGS ShakeMap for the
-2011 Mineral, VA M5.8 event). Evaluated both before wiring anything in:
+2011 Mineral, VA M5.8 event). Evaluated both before wiring anything in -- see
+"Resolved: Harvey wired in as its own case study" and "Resolved: earthquake default
+switched to real ShakeMap PGA" below for what happened with each.
 
-**Harvey**: inspected via GDAL's `/vsizip/` (39GB zip, ~84GB uncompressed at 3m
+## Resolved: Harvey wired in as its own case study, not a VA replacement (2026-08-04)
+
+Inspected via GDAL's `/vsizip/` (39GB zip, ~84GB uncompressed at 3m
 resolution, 150074×140878 pixels). Bounds: lon [-97.88, -93.53], lat [27.44, 31.52]
 (EPSG:4269) — the greater Houston/Texas Gulf Coast area. **Zero spatial overlap**
 with the VA bbox (lon [-83.68, -74.90], lat [36.60, 38.71]) — this is fundamentally
-a different region's data and cannot serve as a VA flood default. Not wired in;
-blocked pending the user clarifying intended use (a separate case-study region? a
-different comparison entirely?).
+a different region's data and cannot serve as a VA flood default.
 
-**Mineral ShakeMap**: real USGS product (`.flt`/`.hdr` mean+std grids for
+Resolution: user confirmed this is intentional (it's the best-resolution defensible
+flood-depth grid currently on hand; VA-specific options -- Helene south-VA high-water
+marks, etc. -- are still being sourced) and asked to wire it in as its own case study
+rather than force it onto VA. Since the road network stays CONUS-scale regardless of
+which region's raster is used (only the hazard raster is region-sized -- true for VA
+too), this is architecturally a new `flood_harvey_houston` hazard_subtype at
+`scenario_param=304`, not a VA flood replacement. `RealFloodHarveyHoustonSource`
+(`src/resiflow/hazards/real_va.py`) reads it once aligned.
+
+Confirmed locally (2026-08-03) that this raster is **not tractable to process on a
+laptop**: two independent attempts (a windowed 5000×5000px read, and a streaming
+decimated `reproject()` straight to a 50m target using `rasterio.band()` as source,
+never materializing the full array) both exceeded a 100s timeout reading live from
+the zip -- the FileGDB raster's block-indexed random access is efficient against a
+real on-disk directory but not against zip-compressed storage at this scale.
+`scripts/prepare_harvey_depths.py` (new) does the same streaming reproject, meant to
+run on Hopper against an **extracted** (unzipped) copy: reprojects directly to
+EPSG:9311 at a configurable resolution (default 50m, matching VA's convention) using
+`Resampling.average` (appropriate for a ~278x-by-area downsample), deriving the
+target grid from the source's own bounds since no pre-existing Houston reference
+raster exists. Writes straight to the `inputs/va_multihazard_aligned/
+flood_harvey_houston/event_1.tif` convention -- running it through
+`align_hazard_rasters.py` afterwards would resample a second time for no benefit,
+and that script's full-array read is exactly what's infeasible at this scale.
+**Not yet run** (needs the ~84GB extracted file on Hopper's scratch, not this
+laptop) -- `resolve_real_source()`/registry wiring is in place and tested (returns
+`None` gracefully until the aligned raster exists), but no real Harvey numbers exist
+yet. Confirmed no hardcoded VA-only spatial clip would interfere: the leftover
+`fairfax_study_area.gpkg` check in `SiouxFallsMultihazardSource.__init__` only
+matches toy/test fixture directories, never the real `soge_clusters` base path.
+
+## Resolved: earthquake default switched to real ShakeMap PGA (2026-08-03)
+
+Real USGS product (`.flt`/`.hdr` mean+std grids for
 MMI/PGA/PGV/PSA@0.3,1.0,3.0s). Two things needed resolving before use:
 1. **Units**: ShakeMap's `_mean` grids for PGA/PSA are natural-log(g), not linear g
    (confirmed via USGS's own `shakelib.gmice.gmice` docs: "Ground motion amplitude;
@@ -217,5 +252,15 @@ corridors rather than reproducing the flat proxy.
   ShakeMap PGA in as the new earthquake default (`scenario_param=401`), retiring
   NSHM 2023 to `scenario_param=402` (still fully runnable). Hurricane Harvey's flood
   depth raster evaluated and found to have zero spatial overlap with the VA bbox
-  (Houston/Texas Gulf Coast, not VA) -- not wired in, blocked on user clarifying
-  intended use.
+  (Houston/Texas Gulf Coast, not VA).
+- **2026-08-04**: Wired Harvey in as its own case study (`scenario_param=304`,
+  `flood_harvey_houston`) rather than a VA flood replacement, per user direction --
+  same CONUS network, region-specific raster only, same pattern VA already uses.
+  `scripts/prepare_harvey_depths.py` added for the Hopper-side prep (confirmed
+  locally this raster isn't tractable to process on a laptop -- see "Resolved:
+  Harvey wired in" above); registry/source-class wiring tested, but no real Harvey
+  numbers exist yet pending that Hopper run. Also generalized `build.py`'s flood
+  block to prefer `scenario.hazard_subtype` over a possibly-stale
+  `RESIFLOW_FLOOD_SUBTYPE` env var, mirroring the earthquake fix (a latent
+  correctness bug: an explicit `scenario_param` could previously be silently
+  overridden by a leftover env var from a prior run).

@@ -65,6 +65,13 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(301, "flood", hazard_subtype="flood_surface", closure_threshold=30, label="flood_surface"),
     HazardScenario(302, "flood", hazard_subtype="flood_river", closure_threshold=30, label="flood_river"),
     HazardScenario(303, "flood", hazard_subtype="flood_coastal", closure_threshold=30, label="flood_coastal"),
+    # Real Hurricane Harvey depths, Houston/Harris County TX -- NOT a VA
+    # scenario (zero bbox overlap, see docs/VA_MULTIHAZARD_COMPARISON.md,
+    # "Harvey" section). A separate case study reusing the same CONUS
+    # network/pipeline, not a VA flood_subtype.
+    HazardScenario(
+        304, "flood", hazard_subtype="flood_harvey_houston", closure_threshold=30, label="flood_harvey_houston"
+    ),
     HazardScenario(401, "earthquake", closure_threshold=25, label="earthquake"),
     # Real NSHM 2023 (probabilistic, 475yr RP) contour-rasterized PGA, the
     # earthquake default before 2026-08-03. Kept reachable under its own

@@ -1,10 +1,18 @@
-"""Real VA hazard rasters (flood/earthquake/landslide/winter_storm), aligned.
+"""Real hazard rasters (flood/earthquake/landslide/winter_storm), aligned.
 
 Reuses SiouxFallsMultihazardSource's event-file-map/directory-scan logic
 (hazards/sioux_falls_multihazard.py) against a different root:
 inputs/va_multihazard_aligned/<hazard_subtype>/event_<id>.tif -- the output
 convention align_hazard_rasters.py writes to. See
 docs/VA_MULTIHAZARD_COMPARISON.md for the full data-provenance story.
+
+Despite the module/directory name (a holdover from when every hazard here
+was VA-specific), this now also holds non-VA case studies keyed by their own
+hazard_subtype -- e.g. RealFloodHarveyHoustonSource, whose raster covers
+Houston/Harris County, TX, not VA. The road network stays CONUS-scale
+regardless (only the hazard raster is region-sized), so a non-VA event just
+needs its own aligned raster under this same directory convention; nothing
+else about the pipeline is VA-specific.
 
 Landslide's raw source is a USGS susceptibility model (a score/class), not a
 displacement magnitude in mm, which is what fragility/landslide_categorical.py's
@@ -27,6 +35,29 @@ REAL_VA_DIR = "va_multihazard_aligned"
 class RealFloodSurfaceSource(SiouxFallsMultihazardSource):
     hazard_type = "flood"
     hazard_subtype = "flood_surface"
+    intensity_unit = "m_depth"
+    raster_field = "surface"
+    multihazard_dir = REAL_VA_DIR
+
+
+class RealFloodHarveyHoustonSource(SiouxFallsMultihazardSource):
+    """Real Hurricane Harvey flood depths, Houston/Harris County, TX.
+
+    NOT a VA source -- see docs/VA_MULTIHAZARD_COMPARISON.md, "Harvey"
+    section. Evaluated as a candidate VA flood default and found to have
+    zero spatial overlap with the VA bbox (its extent is lon
+    [-97.88,-93.53], lat [27.44,31.52], confirmed via rasterio 2026-08-03);
+    wired in instead as its own separate case study, since the road network
+    is CONUS-scale regardless of which region's raster is used.
+
+    scripts/prepare_harvey_depths.py produces the aligned input directly
+    (streaming reproject from the ~84GB native-3m source, since a full-array
+    read the way align_hazard_rasters.py does it for the other hazards isn't
+    tractable at this raster's scale).
+    """
+
+    hazard_type = "flood"
+    hazard_subtype = "flood_harvey_houston"
     intensity_unit = "m_depth"
     raster_field = "surface"
     multihazard_dir = REAL_VA_DIR
@@ -111,6 +142,7 @@ def resolve_real_source(
     mapping = {
         "flood": RealFloodSurfaceSource,
         "flood_surface": RealFloodSurfaceSource,
+        "flood_harvey_houston": RealFloodHarveyHoustonSource,
         "earthquake": RealEarthquakeShakeMapSource,
         "earthquake_shakemap_mineral": RealEarthquakeShakeMapSource,
         "earthquake_nshm": RealEarthquakeSource,
