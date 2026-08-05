@@ -108,13 +108,20 @@ def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
     pair recurs once per iteration it got rerouted through, and the
     overlay_assignment_flows() caller was already deduping down to one row
     per (origin_node, destination_node) anyway -- just AFTER paying the full
-    materialization cost. Doing that same dedup here, in SQL (QUALIFY +
-    ROW_NUMBER, ordered by od_id so the lowest-iteration path wins), lets
-    DuckDB's columnar engine do it before anything becomes a Python object,
-    instead of pandas doing it after. Every row QUALIFY keeps still passed
-    the JOIN against hit_od_ids, so it's still guaranteed (by construction)
-    to have at least one edge in ITS OWN path in damaged_edges -- this
-    changes WHEN the existing dedup happens, not its semantics.
+    materialization cost.
+
+    First attempt at a fix (2026-08-04) did that same dedup in SQL, but
+    against ``o.*`` directly (``QUALIFY ROW_NUMBER() OVER (PARTITION BY
+    origin_node, destination_node ORDER BY od_id) = 1``) -- confirmed on
+    Hopper (2026-08-05) that this STILL OOMs (120.7/121GiB used), because
+    the window function has to buffer/sort every matched row, ``path``
+    array included, to rank it -- reducing the final result size doesn't
+    reduce the peak memory needed to compute it. Fixed by ranking on a
+    NARROW projection first (just ``od_id``, ``origin_node``,
+    ``destination_node`` -- Parquet's columnar layout means this never
+    touches ``path`` at all, same narrow footprint as Stage 1, which was
+    already proven tractable at this row count), then joining back to fetch
+    full rows only for the winning (much smaller) od_id set.
     """
     conn = duckdb.connect()
     duckdb_memory_limit = os.environ.get("NIRD_DUCKDB_MEMORY_LIMIT", "24GB")
@@ -163,14 +170,37 @@ def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
             JOIN damaged_edges d ON d.e_id = u.e_id
             """
         )
+    # Narrow-then-widen: rank on just (od_id, origin_node, destination_node) --
+    # NOT `o.*` -- so the window function never has to buffer every matched
+    # row's `path` array to do the ranking. Confirmed on Hopper (2026-08-05)
+    # that doing the QUALIFY/ROW_NUMBER dedup against `o.*` directly still
+    # OOMs (120.7/121GiB used) even though the FINAL result is small, because
+    # DuckDB has to materialize/sort the full-width intermediate (path arrays
+    # included) to rank it before QUALIFY can discard the losers. Parquet's
+    # columnar layout means a query that only ever references od_id/
+    # origin_node/destination_node never touches the path column's data at
+    # all, so this ranking pass has the same narrow footprint as Stage 1
+    # (hit_od_ids), which already proved tractable at this row count.
+    conn.execute(
+        f"""
+        CREATE TEMP TABLE winning_od_ids AS
+        SELECT od_id FROM (
+            SELECT
+                o.od_id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY o.origin_node, o.destination_node ORDER BY o.od_id
+                ) AS rn
+            FROM {source_sql} o
+            JOIN hit_od_ids h ON h.od_id = o.od_id
+        ) ranked
+        WHERE rn = 1
+        """
+    )
     result = conn.execute(
         f"""
         SELECT o.*
         FROM {source_sql} o
-        JOIN hit_od_ids h ON h.od_id = o.od_id
-        QUALIFY ROW_NUMBER() OVER (
-            PARTITION BY o.origin_node, o.destination_node ORDER BY o.od_id
-        ) = 1
+        JOIN winning_od_ids w ON w.od_id = o.od_id
         """
     ).fetchdf()
     conn.unregister("damaged_edges")

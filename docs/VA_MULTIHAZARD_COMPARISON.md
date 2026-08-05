@@ -198,20 +198,26 @@ existing caller (`overlay_assignment_flows`) was already deduping the result
 down to one row per `(origin_node, destination_node)` — just *after* paying
 the cost of materializing every iteration's copy as Python objects first.
 
-Fix: push that same dedup into the SQL query itself (`QUALIFY ROW_NUMBER()
-OVER (PARTITION BY origin_node, destination_node ORDER BY od_id) = 1`), so
-DuckDB's columnar engine does it before anything becomes a pandas row —
-changes *when* the existing dedup happens, not its semantics (every row kept
-still passed the join against `hit_od_ids`, so it's still guaranteed to have
-a damaged edge in its own path). Verified locally: identical row count on a
-baseline with no actual duplication (368 rows, unchanged — confirms the
-change is a no-op when there's nothing to dedupe), zero duplicate
-`(origin_node, destination_node)` pairs in the output. Full pytest suite
-stayed at 103 passed / 3 skipped. Not yet re-run against the real
-winter_storm job on Hopper — expected to reduce Stage 2's row count from
-16.67M down to the true count of distinct disrupted OD pairs, which is
-unknown until re-run but should be dramatically smaller given how much
-iteration-repetition this diagnostic exposed.
+**First fix attempt (2026-08-04), confirmed insufficient on Hopper (2026-08-05):**
+pushed the dedup into SQL against `o.*` directly (`QUALIFY ROW_NUMBER() OVER
+(PARTITION BY origin_node, destination_node ORDER BY od_id) = 1`). Verified
+correct locally (identical row count on a baseline with no real duplication,
+zero duplicate pairs in output, pytest 103/3), but **still OOM'd on the real
+winter_storm job** (`120.7/121GiB used` at failure). Reducing the *output*
+size doesn't reduce the *peak* memory needed to compute it: the window
+function has to buffer/sort every one of the 16.67M matched rows — `path`
+array included — to rank them, before `QUALIFY` can discard the losers.
+
+**Working fix (2026-08-05):** narrow-then-widen. Rank on a projection of just
+`od_id`, `origin_node`, `destination_node` — never referencing `path` at all
+— so Parquet's columnar layout means that column's data is never touched
+during ranking (same narrow footprint as Stage 1's `hit_od_ids`, already
+proven tractable at this row count). Only *then* join the winning
+(deduplicated, much smaller) `od_id` set back against the full table to fetch
+complete rows. Verified locally: identical 368-row result (no-op on a
+baseline with nothing to dedupe), zero duplicate pairs, pytest stayed at 103
+passed / 3 skipped. Not yet re-run against the real winter_storm job on
+Hopper.
 
 ## Open: direct-cost source
 
@@ -307,13 +313,19 @@ corridors rather than reproducing the flat proxy.
   `RESIFLOW_FLOOD_SUBTYPE` env var, mirroring the earthquake fix (a latent
   correctness bug: an explicit `scenario_param` could previously be silently
   overridden by a leftover env var from a prior run).
-- **2026-08-04**: Diagnosed and fixed winter_storm's (601) OOM at the source, not
-  by raising `--mem` again -- an interactive, timed, two-stage breakdown of
+- **2026-08-04**: Diagnosed winter_storm's (601) OOM at the source, not by raising
+  `--mem` again -- an interactive, timed, two-stage breakdown of
   `load_odpfc_source` (see "Resolved: Stage 2 row explosion for widespread
   hazards" above) found Stage 1 (index lookup) completes cleanly in ~20 min; Stage
   2 was pulling 16.67M rows (not OD pairs -- `od_id` recurs once per Pass-A
   iteration a pair got rerouted through) into one pandas DataFrame before its
-  caller deduped it back down anyway. Moved that dedup into the SQL query itself
-  (`QUALIFY ROW_NUMBER() ... = 1`). Verified locally (no-op on a baseline with no
-  duplication, zero duplicate OD pairs in output); pytest stayed at 103 passed / 3
-  skipped. Not yet re-run against the real Hopper job.
+  caller deduped it back down anyway. First fix attempt moved that dedup into SQL
+  (`QUALIFY ROW_NUMBER() ... = 1` against `o.*`) -- verified locally, but this
+  still OOM'd on the real Hopper job (confirmed 2026-08-05): ranking against
+  full-width rows still has to buffer every `path` array to compute the ranking,
+  even though the final output is small.
+- **2026-08-05**: Fixed the above properly -- narrow-then-widen. Rank on just
+  `od_id`/`origin_node`/`destination_node` (never touching `path`, same narrow
+  footprint as Stage 1), then join the winning od_id set back for full rows.
+  Verified locally (368-row no-op, zero duplicate pairs); pytest stayed at 103
+  passed / 3 skipped. Not yet re-run against the real Hopper job.
