@@ -93,6 +93,28 @@ def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
     into a persistent (e_id, od_id) index. If that index exists, use it (a
     cheap filtered lookup, no UNNEST at query time); otherwise fall back to
     the direct explode (fine for a small toy baseline, slow at CONUS scale).
+
+    Second root-cause round (2026-08-03/04, confirmed on Hopper): even with
+    the index, a hazard whose damaged-edge set is a large fraction of the
+    network (winter_storm/601: 11,556 of 483K CONUS edges, 2.4%) can still
+    OOM -- diagnosed by timing the two stages of this function separately.
+    Stage 1 (this function's ``hit_od_ids`` build, just distinct od_id
+    matches) completed in ~20 min at 8 CPU/140GB with no issue. The old
+    Stage 2 (``SELECT o.* ... SEMI JOIN`` -> ``fetchdf()``) is what died: it
+    pulled all 16.67M matched ROWS (not OD pairs) into one pandas
+    DataFrame, each with a ``path`` list column -- ``od_id`` is assigned
+    fresh per Pass-A iteration (``road_revised.py``'s
+    ``next_od_id_base + ROW_NUMBER()``), so the same (origin, destination)
+    pair recurs once per iteration it got rerouted through, and the
+    overlay_assignment_flows() caller was already deduping down to one row
+    per (origin_node, destination_node) anyway -- just AFTER paying the full
+    materialization cost. Doing that same dedup here, in SQL (QUALIFY +
+    ROW_NUMBER, ordered by od_id so the lowest-iteration path wins), lets
+    DuckDB's columnar engine do it before anything becomes a Python object,
+    instead of pandas doing it after. Every row QUALIFY keeps still passed
+    the JOIN against hit_od_ids, so it's still guaranteed (by construction)
+    to have at least one edge in ITS OWN path in damaged_edges -- this
+    changes WHEN the existing dedup happens, not its semantics.
     """
     conn = duckdb.connect()
     duckdb_memory_limit = os.environ.get("NIRD_DUCKDB_MEMORY_LIMIT", "24GB")
@@ -145,7 +167,10 @@ def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
         f"""
         SELECT o.*
         FROM {source_sql} o
-        SEMI JOIN hit_od_ids h ON h.od_id = o.od_id
+        JOIN hit_od_ids h ON h.od_id = o.od_id
+        QUALIFY ROW_NUMBER() OVER (
+            PARTITION BY o.origin_node, o.destination_node ORDER BY o.od_id
+        ) = 1
         """
     ).fetchdf()
     conn.unregister("damaged_edges")

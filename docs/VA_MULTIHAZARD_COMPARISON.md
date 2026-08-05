@@ -170,6 +170,49 @@ falls back to the direct explode only if no index exists (toy baselines
 unaffected). Run `experiments/va_multihazard/hopper/submit_build_edge_index.slurm`
 once per baseline variant before `submit_run_multihazard.slurm`.
 
+## Resolved: Stage 2 row explosion for widespread hazards (2026-08-03/04)
+
+The index fix above didn't fully solve it for hazards with a widespread
+damaged-edge footprint. `winter_storm` (601): 11,556 of the CONUS network's
+483K edges damaged (2.4%, from Winter Storm Jonas's real footprint plus a
+25mm/~1in "minor" threshold) — over 100x earthquake's 95 damaged edges. This
+OOM'd (SIGKILL, confirmed via `oom_kill` in the SLURM error log) even after
+the index fix, at 8 CPU / `NIRD_DUCKDB_MEMORY_LIMIT=130GB` / `--mem=160G`.
+
+Diagnosed by splitting `load_odpfc_source` into its two stages and timing
+them separately via an interactive `srun` (not `sbatch` — watched live, same
+method that found the missing `snkit` dependency): Stage 1 (`hit_od_ids`,
+the distinct-`od_id` index lookup) completed cleanly in ~20 min at
+production-comparable resources (8 CPU / 140GB) — not the bottleneck. Stage 2
+(the old `SELECT o.* ... SEMI JOIN ... -> fetchdf()`) is what died: it pulled
+**16.67 million matched rows** into one pandas DataFrame, each carrying a
+`path` list column.
+
+Root cause of why 16.67M is so much larger than the true number of disrupted
+OD *pairs*: `od_id` is assigned fresh per Pass-A iteration
+(`road_revised.py`'s `next_od_id_base + ROW_NUMBER()`), not a stable
+per-(origin,destination) key — the same OD pair gets a new `od_id`, and can
+get a genuinely different realized path, each time capacity-constrained
+rerouting sends it a different way across Pass A's 18 iterations. The
+existing caller (`overlay_assignment_flows`) was already deduping the result
+down to one row per `(origin_node, destination_node)` — just *after* paying
+the cost of materializing every iteration's copy as Python objects first.
+
+Fix: push that same dedup into the SQL query itself (`QUALIFY ROW_NUMBER()
+OVER (PARTITION BY origin_node, destination_node ORDER BY od_id) = 1`), so
+DuckDB's columnar engine does it before anything becomes a pandas row —
+changes *when* the existing dedup happens, not its semantics (every row kept
+still passed the join against `hit_od_ids`, so it's still guaranteed to have
+a damaged edge in its own path). Verified locally: identical row count on a
+baseline with no actual duplication (368 rows, unchanged — confirms the
+change is a no-op when there's nothing to dedupe), zero duplicate
+`(origin_node, destination_node)` pairs in the output. Full pytest suite
+stayed at 103 passed / 3 skipped. Not yet re-run against the real
+winter_storm job on Hopper — expected to reduce Stage 2's row count from
+16.67M down to the true count of distinct disrupted OD pairs, which is
+unknown until re-run but should be dramatically smaller given how much
+iteration-repetition this diagnostic exposed.
+
 ## Open: direct-cost source
 
 **Direct costs** (Script 3) currently price all four hazards off the same flood-only
@@ -264,3 +307,13 @@ corridors rather than reproducing the flat proxy.
   `RESIFLOW_FLOOD_SUBTYPE` env var, mirroring the earthquake fix (a latent
   correctness bug: an explicit `scenario_param` could previously be silently
   overridden by a leftover env var from a prior run).
+- **2026-08-04**: Diagnosed and fixed winter_storm's (601) OOM at the source, not
+  by raising `--mem` again -- an interactive, timed, two-stage breakdown of
+  `load_odpfc_source` (see "Resolved: Stage 2 row explosion for widespread
+  hazards" above) found Stage 1 (index lookup) completes cleanly in ~20 min; Stage
+  2 was pulling 16.67M rows (not OD pairs -- `od_id` recurs once per Pass-A
+  iteration a pair got rerouted through) into one pandas DataFrame before its
+  caller deduped it back down anyway. Moved that dedup into the SQL query itself
+  (`QUALIFY ROW_NUMBER() ... = 1`). Verified locally (no-op on a baseline with no
+  duplication, zero duplicate OD pairs in output); pytest stayed at 103 passed / 3
+  skipped. Not yet re-run against the real Hopper job.
