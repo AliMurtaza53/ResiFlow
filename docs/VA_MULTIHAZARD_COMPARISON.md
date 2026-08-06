@@ -216,8 +216,23 @@ proven tractable at this row count). Only *then* join the winning
 (deduplicated, much smaller) `od_id` set back against the full table to fetch
 complete rows. Verified locally: identical 368-row result (no-op on a
 baseline with nothing to dedupe), zero duplicate pairs, pytest stayed at 103
-passed / 3 skipped. Not yet re-run against the real winter_storm job on
-Hopper.
+passed / 3 skipped.
+
+**Confirmed working on the real Hopper job (2026-08-05):** an interactive test
+on the `bigmem` partition (`amd069-090`, 1TB+ RAM per `sinfo`) got
+`load_odpfc_source` to complete in ~37 min with **zero OOM**, producing
+1,774,874 candidate rows — down from the broken version's 16.67M, a ~9.4x
+reduction, matching the iteration-repetition theory. Script 4 then proceeded
+cleanly into its own internal rerouting `network_flow_model()` re-solve
+(1.77M disrupted freight OD pairs), completing iteration 1 in ~32 min and
+reaching 67% through iteration 2's LCP dispatch before the interactive
+session's own 2h wall-clock limit (not a crash) cut it off. That re-solve's
+iteration controls are `max_iterations=unbounded` (`stagnant_limit=3`), so
+the true total runtime across all iterations — and however many recovery-day
+scenarios follow — isn't known yet, but the memory bottleneck this whole
+investigation was chasing is resolved. Resubmitted as an unattended
+`sbatch` job (`experiments/va_multihazard/hopper/submit_winter_storm_bigmem.slurm`,
+24h budget, `bigmem`) rather than another timed-out interactive session.
 
 ## Open: direct-cost source
 
@@ -328,4 +343,10 @@ corridors rather than reproducing the flat proxy.
   `od_id`/`origin_node`/`destination_node` (never touching `path`, same narrow
   footprint as Stage 1), then join the winning od_id set back for full rows.
   Verified locally (368-row no-op, zero duplicate pairs); pytest stayed at 103
-  passed / 3 skipped. Not yet re-run against the real Hopper job.
+  passed / 3 skipped. **Confirmed working on the real Hopper job** the same day
+  (see "Resolved: Stage 2 row explosion" above): `bigmem` partition, zero OOM,
+  16.67M candidate rows down to 1,774,874, Script 4 proceeded cleanly into its
+  own rerouting re-solve. Resubmitted unattended via
+  `submit_winter_storm_bigmem.slurm` (24h budget) since the remaining
+  bottleneck is wall-clock time for an unbounded-iteration convergence loop,
+  not memory.
