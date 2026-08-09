@@ -234,6 +234,62 @@ investigation was chasing is resolved. Resubmitted as an unattended
 `sbatch` job (`experiments/va_multihazard/hopper/submit_winter_storm_bigmem.slurm`,
 24h budget, `bigmem`) rather than another timed-out interactive session.
 
+## Root cause identified: `odpfc_edge_index` needs to be sorted by `e_id` (2026-08-09)
+
+The two fixes above (index-based lookup, then narrow-then-widen) reduced the
+*output* size of `load_odpfc_source`'s Stage 1 query, but landslide (501, only
+7 damaged edges) still took ~89 minutes and up to 755GB — the same order of
+magnitude as winter_storm's 11,556-edge query. That gap (tiny filter, same huge
+cost) was the tell: the query's cost was never actually driven by how selective
+the filter is.
+
+**Mechanics**: `odpfc_edge_index` (built by `build_odpfc_edge_index.py`, one
+streaming pass, deliberately unsorted so the explode itself pipelines without
+materializing the full table) has `e_id` values scattered essentially randomly
+across every row group, since the data was written in `od_id`-explosion order.
+Parquet's row-group min/max statistics — the mechanism DuckDB uses to skip data
+it can prove doesn't match a filter — are useless when a row group's `e_id`
+range spans nearly the whole ID space. So every filtered query, regardless of
+how few edges it's matching against, has to scan essentially the entire ~92.3B
+row table. The filter changes the *output* size, not the *work* required to
+produce it.
+
+**Fix**: `scripts/sort_odpfc_edge_index.py` (new) re-sorts an already-built
+index by `(e_id, od_id)` — kept as a separate step from the explode (not merged
+into `build_odpfc_edge_index.py`) so an existing index doesn't need to be
+rebuilt from scratch, and a failed/retried sort can't damage the already-proven
+explode output. Secondary sort on `od_id` (suggested by the user) is nearly
+free at sort time (already paying for an external sort on `e_id`) and clusters
+`od_id` values within each matching row group, cheapening the downstream Stage
+2 join against `odpfc.pq` as well.
+
+**Verified locally** (2026-08-09) against a 39.2M-row toy index (from the
+`revision` baseline): sorting reduced `TABLE_SCAN` rows read from 36,932,943 to
+741,568 for a 7-edge filter — **~49.8x fewer rows scanned** — with byte-identical
+query results (18,597 distinct `od_id` either way) confirming the sort changes
+nothing except physical layout. `EXPLAIN ANALYZE` showed DuckDB attempting the
+same dynamic filter (`e_id IN (...) AND e_id BETWEEN X AND Y`) against both the
+sorted and unsorted files — the filter is always constructed, but can only skip
+data when the file's row groups are actually sorted by that column. CONUS scale
+(92.3B rows) should see proportionally more benefit, since there's more data to
+skip relative to any given filter's selectivity.
+
+Sequenced as three Hopper jobs, in order:
+1. `submit_verify_edge_index_sort.slurm` — re-confirms the same result (rows
+   scanned, correctness) in Hopper's own environment against a small baseline,
+   before committing to the expensive real one.
+2. `submit_sort_edge_index_production.slurm` — sorts the real
+   `convergence_cpu8_bounded18` index (92.3B rows, ~386GB). Has pre-flight
+   checks inline (confirm `bigmem`'s actual max walltime and available scratch
+   space — this exact operation has never been timed at this scale, so the
+   7-day budget in the script is a generous guess, not a measured requirement).
+   Writes to a new directory, swapped in manually after verifying row counts
+   match — no code changes needed in `4_rerouting_and_recovery_scenario_loop.py`
+   either way, since it only requires `odpfc_edge_index/part_*.pq` to exist with
+   `(od_id, e_id)` columns, not a particular sort order.
+3. A converged (not `bounded18`) Pass A run — separate, larger discussion, not
+   yet started.
+
 ## Open: direct-cost source
 
 **Direct costs** (Script 3) currently price all four hazards off the same flood-only
