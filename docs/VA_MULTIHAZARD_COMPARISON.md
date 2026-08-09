@@ -287,8 +287,16 @@ Sequenced as three Hopper jobs, in order:
    match — no code changes needed in `4_rerouting_and_recovery_scenario_loop.py`
    either way, since it only requires `odpfc_edge_index/part_*.pq` to exist with
    `(od_id, e_id)` columns, not a particular sort order.
-3. A converged (not `bounded18`) Pass A run — separate, larger discussion, not
-   yet started.
+3. `experiments/pass_a_convergence/hopper/submit_cpu8_bounded20.slurm` — a
+   modest step up (`RESIFLOW_MAX_FLOW_ITERATIONS=20`, not 18), as its own new
+   `convergence_cpu8_bounded20` variant (`convergence_cpu8_bounded18` stays
+   untouched and is what the current 4-hazard advisor comparison is built
+   from). Not the eventual truly-unbounded convergence run — that's planned
+   for Anvil once its credit exchange clears — this is a smaller,
+   well-understood test using bounded18's exact proven config with only
+   `RESIFLOW_MAX_FLOW_ITERATIONS`, the variant name, and memory headroom
+   (128G→160G, matching the real 180GB-per-node capacity confirmed elsewhere
+   this session) changed.
 
 ## Open: direct-cost source
 
