@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=harvey_depths_prep
-#SBATCH --partition=highmem
+#SBATCH --partition=shared
 #SBATCH --account=<REPLACE_WITH_ACCESS_ALLOCATION>
 # Runs scripts/prepare_harvey_depths.py against an EXTRACTED (unzipped) copy
 # of Harvey_Depths_3m_Final.gdb -- confirmed locally (2026-08-03, see
@@ -9,21 +9,21 @@
 # via a streaming reproject() that never materializes the full ~84GB array.
 # Must unzip first (see the cp/unzip step below).
 #
-# --partition=highmem: 1,031GB RAM per node (RCAC docs, 2026-08-08) -- the
-# reproject only needs to hold one decimated output array plus whatever
-# GDAL buffers for reading source blocks, nowhere near this much, but this
-# is a first run on unfamiliar infrastructure and generous headroom costs
-# nothing but the (explicitly-not-a-concern-right-now) 4x SU multiplier.
-# Drop to --partition=shared or --partition=wholenode (257GB) once this is
-# timed once, if that's plenty.
+# --partition=shared, not highmem: verified via RCAC docs (2026-08-08) that
+# highmem is NODE-EXCLUSIVE -- bills for the full 128 cores regardless of
+# --cpus-per-task, at a 4x multiplier (512 SU/hour). shared bills only for
+# the cores/memory fraction actually requested, no node-exclusive penalty.
+# prepare_harvey_depths.py's reproject() is streaming (rasterio.band() as
+# source, confirmed locally it never materializes more than the small
+# decimated output array -- a few hundred MB at 50m over the Houston bbox,
+# not the 84GB source), so the 1TB highmem nodes buy nothing here that
+# --mem=64G on shared doesn't already cover. Revisit only if this OOMs.
 #
 # --time=04:00:00: not a measured requirement (never run on Anvil before) --
-# generous guess. highmem's own cap is 48h if this needs more; check
-# progress via the script's own print() timing output in the .out log
-# before assuming a rerun needs more.
+# generous guess; shared allows up to 96h if this needs more.
 #SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=200G
+#SBATCH --mem=64G
 #SBATCH --output=/anvil/scratch/%u/multimodal_hazard_project/logs_harvey_depths_%j.out
 #SBATCH --error=/anvil/scratch/%u/multimodal_hazard_project/logs_harvey_depths_%j.err
 
