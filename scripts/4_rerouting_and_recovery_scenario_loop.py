@@ -24,6 +24,7 @@ from tqdm import tqdm
 from collections import defaultdict
 
 import resiflow.road_revised as func
+import resiflow.constants as cons
 from resiflow.combined_od import resolve_passenger_od_path
 from resiflow.demand import (
     load_assignment_demand,
@@ -1108,6 +1109,22 @@ def main(
                 vehicle_type="car",
             )
 
+            # Trip isolations from the post-disruption (damaged) network -- read here
+            # (rather than at write-out time below) so isolated_flow_total is available
+            # for the SC (isolation cost) term before cost_rows is built.
+            if isolation_path.exists():
+                isolation_df = pd.read_parquet(isolation_path)
+                if "flow" in isolation_df.columns:
+                    isolation_df = isolation_df.rename(columns={"flow": "Car21"})
+            else:
+                isolation_df = pd.DataFrame(columns=["origin_node", "destination_node", "Car21"])
+
+            isolation_df = isolation_df[
+                (isolation_df.origin_node != isolation_df.destination_node)
+                & (isolation_df.Car21 > 0)
+            ].reset_index(drop=True)
+            isolated_flow_total = float(isolation_df["Car21"].sum())
+
             # Rerouting baseline: by default, pre-event cost is recomputed on the
             # same loaded-speed undisrupted network as post (apples-to-apples).
             # The legacy path used free-flow Pass A per-flow costs for pre while
@@ -1167,7 +1184,13 @@ def main(
                     )
                 )
 
-            # estimate rerouting cost matrix
+            # estimate rerouting cost matrix (RC, Eq. 7 of the source stress-testing
+            # framework -- Li et al., "Stress-testing road network resilience using
+            # counterfactual flood events", TRD 2026). RC is deliberately computed
+            # only over routed (non-isolated) flow, post minus pre -- it is NOT
+            # expected to also account for isolated flow, and can be small/negative
+            # in principle. Isolation is priced separately as SC below (Eq. 8-9) and
+            # only combined with RC in combined_total_cost, never inside RC itself.
             rer_time = post_time - pre_time
             rer_operate = post_operate - pre_operate
             rer_toll = post_toll - pre_toll
@@ -1180,6 +1203,23 @@ def main(
             )
             logging.info(
                 f"The rerouting cost for scenario {scenario_id}: $ million {rerouting_cost / 1e6}"
+            )
+
+            # isolation cost (SC, Eq. 8-9): omega is a per-unit-flow-per-day economic
+            # loss for flow that cannot be routed at all on the post-disruption
+            # network. The paper anchors omega on labour-productivity loss for
+            # passenger commuters (GBP/hr x 7hr workday); for freight, a stranded
+            # vehicle isn't a commuter losing wages, it's cargo/hauling capacity
+            # lost for the day, so we use the existing sourced VOT_USD_PER_HOUR
+            # value-of-time constant for the relevant vehicle type x 24h/day.
+            vot_key = "ogv" if mode_name == "freight" else "car"
+            omega_usd_per_flow_per_day = cons.VOT_USD_PER_HOUR[vot_key] * 24
+            isolation_cost = isolated_flow_total * omega_usd_per_flow_per_day
+            logging.info(
+                f"Isolated flow (post-disruption, unroutable): {isolated_flow_total}"
+            )
+            logging.info(
+                f"The isolation cost for scenario {scenario_id}: $ million {isolation_cost / 1e6}"
             )
 
             logging.info("Saving results to disk...")
@@ -1195,29 +1235,26 @@ def main(
                     "rer_operate": rer_operate,
                     "rer_toll": rer_toll,
                     "rerouting_cost": rerouting_cost,
+                    "isolated_flow_total": isolated_flow_total,
+                    "isolation_cost": isolation_cost,
                 }
             )
             cost_df = pd.DataFrame(cost_rows)
             cost_df["direct_damage_total_musd"] = direct_damage_total_musd
             cost_df["direct_damage_total_usd"] = direct_damage_total
             cost_df["direct_damage_total"] = direct_damage_total
-            cost_df["combined_total_cost"] = cost_df["rerouting_cost"] + cost_df["direct_damage_total"]
+            cost_df["combined_total_cost"] = (
+                cost_df["rerouting_cost"]
+                + cost_df["isolation_cost"]
+                + cost_df["direct_damage_total"]
+            )
             cost_df.to_csv(
                 out_path / f"rerouting_cost_{mode_name}_s{scenario_id}_day{event_day}.csv", index=False
             )
 
-            # trip isolations
-            if isolation_path.exists():
-                isolation_df = pd.read_parquet(isolation_path)
-                if "flow" in isolation_df.columns:
-                    isolation_df = isolation_df.rename(columns={"flow": "Car21"})
-            else:
-                isolation_df = pd.DataFrame(columns=["origin_node", "destination_node", "Car21"])
-
-            isolation_df = isolation_df[
-                (isolation_df.origin_node != isolation_df.destination_node)
-                & (isolation_df.Car21 > 0)
-            ].reset_index(drop=True)
+            # trip isolations (isolation_df already read/filtered above, right after
+            # the post-disruption flow simulation, to compute isolated_flow_total
+            # for the SC term)
             isolation_df.to_csv(
                 out_path / f"trip_isolations_{mode_name}_s{scenario_id}_day{event_day}.csv",
                 index=False,
@@ -1271,7 +1308,11 @@ def main(
         cost_df["direct_damage_total_musd"] = direct_damage_total_musd
         cost_df["direct_damage_total_usd"] = direct_damage_total
         cost_df["direct_damage_total"] = direct_damage_total
-        cost_df["combined_total_cost"] = cost_df["rerouting_cost"] + cost_df["direct_damage_total"]
+        cost_df["combined_total_cost"] = (
+            cost_df["rerouting_cost"]
+            + cost_df["isolation_cost"]
+            + cost_df["direct_damage_total"]
+        )
         cost_df.to_csv(out_path / f"cost_matrix_{mode_name}_by_scenario.csv", index=False)
         if mode_name == "freight":
             cost_df.to_csv(out_path / "cost_matrix_by_scenario.csv", index=False)

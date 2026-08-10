@@ -298,6 +298,57 @@ Sequenced as three Hopper jobs, in order:
    (128G→160G, matching the real 180GB-per-node capacity confirmed elsewhere
    this session) changed.
 
+## Resolved: negative day0 rerouting cost -- missing isolation cost (SC) term (2026-08-09)
+
+Earthquake (401, real ShakeMap data, `edges=103`) completed successfully but
+reported a **negative** day0 rerouting cost (`rerouting_cost = -$1,104,034`,
+making `combined_total_cost` negative overall -- a disruption event that looks
+like it *saved* money). Persistent symptom across hazards; a previous session
+already tried one fix (`consistent_baseline` in
+`4_rerouting_and_recovery_scenario_loop.py`, comparing post vs. pre on the same
+loaded-speed network rather than pre's stale free-flow costs) -- confirmed via
+the log that this fix *did* run, and the negative number persisted anyway, so a
+second, distinct cause was still present.
+
+**Mechanics**: `network_flow_model`'s `total_cost`/`cost_time`/`cost_fuel`
+(`road_revised.py`, `cList`) sum only over successfully-routed flow (the
+`odpfc` table). Any OD flow that can't find a path at all goes into a separate
+`isolated_od` table/`trip_isolations_*.pq` output and contributes **$0** to
+`total_cost` -- tracked, but not priced. Confirmed on Hopper for earthquake
+401's day0: `trip_isolations_freight_s1_day0.pq` (post/damaged network) sums to
+**1,359.2** units of isolated flow, vs. **0.13** (noise) for
+`..._day0_baseline.pq` (undisrupted network) -- the damaged network genuinely
+disconnects ~5.7% of day0's disrupted-OD demand, and those (likely
+above-average-cost, since they lost *every* path) trips are priced at $0
+instead of a real cost, making the damaged network look artificially cheaper
+than the undisrupted one.
+
+**Fix, grounded in the source framework**: the codebase implements
+[nismod/dafni-nird](https://github.com/nismod/dafni-nird)'s stress-testing
+methodology (Li et al., *"Stress-testing road network resilience using
+counterfactual flood events"*, TRD 2026 -- confirmed by reading the paper
+directly). That paper keeps rerouting cost (RC, Eq. 7) and isolation cost (SC,
+Eq. 8-9) as **two separate terms**, summed only in the combined total
+(`IC = RC + SC`) -- RC is legitimately computed only over routed flow and was
+never meant to also account for isolation; the actual gap was that Script 4's
+`combined_total_cost` had no SC term at all, so isolation's real cost was
+silently dropped rather than just mispriced.
+
+Added `isolation_cost = isolated_flow_total * omega` to
+`4_rerouting_and_recovery_scenario_loop.py`, where `omega` is a per-unit-flow,
+per-day economic loss for unroutable flow. The paper anchors `omega` on
+passenger-commuter labour-productivity loss (GBP/hr x 7hr workday); for
+freight that framing doesn't transfer (a stranded truck isn't a commuter
+losing wages), so `omega` reuses the existing sourced
+`constants.VOT_USD_PER_HOUR["ogv"]` ($32.50/hr, USDOT-sourced truck-driver
+value-of-time) x 24h/day = $780/unit-flow/day (user-selected option, over a
+literal 7h-workday transplant or a fixed value-of-lost-trip figure).
+`combined_total_cost` is now `rerouting_cost + isolation_cost +
+direct_damage_total` (both the per-day and final aggregate computations); new
+`isolated_flow_total`/`isolation_cost` columns added to the per-day and
+`cost_matrix_*_by_scenario.csv` outputs. `pytest tests/` and the toy
+disruption pipeline both verified passing after the change.
+
 ## Open: direct-cost source
 
 **Direct costs** (Script 3) currently price all four hazards off the same flood-only
@@ -414,3 +465,14 @@ corridors rather than reproducing the flat proxy.
   `submit_winter_storm_bigmem.slurm` (24h budget) since the remaining
   bottleneck is wall-clock time for an unbounded-iteration convergence loop,
   not memory.
+- **2026-08-09**: Sorted `odpfc_edge_index` by `(e_id, od_id)` to fix the real
+  driver of `load_odpfc_source`'s memory floor (see "Root cause identified"
+  above) -- verified locally and on Hopper (~42-50x fewer rows scanned,
+  identical results); production sort of the real 92.3B-row
+  `convergence_cpu8_bounded18` index and the 20-iteration Pass A follow-up
+  (`convergence_cpu8_bounded20`) queued as the next Hopper jobs. Also fixed a
+  second, distinct negative-rerouting-cost bug: earthquake (401)'s real
+  ShakeMap run completed with `rerouting_cost = -$1.1M` at day0 despite the
+  earlier `consistent_baseline` fix, traced to isolated (unroutable) flow
+  being priced at $0 instead of via a proper isolation-cost (SC) term -- see
+  "Resolved: negative day0 rerouting cost" above.
