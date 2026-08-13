@@ -86,6 +86,15 @@ def event_damage_total_usd(damage_df: pd.DataFrame) -> float:
     return total_direct_damage_usd(damage_df)
 
 
+def event_damage_bounds_usd(damage_df: pd.DataFrame) -> tuple[float, float]:
+    """(low, high) direct damage bounds from Script 3's cost-workbook min/max curves."""
+    from resiflow.damage_aggregation import total_direct_damage_bounds_usd
+
+    if damage_df is None or damage_df.empty:
+        return 0.0, 0.0
+    return total_direct_damage_bounds_usd(damage_df)
+
+
 def is_testbed_variant(variant: str | None) -> bool:
     """Return True for toy / Sioux Falls style variants used in pytest fixtures."""
     if os.getenv("NIRD_TESTBED", "").strip().lower() in {"1", "true", "yes"}:
@@ -350,6 +359,12 @@ def summarize_single_scenario(
         )
     )
     direct_damage_usd = _direct_damage_usd_from_cost_row(freight_row, damage_df)
+    direct_damage_low_usd, direct_damage_high_usd = event_damage_bounds_usd(damage_df)
+    # Cost-workbook bounds are only meaningful alongside the same mean they were
+    # derived from; if the point estimate came from elsewhere (e.g. the cost CSV's
+    # direct_damage_total_usd), collapse the range to that point rather than mixing sources.
+    if damage_df is None or damage_df.empty:
+        direct_damage_low_usd = direct_damage_high_usd = direct_damage_usd
     rerouting_freight = float(freight_row.get("rerouting_cost", 0.0))
     rerouting_passenger = float(passenger_row.get("rerouting_cost", 0.0))
     combined_total = float(
@@ -383,6 +398,8 @@ def summarize_single_scenario(
         "rerouting_cost_freight_usd": rerouting_freight,
         "rerouting_cost_passenger_usd": rerouting_passenger,
         "direct_damage_usd": direct_damage_usd,
+        "direct_damage_low_usd": direct_damage_low_usd,
+        "direct_damage_high_usd": direct_damage_high_usd,
         "combined_total_usd": combined_total,
         "passenger_flooded_edge_flow": flooded_flow_delta,
         **isolation,
@@ -390,6 +407,8 @@ def summarize_single_scenario(
         "missing_outputs": ",".join(missing),
     }
     row["direct_damage_display"] = format_cost(direct_damage_usd, variant=variant)
+    row["direct_damage_low_display"] = format_cost(direct_damage_low_usd, variant=variant)
+    row["direct_damage_high_display"] = format_cost(direct_damage_high_usd, variant=variant)
     row["rerouting_cost_freight_display"] = format_cost(rerouting_freight, variant=variant)
     row["rerouting_cost_passenger_display"] = format_cost(rerouting_passenger, variant=variant)
     row["combined_total_display"] = format_cost(combined_total, variant=variant)
@@ -406,6 +425,32 @@ def list_available_flood_keys(results_root: Path, variant: str, depth_key: int) 
         if tail.isdigit():
             flood_ids.append(int(tail))
     return sorted(set(flood_ids))
+
+
+def resolve_depth_key(
+    results_root: Path,
+    variant: str,
+    requested_depth_key: int,
+) -> tuple[int, list[int]]:
+    """Resolve a usable depth_key/flood_keys pair for a variant.
+
+    Single-hazard variants key scenarios by a flood-depth closure threshold
+    (e.g. 30 cm). Multihazard variants instead key scenarios by
+    ``scenario_param`` (301, 401, 501, ...) in that same path slot, so a
+    default depth_key of 30 resolves to nothing there. Fall back to the
+    first available scenario_param when the requested depth_key is empty.
+    """
+    flood_keys = list_available_flood_keys(results_root, variant, requested_depth_key)
+    if flood_keys:
+        return requested_depth_key, flood_keys
+
+    scenario_params = list_available_scenario_params(results_root, variant)
+    for candidate in scenario_params:
+        candidate_keys = list_available_flood_keys(results_root, variant, candidate)
+        if candidate_keys:
+            return candidate, candidate_keys
+
+    return requested_depth_key, []
 
 
 def list_available_scenario_params(results_root: Path, variant: str) -> list[int]:
@@ -554,10 +599,15 @@ def plot_multihazard_cost_panels(
 ):
     """Two-row cluster chart: floods (top), other hazards (bottom).
 
-    Each hazard cluster has a direct bar and a stacked indirect bar
-    (freight + passenger rerouting costs).
+    Each hazard cluster has a Direct bar (with an error bar spanning the
+    cost-workbook min/max unit-cost range from Script 3 -- a genuine modeled
+    bound, not a fabricated one) and a stacked Indirect bar (freight +
+    passenger rerouting cost). Colors are the first three slots of the
+    validated categorical palette (see dataviz skill), which clears the
+    all-pairs colorblind-safety gate for exactly this series count.
     """
     import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
     import numpy as np
 
     if summary.empty:
@@ -566,10 +616,37 @@ def plot_multihazard_cost_panels(
     resolved_variant = variant or (
         str(summary["variant"].iloc[0]) if "variant" in summary.columns else ""
     )
+    testbed = is_testbed_variant(resolved_variant)
+
+    # One shared display unit across both subplots (sharey), derived from the
+    # largest magnitude in the whole panel so ticks/labels stay comparable.
+    all_values = pd.concat(
+        [
+            pd.to_numeric(summary.get("direct_damage_high_usd", summary.get("direct_damage_usd")), errors="coerce"),
+            pd.to_numeric(summary["rerouting_cost_freight_usd"], errors="coerce")
+            + pd.to_numeric(summary["rerouting_cost_passenger_usd"], errors="coerce"),
+        ]
+    ).abs()
+    unit = resolve_cost_display_unit(float(all_values.max()) if not all_values.empty else 0.0, variant=resolved_variant)
+    divisor = {"usd": 1.0, "kusd": 1_000.0, "musd": 1_000_000.0, "busd": 1_000_000_000.0}[unit]
+    unit_label = {"usd": "USD", "kusd": "thousand USD", "musd": "million USD", "busd": "billion USD"}[unit]
+
+    COLOR_DIRECT = "#2a78d6"     # palette slot 1 (blue)
+    COLOR_FREIGHT = "#eb6834"    # palette slot 2 (orange)
+    COLOR_PASSENGER = "#1baf7a"  # palette slot 3 (aqua)
+    INK_PRIMARY = "#0b0b0b"
+    INK_MUTED = "#898781"
+    GRIDLINE = "#e1e0d9"
+    BASELINE = "#c3c2b7"
+
     floods = summary.loc[summary["panel_row"] == "floods"].reset_index(drop=True)
     other = summary.loc[summary["panel_row"] == "other"].reset_index(drop=True)
 
-    fig, axes = plt.subplots(2, 1, figsize=(12, 7), sharey=True)
+    fig, axes = plt.subplots(2, 1, figsize=(11, 8.5), sharey=True)
+
+    def _fmt_value(v: float) -> str:
+        sign = "-" if v < 0 else ""
+        return f"{sign}${abs(v):,.1f}K" if unit == "kusd" else f"{sign}${abs(v):,.2f}{unit[0].upper()}" if unit != "usd" else f"{sign}${abs(v):,.0f}"
 
     def _draw_row(ax, subdf: pd.DataFrame, title: str) -> None:
         if subdf.empty:
@@ -577,32 +654,373 @@ def plot_multihazard_cost_panels(
             return
         labels = subdf["hazard_label"].astype(str).tolist()
         x = np.arange(len(labels))
-        bar_w = 0.35
-        direct = pd.to_numeric(subdf["direct_damage_usd"], errors="coerce").fillna(0.0)
-        freight = pd.to_numeric(subdf["rerouting_cost_freight_usd"], errors="coerce").fillna(0.0)
-        passenger = pd.to_numeric(subdf["rerouting_cost_passenger_usd"], errors="coerce").fillna(0.0)
-        ax.bar(x - bar_w / 2, direct, bar_w, label="Direct", color="#54a24b")
-        ax.bar(x + bar_w / 2, freight, bar_w, label="Indirect (freight)", color="#f58518")
+        bar_w = 0.32
+
+        direct = pd.to_numeric(subdf["direct_damage_usd"], errors="coerce").fillna(0.0) / divisor
+        direct_low = pd.to_numeric(
+            subdf.get("direct_damage_low_usd", subdf["direct_damage_usd"]), errors="coerce"
+        ).fillna(0.0) / divisor
+        direct_high = pd.to_numeric(
+            subdf.get("direct_damage_high_usd", subdf["direct_damage_usd"]), errors="coerce"
+        ).fillna(0.0) / divisor
+        err_low = (direct - direct_low).clip(lower=0.0)
+        err_high = (direct_high - direct).clip(lower=0.0)
+
+        freight = pd.to_numeric(subdf["rerouting_cost_freight_usd"], errors="coerce").fillna(0.0) / divisor
+        passenger = pd.to_numeric(subdf["rerouting_cost_passenger_usd"], errors="coerce").fillna(0.0) / divisor
+        indirect_total = freight + passenger
+
+        ax.axhline(0, color=BASELINE, linewidth=1, zorder=1)
+        ax.yaxis.grid(True, color=GRIDLINE, linewidth=1, zorder=0)
+        ax.set_axisbelow(True)
+
         ax.bar(
-            x + bar_w / 2,
+            x - bar_w / 2 - 0.01,
+            direct,
+            bar_w,
+            label="Direct (damage)",
+            color=COLOR_DIRECT,
+            zorder=2,
+        )
+        ax.errorbar(
+            x - bar_w / 2 - 0.01,
+            direct,
+            yerr=[err_low, err_high],
+            fmt="none",
+            ecolor=INK_PRIMARY,
+            elinewidth=1.2,
+            capsize=4,
+            capthick=1.2,
+            zorder=3,
+        )
+        ax.bar(
+            x + bar_w / 2 + 0.01,
+            freight,
+            bar_w,
+            label="Indirect (freight rerouting)",
+            color=COLOR_FREIGHT,
+            zorder=2,
+        )
+        ax.bar(
+            x + bar_w / 2 + 0.01,
             passenger,
             bar_w,
             bottom=freight,
-            label="Indirect (passenger)",
-            color="#4c78a8",
+            label="Indirect (passenger rerouting)",
+            color=COLOR_PASSENGER,
+            zorder=2,
         )
+
+        # Direct labels: only the bar tip / stack top (sparing, per dataviz skill),
+        # placed above the error-bar cap for Direct so they never collide.
+        label_pad = max(float(direct_high.abs().max()), float(indirect_total.abs().max()), 1e-9) * 0.03
+        for xi, v, hi in zip(x - bar_w / 2 - 0.01, direct, direct_high):
+            top = max(v, hi)
+            va = "bottom" if v >= 0 else "top"
+            ax.text(xi, top + label_pad if v >= 0 else v - label_pad, _fmt_value(v * divisor), ha="center", va=va,
+                     fontsize=9, color=INK_PRIMARY)
+        for xi, v in zip(x + bar_w / 2 + 0.01, indirect_total):
+            va = "bottom" if v >= 0 else "top"
+            ax.text(xi, v + label_pad if v >= 0 else v - label_pad, _fmt_value(v * divisor), ha="center", va=va,
+                     fontsize=9, color=INK_PRIMARY)
+
         ax.set_xticks(x)
-        ax.set_xticklabels(labels, rotation=12, ha="right")
-        ax.set_title(title)
-        ax.set_ylabel("USD")
-        ax.legend(loc="upper right", fontsize=8)
+        ax.set_xticklabels(labels, fontsize=11, color=INK_PRIMARY)
+        ax.set_title(title, fontsize=12, color=INK_PRIMARY, loc="left")
+        ax.tick_params(axis="y", labelsize=10, colors=INK_MUTED)
+        ax.tick_params(axis="x", length=0)
+        for spine in ("top", "right"):
+            ax.spines[spine].set_visible(False)
+        for spine in ("left", "bottom"):
+            ax.spines[spine].set_color(BASELINE)
+        ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
 
     _draw_row(axes[0], floods, "Flood subtypes")
     _draw_row(axes[1], other, "Other hazards")
-    unit_hint = "KUSD-scale testbed" if is_testbed_variant(resolved_variant) else "USD"
-    fig.suptitle(f"Direct vs indirect costs by hazard ({unit_hint})", fontsize=13)
-    fig.tight_layout()
+    axes[-1].set_xlabel("Hazard", fontsize=11, color=INK_PRIMARY)
+    fig.supylabel(f"Cost ({unit_label})", fontsize=11, color=INK_PRIMARY)
+
+    handles = [
+        plt.Rectangle((0, 0), 1, 1, color=COLOR_DIRECT),
+        plt.Rectangle((0, 0), 1, 1, color=COLOR_FREIGHT),
+        plt.Rectangle((0, 0), 1, 1, color=COLOR_PASSENGER),
+    ]
+    fig.legend(
+        handles,
+        ["Direct (damage)", "Indirect (freight rerouting)", "Indirect (passenger rerouting)"],
+        loc="upper center",
+        bbox_to_anchor=(0.5, 1.0),
+        ncol=3,
+        frameon=False,
+        fontsize=10,
+    )
+
+    subtitle = "Error bars: cost-workbook min/max unit-cost range (Script 3)" + (
+        " | KUSD-scale testbed" if testbed else ""
+    )
+    fig.suptitle(
+        f"Direct vs indirect disruption costs by hazard\n{subtitle}",
+        fontsize=13,
+        color=INK_PRIMARY,
+        y=0.985,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.90))
     return fig, axes
+
+
+SENSITIVITY_TARGET_LABELS: dict[str, str] = {
+    "direct": "Direct (damage cost)",
+    "indirect": "Indirect (rerouting cost)",
+}
+
+
+def load_morris_sensitivity(results_root: Path) -> pd.DataFrame:
+    """Load Script 5 Morris results (direct + indirect) into one tidy frame.
+
+    Reads ``<results_root>/sensitivity_analysis/morris_{direct,indirect}.csv``
+    (written by ``scripts/5_sensitivity_analysis_{direct,indirect}.py``) and
+    concatenates them with a ``target`` column. Returns an empty DataFrame if
+    neither file exists -- graceful, like :func:`build_multihazard_summary_table`
+    -- so callers can skip the panel when sensitivity wasn't run.
+
+    Columns: ``Parameters, S1 (mu), ST (sigma), S1_abs (mu_star),
+    S1_abs_conf, target``.
+    """
+    sens_dir = Path(results_root) / "sensitivity_analysis"
+    frames: list[pd.DataFrame] = []
+    for target in ("direct", "indirect"):
+        path = sens_dir / f"morris_{target}.csv"
+        if not path.exists():
+            continue
+        frame = pd.read_csv(path)
+        if frame.empty:
+            continue
+        frame = frame.copy()
+        frame["target"] = target
+        frames.append(frame)
+    if not frames:
+        return pd.DataFrame()
+    return pd.concat(frames, ignore_index=True)
+
+
+def plot_sensitivity_panels(
+    df: pd.DataFrame,
+    *,
+    variant: str | None = None,
+    top_n: int = 8,
+):
+    """Morris mu*-sigma scatter, one subplot per target (direct / indirect).
+
+    x = mu* (``S1_abs``, normalised to share of total per target); y = sigma
+    (``ST``). High mu* => strong first-order effect; high sigma => interaction /
+    nonlinearity. Points are the top ``top_n`` factors by combined importance
+    (mu* + sigma), labelled by parameter name. Styling mirrors
+    :func:`plot_multihazard_cost_panels` (same ink / gridline palette) so the
+    sensitivity panel reads as one system with the cost panels.
+
+    Consumes the frame from :func:`load_morris_sensitivity`. Raises ValueError
+    if that frame is empty.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    if df is None or df.empty:
+        raise ValueError(
+            "sensitivity frame is empty; run scripts/5_sensitivity_analysis_*.py first "
+            "(nothing written under <results_root>/sensitivity_analysis/)"
+        )
+
+    INK_PRIMARY = "#0b0b0b"
+    INK_MUTED = "#898781"
+    GRIDLINE = "#e1e0d9"
+    BASELINE = "#c3c2b7"
+    # First two slots of the validated categorical palette (see dataviz skill),
+    # matching plot_multihazard_cost_panels' Direct / Indirect colours.
+    TARGET_COLORS = {"direct": "#2a78d6", "indirect": "#eb6834"}
+
+    targets = [t for t in ("direct", "indirect") if t in set(df["target"])]
+    if not targets:
+        raise ValueError(f"no known targets in sensitivity frame: {sorted(set(df['target']))}")
+
+    fig, axes = plt.subplots(1, len(targets), figsize=(6.5 * len(targets), 6), squeeze=False)
+    axes_row = axes[0]
+
+    for ax, target in zip(axes_row, targets):
+        sub = df.loc[df["target"] == target].copy()
+        mu_star = pd.to_numeric(sub["S1_abs"], errors="coerce").fillna(0.0).to_numpy(dtype=float)
+        sigma = pd.to_numeric(sub["ST"], errors="coerce").fillna(0.0).to_numpy(dtype=float)
+        total = mu_star.sum()
+        mu_star_norm = mu_star / total if total > 0 else mu_star
+        # Normalise sigma by the SAME per-target total as mu* (not its own sum),
+        # so both axes are dimensionless and on one scale -- and the mu*=sigma
+        # diagonal is preserved (points above it are interaction-dominated).
+        sigma_norm = sigma / total if total > 0 else sigma
+        names = sub["Parameters"].astype(str).tolist()
+
+        # Keep the top-N factors by combined importance to declutter.
+        combined = mu_star_norm + sigma_norm
+        order = np.argsort(combined)[::-1][: min(top_n, len(names))]
+
+        color = TARGET_COLORS.get(target, "#2a78d6")
+        ax.axhline(0, color=BASELINE, linewidth=1, zorder=1)
+        ax.grid(True, color=GRIDLINE, linewidth=1, zorder=0)
+        ax.set_axisbelow(True)
+        # mu*=sigma diagonal: points above it are interaction/nonlinearity-
+        # dominated, below it first-order-dominated. Meaningful now that x and y
+        # share one normalised scale.
+        diag_max = max(mu_star_norm.max(initial=0.0), sigma_norm.max(initial=0.0))
+        if diag_max > 0:
+            ax.plot(
+                [0, diag_max], [0, diag_max],
+                color=BASELINE, linewidth=1, linestyle="--", zorder=1,
+            )
+
+        for rank, idx in enumerate(order):
+            ax.scatter(
+                mu_star_norm[idx], sigma_norm[idx],
+                color=color, edgecolor="black", linewidth=0.6, s=80, alpha=0.9, zorder=3,
+            )
+            # Label only the strongest few to avoid overlap.
+            if rank < 6:
+                ax.annotate(
+                    names[idx], (mu_star_norm[idx], sigma_norm[idx]),
+                    xytext=(5, 5), textcoords="offset points",
+                    fontsize=9, color=INK_PRIMARY,
+                )
+
+        ax.set_title(
+            SENSITIVITY_TARGET_LABELS.get(target, target.title()),
+            fontsize=12, color=INK_PRIMARY, loc="left",
+        )
+        ax.set_xlabel(r"$\mu^*$ (normalised mean abs. effect)", fontsize=11, color=INK_PRIMARY)
+        ax.set_ylabel(
+            r"$\sigma$ (normalised interaction / nonlinearity)",
+            fontsize=11, color=INK_PRIMARY,
+        )
+        ax.tick_params(axis="both", labelsize=10, colors=INK_MUTED)
+        for spine in ("top", "right"):
+            ax.spines[spine].set_visible(False)
+        for spine in ("left", "bottom"):
+            ax.spines[spine].set_color(BASELINE)
+
+    testbed = is_testbed_variant(variant if variant is not None else "")
+    subtitle = "Morris screening: mu* (first-order effect) vs sigma (interactions)" + (
+        " | testbed" if testbed else ""
+    )
+    fig.suptitle(
+        f"Parameter sensitivity of disruption cost\n{subtitle}",
+        fontsize=13, color=INK_PRIMARY, y=0.99,
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    return fig, axes_row if len(targets) > 1 else axes_row[0]
+
+
+def plot_scenario_cost_panel(summary: pd.DataFrame, *, variant: str | None = None):
+    """Single-axes Direct vs Indirect cost bars for one variant's scenarios.
+
+    Consumes :func:`build_scenario_summary_table` output (one row per flood
+    scenario). Per scenario: a Direct damage bar with cost-workbook min/max
+    error bars, and a stacked Indirect bar (freight + passenger rerouting).
+    Same visual language as :func:`plot_multihazard_cost_panels` but for a
+    single (non-multihazard) run -- the raw-cost view Option A / the testbed
+    flood run needs. Raises ValueError on an empty summary.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.ticker as mticker
+    import numpy as np
+
+    if summary is None or summary.empty:
+        raise ValueError("scenario summary is empty")
+
+    resolved_variant = variant or (
+        str(summary["variant"].iloc[0]) if "variant" in summary.columns else ""
+    )
+    testbed = is_testbed_variant(resolved_variant)
+
+    COLOR_DIRECT = "#2a78d6"
+    COLOR_FREIGHT = "#eb6834"
+    COLOR_PASSENGER = "#1baf7a"
+    INK_PRIMARY = "#0b0b0b"
+    INK_MUTED = "#898781"
+    GRIDLINE = "#e1e0d9"
+    BASELINE = "#c3c2b7"
+
+    if "hazard_label" in summary.columns:
+        labels = summary["hazard_label"].astype(str).tolist()
+    elif "flood_key" in summary.columns:
+        labels = [f"event {int(k)}" for k in summary["flood_key"]]
+    else:
+        labels = [str(i) for i in range(len(summary))]
+
+    def _num(col: str) -> "np.ndarray":
+        if col not in summary.columns:
+            return np.zeros(len(summary), dtype=float)
+        return pd.to_numeric(summary[col], errors="coerce").fillna(0.0).to_numpy(dtype=float)
+
+    direct = _num("direct_damage_usd")
+    direct_low = _num("direct_damage_low_usd") if "direct_damage_low_usd" in summary.columns else direct
+    direct_high = _num("direct_damage_high_usd") if "direct_damage_high_usd" in summary.columns else direct
+    freight = _num("rerouting_cost_freight_usd")
+    passenger = _num("rerouting_cost_passenger_usd")
+    indirect_total = freight + passenger
+
+    all_mag = np.abs(np.concatenate([direct_high, direct, indirect_total]))
+    unit = resolve_cost_display_unit(
+        float(all_mag.max()) if all_mag.size else 0.0, variant=resolved_variant
+    )
+    divisor = {"usd": 1.0, "kusd": 1e3, "musd": 1e6, "busd": 1e9}[unit]
+    unit_label = {"usd": "USD", "kusd": "thousand USD", "musd": "million USD", "busd": "billion USD"}[unit]
+
+    x = np.arange(len(labels))
+    bar_w = 0.32
+    fig, ax = plt.subplots(figsize=(max(7.0, 1.8 * len(labels) + 4), 5.5))
+
+    ax.axhline(0, color=BASELINE, linewidth=1, zorder=1)
+    ax.yaxis.grid(True, color=GRIDLINE, linewidth=1, zorder=0)
+    ax.set_axisbelow(True)
+
+    d = direct / divisor
+    err_low = ((direct - direct_low) / divisor).clip(min=0.0)
+    err_high = ((direct_high - direct) / divisor).clip(min=0.0)
+    ax.bar(x - bar_w / 2 - 0.01, d, bar_w, label="Direct (damage)", color=COLOR_DIRECT, zorder=2)
+    ax.errorbar(
+        x - bar_w / 2 - 0.01, d, yerr=[err_low, err_high],
+        fmt="none", ecolor=INK_PRIMARY, elinewidth=1.2, capsize=4, capthick=1.2, zorder=3,
+    )
+    ax.bar(x + bar_w / 2 + 0.01, freight / divisor, bar_w,
+           label="Indirect (freight rerouting)", color=COLOR_FREIGHT, zorder=2)
+    ax.bar(x + bar_w / 2 + 0.01, passenger / divisor, bar_w, bottom=freight / divisor,
+           label="Indirect (passenger rerouting)", color=COLOR_PASSENGER, zorder=2)
+
+    pad = max(float(np.abs(direct_high / divisor).max()), float(np.abs(indirect_total / divisor).max()), 1e-9) * 0.03
+    for xi, v, hi in zip(x - bar_w / 2 - 0.01, d, direct_high / divisor):
+        ax.text(xi, max(v, hi) + pad, format_cost(v * divisor, variant=resolved_variant),
+                ha="center", va="bottom", fontsize=9, color=INK_PRIMARY)
+    for xi, v in zip(x + bar_w / 2 + 0.01, indirect_total / divisor):
+        ax.text(xi, v + pad, format_cost(v * divisor, variant=resolved_variant),
+                ha="center", va="bottom", fontsize=9, color=INK_PRIMARY)
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels, fontsize=11, color=INK_PRIMARY)
+    ax.set_ylabel(f"Cost ({unit_label})", fontsize=11, color=INK_PRIMARY)
+    ax.tick_params(axis="y", labelsize=10, colors=INK_MUTED)
+    ax.tick_params(axis="x", length=0)
+    for spine in ("top", "right"):
+        ax.spines[spine].set_visible(False)
+    for spine in ("left", "bottom"):
+        ax.spines[spine].set_color(BASELINE)
+    ax.yaxis.set_major_formatter(mticker.FuncFormatter(lambda v, _: f"{v:,.0f}"))
+    ax.legend(loc="upper right", frameon=False, fontsize=10)
+
+    subtitle = "Error bars: cost-workbook min/max unit-cost range (Script 3)" + (
+        " | KUSD-scale testbed" if testbed else ""
+    )
+    ax.set_title(
+        f"Direct vs indirect disruption cost\n{subtitle}",
+        fontsize=12, color=INK_PRIMARY, loc="left",
+    )
+    fig.tight_layout()
+    return fig, ax
 
 
 def resolve_county_od_path(input_root: Path) -> Path | None:

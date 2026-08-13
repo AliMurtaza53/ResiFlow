@@ -57,6 +57,8 @@ class SiouxFallsSpec:
     link_count: int
     scaled_passenger_demand: float
     scaled_freight_demand: float
+    # Only populated for the heterogeneous variant: per-edge graded flood depth (m).
+    flood_depth_by_edge: dict[str, float] | None = None
 
 
 def _node_id(raw: str | int) -> str:
@@ -94,6 +96,48 @@ def _flow_cap_plph_from_tntp(capacity_vph: float, lanes: int) -> float:
     return float(capacity_vph) / lane_count
 
 
+# --- Heterogeneous variant knobs (opt-in; the default fixture is unchanged) ----
+# Deterministic per-link cycles that break the near-uniform link attributes that
+# collapse the toy Morris sensitivity onto a few points. Lanes and width are
+# decoupled (width is not a strict multiple of lanes) so they register as
+# separate factors rather than one collinear cluster.
+_HETERO_LANES_CYCLE = (1, 2, 3, 4, 2, 3, 1, 4)
+_HETERO_WIDTH_CYCLE = (3.65, 5.5, 7.3, 9.0, 11.0, 14.6)
+# Non-major classes only (majors are stripped to zero depth by the embankment
+# rule at these depths). Mixed Script-5 codes for input variety; note class does
+# not move the toy damage cost, so it stays a low-effect factor by design.
+_HETERO_CLASS_CYCLE = ("tertiary", "A Road", "B Road", "tertiary", "local")
+# Number of leading (mostly non-bridge) links added to the flooded corridor, on
+# top of the bridge pairs and the canonical flooded pair.
+_HETERO_CORRIDOR_LINKS = 16
+_HETERO_DEPTH_MIN_M = 0.35
+_HETERO_DEPTH_MAX_M = 1.0
+
+
+def _hetero_link_attrs(idx: int, is_bridge: bool) -> tuple[int, float, str]:
+    """Return (lanes, averageWidth, road_classification) for the heterogeneous build."""
+    lanes = _HETERO_LANES_CYCLE[idx % len(_HETERO_LANES_CYCLE)]
+    if is_bridge:
+        return lanes, 11.0, "tertiary"
+    width = _HETERO_WIDTH_CYCLE[idx % len(_HETERO_WIDTH_CYCLE)]
+    rc = _HETERO_CLASS_CYCLE[idx % len(_HETERO_CLASS_CYCLE)]
+    return lanes, width, rc
+
+
+def _graded_depths(edge_ids: list[str]) -> dict[str, float]:
+    """Assign a monotone spread of flood depths (m) across the corridor edges."""
+    n = len(edge_ids)
+    if n == 0:
+        return {}
+    if n == 1:
+        return {edge_ids[0]: _HETERO_DEPTH_MAX_M}
+    span = _HETERO_DEPTH_MAX_M - _HETERO_DEPTH_MIN_M
+    return {
+        e_id: round(_HETERO_DEPTH_MIN_M + span * (rank / (n - 1)), 3)
+        for rank, e_id in enumerate(sorted(edge_ids))
+    }
+
+
 def write_sioux_falls_damage_workbooks(toy_data_dir: Path) -> None:
     """Scaled damage curves so direct damage stays in plausible testbed ranges."""
     ratio = pd.DataFrame(
@@ -105,12 +149,26 @@ def write_sioux_falls_damage_workbooks(toy_data_dir: Path) -> None:
             "Local": [0.0, 0.05, 0.15, 0.35],
         }
     )
+    # ``m_lt8_urb`` already exists; ``asingle_urb`` / ``bsingle_urb`` are the keys
+    # Script 3 actually generates for major- and minor-class single carriageways
+    # (see 3_damage_analysis.py compute_damage_values). Without them a flooded
+    # *road* (as opposed to a bridge) falls through to a zero default unit cost,
+    # which is fine for the bridge-only default fixture but zeroes out the
+    # heterogeneous corridor's road damage. Give the three tiers distinct unit
+    # costs so road class/structure actually move the direct damage target.
     roads = pd.DataFrame(
         {
-            "label": ["m_ge8_urb", "m_lt8_urb", "absingle_urb", "roadsingle_urb"],
-            "min": [0.001, 0.001, 0.001, 0.001],
-            "max": [0.002, 0.002, 0.002, 0.002],
-            "mean": [0.0015, 0.0015, 0.0015, 0.0015],
+            "label": [
+                "m_ge8_urb",
+                "m_lt8_urb",
+                "absingle_urb",
+                "roadsingle_urb",
+                "asingle_urb",
+                "bsingle_urb",
+            ],
+            "min": [0.001, 0.001, 0.001, 0.001, 0.006, 0.003],
+            "max": [0.002, 0.002, 0.002, 0.002, 0.012, 0.006],
+            "mean": [0.0015, 0.0015, 0.0015, 0.0015, 0.009, 0.0045],
         }
     )
     bridges = pd.DataFrame(
@@ -129,7 +187,9 @@ def write_sioux_falls_damage_workbooks(toy_data_dir: Path) -> None:
         bridges.to_excel(writer, sheet_name="bridges-river", index=False)
 
 
-def write_road_links(toy_data_dir: Path) -> tuple[gpd.GeoDataFrame, SiouxFallsSpec]:
+def write_road_links(
+    toy_data_dir: Path, *, heterogeneous: bool = False
+) -> tuple[gpd.GeoDataFrame, SiouxFallsSpec]:
     nodes = read_tntp_nodes(TESTBED.node_path())
     links = read_tntp_links(TESTBED.net_path())
     node_geoms = build_node_geometries(nodes)
@@ -147,14 +207,27 @@ def write_road_links(toy_data_dir: Path) -> tuple[gpd.GeoDataFrame, SiouxFallsSp
         pair = _physical_pair(start, end)
         e_id = f"sf_{start}_{end}_{idx}"
         tntp_capacity_vph = float(row.capacity)
-        lane_count = _lanes(tntp_capacity_vph)
+        is_bridge = pair in bridge_pairs
         speed_mph = (
             (float(row.length) / (float(row.free_flow_time) / 60.0))
             if float(row.free_flow_time) > 0.0
             else 35.0
         )
-        is_bridge = pair in bridge_pairs
-        if pair == flooded_pair:
+        if heterogeneous:
+            lane_count, avg_width, road_class = _hetero_link_attrs(idx, is_bridge)
+        else:
+            lane_count = _lanes(tntp_capacity_vph)
+            avg_width = 11.0 if is_bridge else 3.65 * lane_count
+            road_class = _road_classification(tntp_capacity_vph)
+
+        # Flooded set: default = the canonical pair only; heterogeneous = a graded
+        # corridor of leading links + all bridges + the canonical pair (roads and
+        # bridges of varied lanes/width so the direct-damage target is not driven
+        # by a single homogeneous pair).
+        if heterogeneous:
+            if idx < _HETERO_CORRIDOR_LINKS or is_bridge or pair == flooded_pair:
+                flooded_edge_ids.append(e_id)
+        elif pair == flooded_pair:
             flooded_edge_ids.append(e_id)
         if is_bridge:
             bridge_edge_ids.append(e_id)
@@ -165,7 +238,7 @@ def write_road_links(toy_data_dir: Path) -> tuple[gpd.GeoDataFrame, SiouxFallsSp
                 "e_id": e_id,
                 "from_id": _node_id(start),
                 "to_id": _node_id(end),
-                "road_classification": _road_classification(tntp_capacity_vph),
+                "road_classification": road_class,
                 "trunk_road": False,
                 "road_label": "bridge" if is_bridge else "road",
                 "facility_type": "Bridge" if is_bridge else "Highway",
@@ -176,7 +249,7 @@ def write_road_links(toy_data_dir: Path) -> tuple[gpd.GeoDataFrame, SiouxFallsSp
                 "form_of_way": "Single Carriageway",
                 "average_toll_cost": float(row.toll),
                 "free_flow_speeds": min(speed_mph, 45.0),
-                "averageWidth": 11.0 if is_bridge else 3.65 * lane_count,
+                "averageWidth": avg_width,
                 "geometry": LineString([node_geoms[start], node_geoms[end]]),
             }
         )
@@ -191,6 +264,8 @@ def write_road_links(toy_data_dir: Path) -> tuple[gpd.GeoDataFrame, SiouxFallsSp
     scaled_passenger = float(passenger["Car21"].sum()) * DEMAND_SCALE
     scaled_freight = scaled_passenger * FREIGHT_SHARE_OF_PASSENGER
 
+    depth_by_edge = _graded_depths(flooded_edge_ids) if heterogeneous else None
+
     spec = SiouxFallsSpec(
         origin_node=_node_id(10),
         destination_node=_node_id(24),
@@ -200,6 +275,7 @@ def write_road_links(toy_data_dir: Path) -> tuple[gpd.GeoDataFrame, SiouxFallsSp
         link_count=len(road_links),
         scaled_passenger_demand=scaled_passenger,
         scaled_freight_demand=scaled_freight,
+        flood_depth_by_edge=depth_by_edge,
     )
     return road_links, spec
 
@@ -243,8 +319,14 @@ def write_hazard_raster(
     *,
     resolution_m: float = 10.0,
     interior_fraction: tuple[float, float] = (0.35, 0.65),
+    depth_by_edge: dict[str, float] | None = None,
 ) -> None:
-    """Rasterize a full-network extent grid; only the bridge interior gets depth > 0."""
+    """Rasterize a full-network extent grid; only the flooded interiors get depth > 0.
+
+    ``depth_by_edge`` (heterogeneous variant) burns a per-edge graded depth so the
+    corridor spans minor->severe damage; otherwise every flooded edge gets the
+    single ``FLOOD_DEPTH_M`` toy depth.
+    """
     flooded = road_links.loc[road_links["e_id"].isin(flooded_edge_ids)]
     if flooded.empty:
         raise ValueError("No flooded Sioux Falls bridge edges found")
@@ -262,11 +344,16 @@ def write_hazard_raster(
     start_frac, end_frac = interior_fraction
     shapes = []
     hazard_buffer_m = resolution_m * 0.5
-    for geom in flooded.geometry:
+    for e_id, geom in zip(flooded["e_id"], flooded.geometry):
+        depth = (
+            float(depth_by_edge.get(e_id, FLOOD_DEPTH_M))
+            if depth_by_edge
+            else FLOOD_DEPTH_M
+        )
         start = geom.interpolate(start_frac, normalized=True)
         end = geom.interpolate(end_frac, normalized=True)
         interior = LineString([(start.x, start.y), (end.x, end.y)])
-        shapes.append((interior.buffer(hazard_buffer_m), FLOOD_DEPTH_M))
+        shapes.append((interior.buffer(hazard_buffer_m), depth))
 
     data = rasterize(
         shapes,
@@ -361,11 +448,19 @@ def build_sioux_falls_dataset(
     tmp_path: Path,
     *,
     hazard: str = "flood",
+    heterogeneous: bool = False,
 ) -> tuple[Path, SiouxFallsSpec, gpd.GeoDataFrame]:
+    """Build the Sioux Falls testbed.
+
+    ``heterogeneous=True`` (opt-in; used by the sensitivity runner) diversifies
+    link lanes/width/class and floods a graded multi-link corridor so the Morris
+    sensitivity panels are not degenerate. The default (False) build is byte
+    identical to before, so the pinned pipeline tests are unaffected.
+    """
     toy_data_dir = tmp_path / "toy_data"
     toy_data_dir.mkdir(parents=True, exist_ok=True)
 
-    road_links, spec = write_road_links(toy_data_dir)
+    road_links, spec = write_road_links(toy_data_dir, heterogeneous=heterogeneous)
     write_od_matrices(toy_data_dir)
     copy_parameters(toy_data_dir)
     write_recovery_table(toy_data_dir)
@@ -384,6 +479,7 @@ def build_sioux_falls_dataset(
             road_links,
             spec.flooded_edge_ids,
             resolution_m=10.0,
+            depth_by_edge=spec.flood_depth_by_edge,
         )
     config_path = write_toy_config(tmp_path, toy_data_dir)
     return config_path, spec, road_links

@@ -13,8 +13,11 @@ from resiflow.disruption.intensity_hazard import (
     intersections_with_intensity,
 )
 from resiflow.fragility.winter_storm_categorical import compute_damage_levels_vectorized
+from resiflow.parameters import get_parameter
 
-SCRIPT3_DEPTH_SCALE = 1.0 / 1000.0
+SCRIPT3_DEPTH_SCALE = get_parameter(
+    "hazard_disruption", "winter_storm_script3_depth_scale", 0.001
+)
 
 
 def intersections_with_winter_storm(

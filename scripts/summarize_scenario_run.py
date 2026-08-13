@@ -18,6 +18,8 @@ from viz_data_loaders import (  # noqa: E402
     build_scenario_summary_table,
     is_testbed_variant,
     list_available_flood_keys,
+    load_morris_sensitivity,
+    plot_sensitivity_panels,
     validate_multihazard_summary,
 )
 
@@ -61,6 +63,36 @@ def resolve_variant(results_root: Path, explicit: str | None) -> str:
     return "revision"
 
 
+def _run_sensitivity(results_root: Path, variant: str, fig_out: str | None) -> int:
+    """Render the Morris sensitivity panel from Script 5's morris_*.csv."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+
+    df = load_morris_sensitivity(results_root)
+    if df.empty:
+        print(
+            f"No Morris sensitivity CSVs found under "
+            f"{results_root / 'sensitivity_analysis'}.\n"
+            "Run scripts/5_sensitivity_analysis_{direct,indirect}.py first "
+            "(or scripts/testbed/run_sensitivity_sioux_falls.py for the testbed).",
+            file=sys.stderr,
+        )
+        return 1
+
+    print(f"Morris sensitivity | variant={variant} | targets={sorted(df['target'].unique())}")
+    print(f"Results root: {results_root}\n")
+    show_cols = [c for c in ("target", "Parameters", "S1_abs", "ST", "S1_abs_conf") if c in df.columns]
+    print(df[show_cols].to_string(index=False))
+
+    fig, _ = plot_sensitivity_panels(df, variant=variant)
+    out_path = Path(fig_out) if fig_out else results_root / "figures" / "sensitivity_panel.png"
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(out_path, dpi=200, bbox_inches="tight")
+    print(f"\nWrote sensitivity panel: {out_path}")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results-root", help="Folder containing base_scenario/ etc.")
@@ -77,6 +109,17 @@ def main() -> int:
     )
     parser.add_argument("--event-key", type=int, default=1, help="Event id for multihazard mode")
     parser.add_argument(
+        "--sensitivity",
+        action="store_true",
+        help="Render the Morris parameter-sensitivity panel from "
+        "sensitivity_analysis/morris_{direct,indirect}.csv (Script 5 outputs)",
+    )
+    parser.add_argument(
+        "--fig-out",
+        help="Output path for the sensitivity figure "
+        "(default: <results_root>/figures/sensitivity_panel.png)",
+    )
+    parser.add_argument(
         "--csv-out",
         help="Optional path to write the summary table as CSV",
     )
@@ -84,6 +127,10 @@ def main() -> int:
 
     results_root = resolve_results_root(args.results_root)
     variant = resolve_variant(results_root, args.variant)
+
+    if args.sensitivity:
+        return _run_sensitivity(results_root, variant, args.fig_out)
+
     if args.multihazard:
         summary = build_multihazard_summary_table(
             results_root,

@@ -21,7 +21,7 @@ import geopandas as gpd
 import pandas as pd
 from pathlib import Path
 import fiona
-
+from resiflow.parameters import get_parameter
 
 # Road classification mapping: FAF5 Class -> coarse road_classification
 CLASS_MAPPING = {
@@ -95,10 +95,10 @@ def _clean_label(value):
 
 # Default parameters if missing in FAF5 data
 DEFAULTS = {
-    'lanes': 2,
-    'average_toll_cost': 0.0,
+    'lanes': get_parameter("preprocess", "faf5_default_lanes", 2),
+    'average_toll_cost': get_parameter("preprocess", "faf5_default_avg_toll_cost", 0.0),
     'road_bridge': 'no',
-    'meters_per_lane': 3.5,
+    'meters_per_lane': get_parameter("preprocess", "faf5_default_meters_per_lane", 3.5),
 }
 
 

@@ -989,6 +989,30 @@ def main(
                 "NIRD_LEGACY_FREEFLOW_BASELINE", "0"
             ).strip().lower() in {"1", "true", "yes"}
             consistent_baseline = not legacy_freeflow_baseline
+
+            # OD pairs with no path in the disrupted network are dropped into
+            # isolated_od by network_flow_model above and contribute $0 to
+            # total_post_cost (excluded, not penalized). If the baseline "pre"
+            # cost is computed over the *full* disrupted_od demand, those same
+            # pairs still contribute their (fully-served, undisrupted) cost to
+            # total_pre_cost -- so isolating a trip looks like a cost *saving*
+            # in (post - pre), which can drive rerouting_cost sharply negative.
+            # Isolation impact is already tracked separately (isolation_rows /
+            # isolation_flow), so restrict the baseline demand to the same OD
+            # pairs actually served post-disruption for a like-for-like delta.
+            baseline_demand = disrupted_od
+            if isolation_path.exists():
+                iso_od = pd.read_parquet(isolation_path)
+                if not iso_od.empty:
+                    iso_keys = iso_od[["origin_node", "destination_node"]].astype(str).drop_duplicates()
+                    iso_keys["_isolated"] = True
+                    baseline_demand = disrupted_od.merge(
+                        iso_keys, how="left", on=["origin_node", "destination_node"]
+                    )
+                    baseline_demand = baseline_demand[
+                        baseline_demand["_isolated"].isna()
+                    ].drop(columns="_isolated").reset_index(drop=True)
+
             if consistent_baseline:
                 logging.info(
                     "Consistent rerouting baseline (default): recomputing pre-event "
@@ -1025,7 +1049,7 @@ def main(
                     func.network_flow_model(
                         baseline_valid,
                         baseline_network,
-                        disrupted_od[
+                        baseline_demand[
                             ["origin_node", "destination_node", "Car21"]
                         ],
                         flow_breakpoint_dict,
