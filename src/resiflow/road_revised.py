@@ -282,7 +282,7 @@ def compute_costs_for_links(
         # compute according to vehicle_type
 
         if vehicle_type == "car":
-            ave_occ = 1.06
+            ave_occ = cons.AVG_VEHICLE_OCCUPANCY_CAR
             c_time = time_hr * ave_occ * vot
             # total_cost = c_time + operate_cost + toll
             out = np.vstack([c_time, operate_cost]).T
@@ -515,6 +515,43 @@ def edge_init(
     return road_links
 
 
+# Hardcoded speed-flow congestion slopes per assignment tier. These are the
+# historical defaults and also the values shipped in
+# ``parameters/assignment_profiles.json`` -- so sourcing the tier dict from the
+# profile (below) is behaviour-preserving at baseline while making the JSON
+# authoritative (previously the profile's ``congestion_factor`` was dead config,
+# never mapped onto links, so this fallback was always used).
+_CONGESTION_FACTOR_FALLBACK: Dict[str, float] = {
+    "freeway": 0.033,
+    "arterial": 0.033,
+    "collector": 0.05,
+    "local_access": 0.05,
+}
+_congestion_factor_cache: Dict[str, Dict[str, float]] = {}
+
+
+def _resolve_congestion_factor_dict() -> Dict[str, float]:
+    """Tier-keyed congestion factors from the active assignment profile.
+
+    Memoized per resolved params root. Falls back to the hardcoded defaults if
+    profiles can't be resolved (e.g. unit tests with no config), so callers
+    never fail on config lookup.
+    """
+    try:
+        from resiflow.networks import load_assignment_profiles
+        from resiflow.networks.profiles import resolve_params_root
+
+        root = str(resolve_params_root(None))
+        if root not in _congestion_factor_cache:
+            profiles = load_assignment_profiles()
+            _congestion_factor_cache[root] = (
+                profiles.get("congestion_factor") or _CONGESTION_FACTOR_FALLBACK
+            )
+        return _congestion_factor_cache[root]
+    except Exception:
+        return _CONGESTION_FACTOR_FALLBACK
+
+
 def update_edge_speed(
     road_links: pd.DataFrame, inplace: bool = True
 ) -> pd.DataFrame | None:
@@ -530,13 +567,9 @@ def update_edge_speed(
         factor = pd.to_numeric(road_links["congestion_factor"], errors="coerce").fillna(0.0)
         factor = factor.to_numpy(dtype=float)
     else:
-        default_factors = {
-            "freeway": 0.033,
-            "arterial": 0.033,
-            "collector": 0.05,
-            "local_access": 0.05,
-        }
-        factor = map_tier_profile(road_links, default_factors).to_numpy(dtype=float)
+        factor = map_tier_profile(
+            road_links, _resolve_congestion_factor_dict()
+        ).to_numpy(dtype=float)
 
     # compute reduction only where vp > breakpoint_flow
     excess = vp - breakpoint_flow

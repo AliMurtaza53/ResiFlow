@@ -21,9 +21,10 @@ try:
 except Exception:  # pragma: no cover - depends on runtime environment.
     gpd = None
 
+from resiflow.parameters import get_parameter
 
 LOGGER = logging.getLogger(__name__)
-EARTH_RADIUS_MILES = 3958.7613
+EARTH_RADIUS_MILES = get_parameter("preprocess", "earth_radius_miles", 3958.7613)
 
 
 def _clean_columns(df: pd.DataFrame) -> pd.DataFrame:

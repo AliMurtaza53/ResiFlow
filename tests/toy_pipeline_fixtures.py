@@ -190,6 +190,7 @@ def copy_parameters(toy_data_dir: Path, *, flow_cap_plph: int = 1) -> None:
         "network_mapping.faf5.json",
         "network_mapping.osm.json",
         "network_mapping.tntp.json",
+        "unified_parameters.json",
     ):
         shutil.copy2(PARAMETERS_SRC / name, dest / name)
     cap_value = int(flow_cap_plph)

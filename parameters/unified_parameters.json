@@ -1,5 +1,5 @@
 {
-  "_comment": "Centralized parameter location across entirety of model. Hardcoded fallbacks are included in separate, individual files",
+  "_comment": "Centralized parameter location across entirety of model. Hardcoded fallbacks are in the individual modules. US sourcing (2024): VOT=USDOT Value of Travel Time guidance; fuel=EIA annual retail (gas $3.30/gal, diesel ~$3.76/gal); occupancy=FHWA NHTS 2017 (1.67); lane width=AASHTO 12 ft (3.66 m); BPR=Bureau of Public Roads; flood closure 30 cm=Pregnolato et al. 2017. STILL UK-LEGACY, pending FHWA HERS extraction: cost_operating.fuel_litre_per_km and non_fuel_cost_coeffs. VOT lgv/rail are 2016->2024 escalations; car/ogv/psv from documented 2024 figures.",
 
   "conversions": {
     "meter_to_mile": 0.000621371,
@@ -7,7 +7,7 @@
     "km_to_mile": 0.621371,
     "pence_to_pound": 0.01,
     "gbp_to_usd": 1.27,
-    "default_fuel_usd_per_litre": 0.95
+    "default_fuel_usd_per_litre": 0.90
   },
 
   "assignment_ue_bpr": {
@@ -19,23 +19,23 @@
   },
 
   "cost_time": {
-    "avg_vehicle_occupancy_car": 1.1,
+    "avg_vehicle_occupancy_car": 1.67,
     "vot_usd_per_hour": {
-      "car": 18.50,
-      "lgv": 31.00,
-      "ogv": 32.50,
-      "psv": 18.50,
-      "rail": 22.90
+      "car": 21.80,
+      "lgv": 36.50,
+      "ogv": 37.20,
+      "psv": 21.80,
+      "rail": 27.00
     }
   },
 
   "cost_operating": {
     "fuel_usd_per_litre": {
-      "car": 0.90,
-      "lgv": 0.90,
-      "ogv": 1.04,
-      "psv": 1.04,
-      "rail": 1.04
+      "car": 0.87,
+      "lgv": 0.87,
+      "ogv": 0.99,
+      "psv": 0.99,
+      "rail": 0.99
     },
     "fuel_litre_per_km": {
       "car": {"a": 0.75232, "b": 0.05130, "c": 0.00057, "d": 0.000000372},
@@ -59,11 +59,11 @@
     "earth_radius_miles": 3958.7613,
     "faf5_default_lanes": 2,
     "faf5_default_avg_toll_cost": 0.0,
-    "faf5_default_meters_per_lane": 3.5
+    "faf5_default_meters_per_lane": 3.66
   },
 
   "hazard_disruption": {
-    "flood_closure_threshold_cm": 3000,
+    "flood_closure_threshold_cm": 30,
     "earthquake_script3_depth_scale": 0.5,
     "landslide_script3_depth_scale": 0.001,
     "winter_storm_script3_depth_scale": 0.001

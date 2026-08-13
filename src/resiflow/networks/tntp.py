@@ -13,9 +13,6 @@ from shapely.geometry import LineString, Point
 
 NodeIdFormatter = Callable[[str | int], str]
 
-DEFAULT_BPR_ALPHA = 0.15
-DEFAULT_BPR_BETA = 4.0
-
 
 def read_metadata(lines: list[str]) -> dict[str, Any]:
     """Parse TNTP metadata tags from file lines."""

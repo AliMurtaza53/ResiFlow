@@ -5,11 +5,17 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
+from resiflow.parameters import get_parameter
+
+_FLOOD_CLOSURE_THRESHOLD_DEFAULT = get_parameter(
+    "hazard_disruption", "flood_closure_threshold_cm", 30
+)
+
 
 def compute_maximum_speed_on_flooded_roads(
     depth: float,
     free_flow_speed: float,
-    threshold=30,
+    threshold: float = _FLOOD_CLOSURE_THRESHOLD_DEFAULT,
 ) -> float:
     """
     Calculates the maximum allowable speed on flooded roads based on flood depth.
