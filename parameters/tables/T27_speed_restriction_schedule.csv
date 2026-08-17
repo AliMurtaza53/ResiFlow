@@ -1,0 +1,7 @@
+# T27 - Residual floodwater speed-restriction schedule (Scripts 4, both repos). Depth gates 2 m / 6 m are currently hard-coded; candidate parameterizes per flood type.
+event_day,applies_to,speed_state,source_status
+0,all flooded segments,reduced per T19 speed-depth,current (Gunn 2018 UK)
+1-3,segments with initial depth > 2 m,reduced,current
+3-7,segments with initial depth > 6 m,reduced,current
+>7,none,restored,current - assumes full recession within a week
+candidate,per flood type (flash/riverine/coastal),window 4-14 d; gates x0.5-1.5,USGS NWIS gage recession + NOAA NWPS (matrix row 27)

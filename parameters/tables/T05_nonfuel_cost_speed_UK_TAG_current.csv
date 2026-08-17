@@ -1,0 +1,16 @@
+# T05a - CURRENT UK setup, discretized. Form: cost = a + b/v (pence/km per TAG; repo comments claim cents USD/mile - same unit conflict as T04, matrix row 5).
+# Values below evaluate the stored coefficients verbatim in the a + b/v form, v in km/h.
+speed_kmh,speed_mph,nonfuel_pence_per_km_car,nonfuel_pence_per_km_lgv,nonfuel_pence_per_km_ogv,nonfuel_pence_per_km_psv
+10,6.2,32.72,21.01,85.43,176.01
+20,12.4,20.73,16.85,51.42,114.84
+30,18.6,16.73,15.47,40.08,94.45
+40,24.9,14.73,14.78,34.41,84.25
+50,31.1,13.54,14.36,31.01,78.14
+60,37.3,12.74,14.08,28.75,74.06
+70,43.5,12.17,13.89,27.13,71.15
+80,49.7,11.74,13.74,25.91,68.96
+90,55.9,11.4,13.62,24.97,67.26
+100,62.1,11.14,13.53,24.21,65.9
+110,68.4,10.92,13.46,23.59,64.79
+120,74.6,10.74,13.39,23.08,63.87
+130,80.8,10.58,13.34,22.64,63.08

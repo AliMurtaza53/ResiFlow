@@ -1,0 +1,8 @@
+# T08b - US CANDIDATE tier values. STATUS: APPROXIMATE_VERIFY - planning-level reads from HCM 7th ed. (NAP 26432) and NCHRP 825 (NAP 23632); pull exact exhibit values before adoption.
+# Arterial/collector capacities are EFFECTIVE (signal-constrained) throughput, hence far below the relabeled UK values - the central audit finding (matrix row 8).
+# Speed values remain tier fallbacks; prefer link-level HPMS SPEED_LIMIT / NPMRDS where available (matrix row 14).
+tier,flow_cap_pc_per_lane_hr,flow_breakpoint_pc_per_lane_hr,free_flow_speed_mph,urban_speed_cap_mph,min_speed_mph,congestion_model,source
+freeway,2350,~1200 (FFS-dependent 1000-1400),70,55,10,BPR a=0.15 b=6,HCM 7th ed. basic freeway 2250-2400
+arterial,900,n/a (use BPR),45,40,8,BPR a=0.15 b=4,HCM sat. flow 1900 x g/C 0.45-0.50; NCHRP 825
+collector,700,n/a (use BPR),40,30,7,BPR a=0.15 b=4,NCHRP 825 planning defaults
+local_access,550,n/a (use BPR),30,25,5,BPR a=0.15 b=4,NCHRP 825 planning defaults

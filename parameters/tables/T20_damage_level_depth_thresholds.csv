@@ -1,0 +1,11 @@
+# T20 - Depth (cm) at which each damage level BEGINS, by flood type and road class. Levels: no < minor < moderate < extensive < severe.
+# CURRENT rows are verbatim from src/resiflow/fragility/flood_categorical.py. Coastal rows are the code's own PLACEHOLDER - gate off (matrix row 21).
+# CANDIDATE row: restore van Ginkel's sophisticated/simple/ordinary classes via F_SYSTEM proxies before re-deriving thresholds (doi:10.5194/nhess-21-1011-2021).
+flood_type,road_class,status,no_below_cm,minor_from_cm,moderate_from_cm,extensive_from_cm,severe_from_cm,source
+river,major (motorway/trunk/primary/secondary),CURRENT,0,50,100,200,600,flood_categorical.py (verbatim)
+river,minor (tertiary/local),CURRENT,0,1,50,200,600,flood_categorical.py (verbatim; minor from any depth>0)
+surface,major,CURRENT,0,200,600,n/a,n/a,flood_categorical.py (caps at moderate)
+surface,minor,CURRENT,0,50,600,n/a,n/a,flood_categorical.py (caps at moderate)
+coastal,major,PLACEHOLDER_DO_NOT_USE,0,40,90,180,500,flood_categorical.py - marked 'confirm with advisor'
+coastal,minor,PLACEHOLDER_DO_NOT_USE,0,30,80,150,400,flood_categorical.py - marked 'confirm with advisor'
+river,sophisticated (US proxy: Interstate/NHS),CANDIDATE,-,-,-,-,-,Restore van Ginkel 3-class scheme (matrix row 20); thresholds from van Ginkel 2021 Table 2 overtopping logic

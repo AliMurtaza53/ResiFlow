@@ -1,0 +1,22 @@
+# T04b - US CANDIDATE, discretized. STATUS: APPROXIMATE - anchored shape, not an official extraction.
+# Anchors: EPA Automotive Trends real-world light-duty ~26-28 mpg (~0.085-0.090 L/km avg); combination truck ~6-7 mpg (~0.34-0.39 L/km) per FHWA Highway Statistics/VIUS;
+# U-shape minimum near 50-55 mph per HERS-ST/Zaniewski structure (HERS-ST Tech Report: https://rosap.ntl.bts.gov/view/dot/72703/dot_72703_DS1.pdf).
+# FINALIZE from EPA MOVES4 speed-resolved energy rates (https://www.epa.gov/moves) - HERS-ST tables trace to 1982 testing, use MOVES4 as primary.
+# Replace values in place; keep axes and labels identical so the loader is unaffected.
+speed_mph,speed_kmh,fuel_l_per_km_car,fuel_l_per_km_lgv,fuel_l_per_km_ogv_truck,fuel_l_per_km_psv_bus
+5,8.0,0.2313,0.306,0.893,0.74
+10,16.1,0.1729,0.229,0.682,0.5625
+15,24.1,0.1461,0.194,0.5837,0.4833
+20,32.2,0.1282,0.171,0.518,0.4325
+25,40.2,0.1149,0.154,0.469,0.396
+30,48.3,0.1045,0.141,0.4313,0.3692
+35,56.3,0.0965,0.1311,0.4027,0.35
+40,64.4,0.0906,0.124,0.382,0.3375
+45,72.4,0.0865,0.1193,0.3686,0.3311
+50,80.5,0.0841,0.117,0.362,0.3305
+55,88.5,0.0835,0.1169,0.3621,0.3355
+60,96.6,0.0844,0.119,0.3687,0.3458
+65,104.6,0.087,0.1232,0.3816,0.3615
+70,112.7,0.0911,0.1296,0.4009,0.3825
+75,120.7,0.0969,0.138,0.4263,0.4087
+80,128.7,0.1041,0.1485,0.458,0.44
