@@ -16,6 +16,7 @@ dependencies:
   - pyarrow
   - openpyxl
   - pip
+  - salib
   - pip:
       - -e ".[dev]"
       - nismod-snail

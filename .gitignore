@@ -15,6 +15,9 @@ config.json
 # Run outputs
 results/
 logs/
+# Morris SA generated artifacts (keep the tracked dispatch example)
+sa_runs/*
+!sa_runs/dispatch_example.sh
 *.duckdb
 *.duckdb.wal
 

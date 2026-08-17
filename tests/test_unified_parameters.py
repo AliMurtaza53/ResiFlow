@@ -17,18 +17,31 @@ from resiflow.assignment.ue_bpr import (
 )
 from resiflow.disruption import earthquake, landslide, winter_storm
 from resiflow.fragility.flood_operational import compute_maximum_speed_on_flooded_roads
-from resiflow.parameters import clear_cache, get_parameter, load_unified_parameters
+from resiflow.parameters import (
+    active_overrides_path,
+    clear_cache,
+    get_parameter,
+    load_unified_parameters,
+)
 from resiflow.preprocess import faf5_network
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 REPO_PARAMETERS = REPO_ROOT / "parameters"
 
+_OVERRIDES_ENV = "RESIFLOW_PARAM_OVERRIDES"
+
 
 @pytest.fixture(autouse=True)
-def _clear_parameter_cache():
+def _clear_parameter_cache(monkeypatch):
+    monkeypatch.delenv(_OVERRIDES_ENV, raising=False)
     clear_cache()
     yield
     clear_cache()
+
+
+def _write_json(path: Path, payload: dict) -> Path:
+    path.write_text(json.dumps(payload), encoding="utf-8")
+    return path
 
 
 def test_load_unified_parameters_returns_empty_dict_when_file_absent(tmp_path):
@@ -75,6 +88,122 @@ def test_get_parameter_applies_dict_valued_override(tmp_path):
     assert get_parameter(
         "cost_time", "vot_usd_per_hour", {"car": 18.5}, params_root=tmp_path
     ) == {"car": 99.0}
+
+
+def test_active_overrides_path_reflects_env(monkeypatch, tmp_path):
+    assert active_overrides_path() is None
+    ov = tmp_path / "overrides.json"
+    monkeypatch.setenv(_OVERRIDES_ENV, str(ov))
+    assert active_overrides_path() == ov
+
+
+def test_overrides_deep_merge_patches_without_clobbering_siblings(monkeypatch, tmp_path):
+    _write_json(
+        tmp_path / "unified_parameters.json",
+        {
+            "cost_time": {
+                "avg_vehicle_occupancy_car": 1.67,
+                "vot_usd_per_hour": {"car": 21.80, "ogv": 37.20},
+            },
+            "conversions": {"mile_to_km": 1.60934},
+        },
+    )
+    ov = _write_json(
+        tmp_path / "ov.json",
+        {"cost_time": {"vot_usd_per_hour": {"car": 30.0}}},
+    )
+    monkeypatch.setenv(_OVERRIDES_ENV, str(ov))
+    data = load_unified_parameters(params_root=tmp_path)
+    # patched leaf wins ...
+    assert data["cost_time"]["vot_usd_per_hour"]["car"] == 30.0
+    # ... sibling leaves and sibling sections survive the merge
+    assert data["cost_time"]["vot_usd_per_hour"]["ogv"] == 37.20
+    assert data["cost_time"]["avg_vehicle_occupancy_car"] == 1.67
+    assert data["conversions"]["mile_to_km"] == 1.60934
+
+
+def test_overrides_scale_multiplies_scalar(monkeypatch, tmp_path):
+    _write_json(
+        tmp_path / "unified_parameters.json",
+        {"hazard_disruption": {"flood_closure_threshold_cm": 30}},
+    )
+    ov = _write_json(
+        tmp_path / "ov.json",
+        {"_scales": {"hazard_disruption.flood_closure_threshold_cm": 0.5}},
+    )
+    monkeypatch.setenv(_OVERRIDES_ENV, str(ov))
+    assert get_parameter(
+        "hazard_disruption", "flood_closure_threshold_cm", 30, params_root=tmp_path
+    ) == pytest.approx(15.0)
+
+
+def test_overrides_scale_multiplies_every_numeric_leaf_of_dict(monkeypatch, tmp_path):
+    _write_json(
+        tmp_path / "unified_parameters.json",
+        {
+            "cost_time": {
+                "vot_usd_per_hour": {"car": 20.0, "ogv": 40.0, "label": "usd"},
+            }
+        },
+    )
+    ov = _write_json(tmp_path / "ov.json", {"_scales": {"cost_time.vot_usd_per_hour": 1.1}})
+    monkeypatch.setenv(_OVERRIDES_ENV, str(ov))
+    vot = get_parameter("cost_time", "vot_usd_per_hour", {}, params_root=tmp_path)
+    assert vot["car"] == pytest.approx(22.0)
+    assert vot["ogv"] == pytest.approx(44.0)
+    assert vot["label"] == "usd"  # non-numeric leaves untouched
+
+
+def test_overrides_scale_never_scales_bools(monkeypatch, tmp_path):
+    _write_json(
+        tmp_path / "unified_parameters.json",
+        {"flags": {"opts": {"enabled": True, "weight": 2.0}}},
+    )
+    ov = _write_json(tmp_path / "ov.json", {"_scales": {"flags.opts": 3.0}})
+    monkeypatch.setenv(_OVERRIDES_ENV, str(ov))
+    opts = get_parameter("flags", "opts", {}, params_root=tmp_path)
+    assert opts["enabled"] is True
+    assert opts["weight"] == pytest.approx(6.0)
+
+
+def test_overrides_scale_unknown_path_raises_keyerror(monkeypatch, tmp_path):
+    _write_json(tmp_path / "unified_parameters.json", {"conversions": {"mile_to_km": 1.6}})
+    ov = _write_json(tmp_path / "ov.json", {"_scales": {"conversions.no_such_key": 2.0}})
+    monkeypatch.setenv(_OVERRIDES_ENV, str(ov))
+    with pytest.raises(KeyError):
+        load_unified_parameters(params_root=tmp_path)
+
+
+def test_overrides_scale_applies_to_merged_values(monkeypatch, tmp_path):
+    """A _scales path may target a key introduced by the same overrides file."""
+    _write_json(tmp_path / "unified_parameters.json", {"conversions": {"mile_to_km": 1.6}})
+    ov = _write_json(
+        tmp_path / "ov.json",
+        {"assignment": {"capacity_scale": 0.8}, "_scales": {"assignment.capacity_scale": 2.0}},
+    )
+    monkeypatch.setenv(_OVERRIDES_ENV, str(ov))
+    assert get_parameter(
+        "assignment", "capacity_scale", 1.0, params_root=tmp_path
+    ) == pytest.approx(1.6)
+
+
+def test_cache_is_keyed_by_overrides_path(monkeypatch, tmp_path):
+    _write_json(tmp_path / "unified_parameters.json", {"conversions": {"mile_to_km": 1.6}})
+    # populate cache with no overrides in force
+    assert get_parameter("conversions", "mile_to_km", 0.0, params_root=tmp_path) == 1.6
+    ov = _write_json(tmp_path / "ov.json", {"conversions": {"mile_to_km": 9.9}})
+    monkeypatch.setenv(_OVERRIDES_ENV, str(ov))
+    # no clear_cache(): the overrides path is part of the cache key
+    assert get_parameter("conversions", "mile_to_km", 0.0, params_root=tmp_path) == 9.9
+    monkeypatch.delenv(_OVERRIDES_ENV)
+    assert get_parameter("conversions", "mile_to_km", 0.0, params_root=tmp_path) == 1.6
+
+
+def test_missing_overrides_file_raises(monkeypatch, tmp_path):
+    _write_json(tmp_path / "unified_parameters.json", {"conversions": {"mile_to_km": 1.6}})
+    monkeypatch.setenv(_OVERRIDES_ENV, str(tmp_path / "does_not_exist.json"))
+    with pytest.raises(FileNotFoundError):
+        load_unified_parameters(params_root=tmp_path)
 
 
 def test_bundled_reference_file_matches_live_runtime_constants():

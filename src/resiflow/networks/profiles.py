@@ -67,6 +67,47 @@ def _load_legacy_profile_file(root: Path, profile_name: str) -> dict[str, float]
     return coerce_profile_dict(_read_json(path))
 
 
+# T08 discretized-table columns -> assignment_profiles.json profile names.
+_TIER_TABLE_COLUMN_TO_PROFILE = {
+    "flow_cap_pc_per_lane_hr": "flow_cap_plph",
+    "flow_breakpoint_pc_per_lane_hr": "flow_breakpoint",
+    "free_flow_speed_mph": "free_flow_speed",
+    "urban_speed_cap_mph": "urban_speed_cap",
+    "min_speed_mph": "min_speed_cap",
+    "congestion_factor_mph_per_pcu": "congestion_factor",
+}
+
+
+def _load_profiles_from_table(
+    table_name: str,
+    params_root: Path | str | None,
+) -> dict[str, dict[str, float]]:
+    """Assignment profiles from a Txx tier table (assignment.use_table_tier_values)."""
+    from resiflow.tables import load_table  # deferred: parameters<->profiles cycle
+
+    table = load_table(table_name, params_root=params_root)
+    profiles: dict[str, dict[str, float]] = {}
+    for column, profile_name in _TIER_TABLE_COLUMN_TO_PROFILE.items():
+        if column not in table.columns:
+            raise ValueError(
+                f"Tier table {table_name!r} is missing column {column!r} "
+                f"(needed for profile {profile_name!r})."
+            )
+        values: dict[str, float] = {}
+        for _, row in table.iterrows():
+            try:
+                values[str(row["tier"])] = float(row[column])
+            except (TypeError, ValueError) as exc:
+                raise ValueError(
+                    f"Tier table {table_name!r} column {column!r} has a "
+                    f"non-numeric value {row[column]!r} for tier "
+                    f"{row['tier']!r} — pull exact values before adoption "
+                    "(see the table's provenance header)."
+                ) from exc
+        profiles[profile_name] = coerce_profile_dict(values)
+    return profiles
+
+
 def load_assignment_profiles(
     params_root: Path | str | None = None,
 ) -> dict[str, dict[str, float]]:
@@ -74,7 +115,18 @@ def load_assignment_profiles(
 
     Prefers ``assignment_profiles.json`` when present; otherwise reads legacy
     per-profile JSON files (M/A_dual/... keys are coerced to assignment tiers).
+    With ``assignment.use_table_tier_values`` enabled, the dicts come from the
+    discretized tier table (``assignment.tier_table``, default the UK-current
+    T08 file whose values match ``assignment_profiles.json`` verbatim).
     """
+    from resiflow.parameters import get_parameter  # deferred: import cycle
+
+    if get_parameter("assignment", "use_table_tier_values", False):
+        table_name = get_parameter(
+            "assignment", "tier_table", "T08_assignment_tiers_UK_current"
+        )
+        return _load_profiles_from_table(table_name, params_root)
+
     root = resolve_params_root(params_root)
     bundled = root / "assignment_profiles.json"
     if bundled.exists():

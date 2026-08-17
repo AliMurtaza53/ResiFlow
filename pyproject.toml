@@ -41,6 +41,7 @@ dev = [
     "pre-commit",
     "pytest",
     "pytest-cov",
+    "salib",
     "types-tqdm"
 ]
 docs = ["sphinx", "m2r2"]

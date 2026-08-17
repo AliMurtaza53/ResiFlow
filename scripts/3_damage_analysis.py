@@ -15,6 +15,8 @@ import pandas as pd
 
 from resiflow.utils import get_results_variant, load_config
 from resiflow.classification import is_major_road as _is_major_road
+from resiflow.parameters import active_overrides_path, get_parameter
+from resiflow.sa.curves import mix_damage_curves, scale_depth_axis
 from snail import damages
 
 warnings.simplefilter("ignore")
@@ -579,8 +581,24 @@ def main():
     )
     if damage_cost_path is None:
         raise FileNotFoundError("Could not find damage_cost_road_flood.xlsx in standard or toy lookup paths")
+    if active_overrides_path() is not None:
+        print(f"Parameter overrides in force: {active_overrides_path()}")
+
     # damage curves
     damages_ratio_df = pd.read_excel(damage_ratio_path)
+
+    # SA seam: optional vulnerability-curve perturbations, applied to the
+    # loaded frame (the workbook itself stays pristine). Both parameters are
+    # baseline-neutral: null/absent in unified_parameters.json means no-op.
+    curve_theta = get_parameter("vulnerability", "curve_theta", None)
+    depth_scale_lambda = get_parameter("vulnerability", "depth_scale_lambda", None)
+    if curve_theta is not None:
+        print(f"Applying damage-curve mixing theta={curve_theta}")
+        damages_ratio_df = mix_damage_curves(damages_ratio_df, float(curve_theta))
+    if depth_scale_lambda is not None:
+        print(f"Applying depth-axis scale lambda={depth_scale_lambda}")
+        damages_ratio_df = scale_depth_axis(damages_ratio_df, float(depth_scale_lambda))
+
     damage_curves = create_damage_curves(damages_ratio_df)
 
     faf5_links_path = first_existing(
@@ -670,6 +688,28 @@ def main():
         "bridge_surface": dv_bridge_surface_dict,
         "bridge_river": dv_bridge_river_dict,
     }
+
+    # SA seam: asset unit-cost scales, applied after the pristine cost
+    # workbook loads. Defaults of 1.0 are baseline-neutral (multiplying by
+    # 1.0 is exact for floats).
+    road_cost_scale = float(get_parameter("damage_costs", "road_cost_scale", 1.0))
+    bridge_cost_scale = float(get_parameter("damage_costs", "bridge_cost_scale", 1.0))
+    if road_cost_scale != 1.0 or bridge_cost_scale != 1.0:
+        print(
+            f"Applying asset-cost scales: road/tunnel x{road_cost_scale}, "
+            f"bridge x{bridge_cost_scale}"
+        )
+        for asset_label, scale in (
+            ("road", road_cost_scale),
+            ("tunnel", road_cost_scale),
+            ("bridge_surface", bridge_cost_scale),
+            ("bridge_river", bridge_cost_scale),
+        ):
+            if scale == 1.0:
+                continue
+            for stats in damage_values[asset_label].values():
+                for stat in list(stats):
+                    stats[stat] = stats[stat] * scale
 
     # Load intersection data and assign attributes for damage calculations
     # batch process

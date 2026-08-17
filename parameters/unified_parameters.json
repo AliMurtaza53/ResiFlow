@@ -1,5 +1,5 @@
 {
-  "_comment": "Centralized parameter location across entirety of model. Hardcoded fallbacks are in the individual modules. US sourcing (2024): VOT=USDOT Value of Travel Time guidance; fuel=EIA annual retail (gas $3.30/gal, diesel ~$3.76/gal); occupancy=FHWA NHTS 2017 (1.67); lane width=AASHTO 12 ft (3.66 m); BPR=Bureau of Public Roads; flood closure 30 cm=Pregnolato et al. 2017. STILL UK-LEGACY, pending FHWA HERS extraction: cost_operating.fuel_litre_per_km and non_fuel_cost_coeffs. VOT lgv/rail are 2016->2024 escalations; car/ogv/psv from documented 2024 figures.",
+  "_comment": "Centralized parameter location across entirety of model. Hardcoded fallbacks are in the individual modules.",
 
   "conversions": {
     "meter_to_mile": 0.000621371,
@@ -18,8 +18,21 @@
     "demand_scale": 1.0
   },
 
+  "assignment": {
+    "_comment": "SA seams for the Script 1/4 flow model (road_revised.py). All default-neutral: capacity_scale/breakpoint_scale/congestion_scale multiply per-tier profile values (1.0 = historical), speed_shift_mph shifts free-flow speeds additively (0.0 = historical; floored at per-tier min speed), effective_hours_per_day is the daily capacity/flow divisor (24 = historical).",
+    "capacity_scale": 1.0,
+    "breakpoint_scale": 1.0,
+    "speed_shift_mph": 0.0,
+    "congestion_scale": 1.0,
+    "effective_hours_per_day": 24,
+    "use_table_tier_values": false,
+    "tier_table": "T08_assignment_tiers_UK_current"
+  },
+
   "cost_time": {
+    "_comment": "avg_vehicle_occupancy_car 1.67 is the NHTS ALL-PURPOSE occupancy, not commute (~1.18) -- known value-level issue; do not silently change the baseline mid-SA. isolation_usd_per_day monetizes isolated trips in Script 4 (freight monetization is a flagged open research question; default mirrors Script 5's ISOLATION_UNIT_COST_USD).",
     "avg_vehicle_occupancy_car": 1.67,
+    "isolation_usd_per_day": 50.0,
     "vot_usd_per_hour": {
       "car": 21.80,
       "lgv": 36.50,
@@ -48,7 +61,12 @@
       "lgv": {"a": 12.70, "b": 83.06},
       "ogv": {"a": 17.41, "b": 680.18},
       "psv": {"a": 53.67, "b": 1223.40}
-    }
+    },
+    "_comment_tables": "use_table_* flags (default false = current formula behavior) switch road_revised.compute_costs_for_links to linear interpolation of the discretized parameters/tables CSVs; *_table names select UK-current vs US-candidate files (US candidates carry APPROXIMATE_VERIFY status).",
+    "use_table_fuel_curve": false,
+    "fuel_curve_table": "T04_fuel_consumption_speed_UK_TAG_current",
+    "use_table_nonfuel_curve": false,
+    "nonfuel_curve_table": "T05_nonfuel_cost_speed_UK_TAG_current"
   },
 
   "damage_aggregation": {
@@ -63,10 +81,40 @@
   },
 
   "hazard_disruption": {
+    "_comment": "speed_depth_exponent is p in V = V_max*(1 - d/d_c)**p (fragility/flood_operational.py); p=2 reproduces the historical Pregnolato quadratic, p=1 the linear alternate.",
     "flood_closure_threshold_cm": 30,
     "earthquake_script3_depth_scale": 0.5,
     "landslide_script3_depth_scale": 0.001,
-    "winter_storm_script3_depth_scale": 0.001
+    "winter_storm_script3_depth_scale": 0.001,
+    "speed_depth_exponent": 2.0,
+    "use_table_speed_depth": false,
+    "speed_depth_table": "T19_speed_depth_curve_discretized"
+  },
+
+  "vulnerability": {
+    "_comment": "SA seams for Script 3 vulnerability curves. curve_theta (0..1, null = off) blends each low/high-flow damage-curve pair d=(1-theta)*d_low+theta*d_high; depth_scale_lambda (0.8..1.25, null = off) evaluates curves at depth/lambda (damage-onset shift); damage_threshold_scale multiplies every categorical depth threshold in fragility/flood_categorical.py (1.0 = historical).",
+    "curve_theta": null,
+    "depth_scale_lambda": null,
+    "damage_threshold_scale": 1.0,
+    "use_table_damage_thresholds": false,
+    "damage_threshold_table": "T20_damage_level_depth_thresholds"
+  },
+
+  "damage_costs": {
+    "_comment": "Unit-cost scales applied in Script 3 AFTER the pristine damage_cost workbook loads (the workbook is never edited). 1.0 = historical.",
+    "road_cost_scale": 1.0,
+    "bridge_cost_scale": 1.0
+  },
+
+  "recovery": {
+    "_comment": "Script 4 residual-floodwater depth gates (m): day-2 speed constraint applies to links with intermediate <= depth < deep, day-3 to depth >= deep. Historical literals 2 m / 6 m. Scale both coherently with one Morris factor via `_scales: recovery.residual_depth_gates_m`.",
+    "residual_depth_gates_m": {
+      "intermediate": 2.0,
+      "deep": 6.0
+    },
+    "use_table_recovery_design": false,
+    "recovery_design_table": "T26_recovery_design_current",
+    "table_recovery_scenario": "average"
   },
 
   "testbed_synthetic_hazards": {

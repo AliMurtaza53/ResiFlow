@@ -34,6 +34,7 @@ from resiflow.demand import (
 )
 from resiflow.networks import load_assignment_profiles, normalize_network_links
 from resiflow.networks.assignment import map_tier_profile
+from resiflow.parameters import active_overrides_path, get_parameter
 from resiflow.utils import get_results_variant, load_config, get_flow_on_edges
 import duckdb
 import os
@@ -349,7 +350,29 @@ def ordinary_road_recovery(
 
 
 def load_scenarios(base_path: Path) -> Tuple[Dict, Dict]:
-    """Load recovery rates for bridges and ordinary roads."""
+    """Load recovery rates for bridges and ordinary roads.
+
+    Default: the data bundle's ``tables/recovery design_updated.csv`` (current
+    behavior). With ``recovery.use_table_recovery_design`` enabled, the
+    day-by-day rates are derived instead from the step-wise T26 design table
+    in ``parameters/tables`` for the scenario named by
+    ``recovery.table_recovery_scenario`` (fast/average/slow); T26 does not
+    distinguish bridges from ordinary roads, so both dicts share the schedule.
+    """
+    if get_parameter("recovery", "use_table_recovery_design", False):
+        from resiflow.tables import recovery_schedule_from_table
+
+        recovery_dict, event_days = recovery_schedule_from_table(
+            get_parameter(
+                "recovery", "recovery_design_table", "T26_recovery_design_current"
+            ),
+            str(get_parameter("recovery", "table_recovery_scenario", "average")),
+        )
+        bridge_recovery_dict = defaultdict(list, {k: list(v) for k, v in recovery_dict.items()})
+        road_recovery_dict = defaultdict(list, {k: list(v) for k, v in recovery_dict.items()})
+        scenarios = [1] * len(event_days)  # matches the bundle's scenario=1 reuse
+        return (bridge_recovery_dict, road_recovery_dict, scenarios, event_days)
+
     scenario_path = base_path / "tables" / "recovery design_updated.csv"
     if not scenario_path.exists():
         raise FileNotFoundError(
@@ -614,6 +637,14 @@ def main(
         if "road_bridge" in road_links.columns:
             road_links.loc[road_links["road_bridge"].astype(str).str.lower() == "yes", "road_label"] = "bridge"
     road_links["breakpoint_flows"] = map_tier_profile(road_links, flow_breakpoint_dict)
+    # SA seam: same breakpoint-flow scale as edge_initial_speed_func (Script 1),
+    # so the factor moves both assignment passes coherently. Default 1.0.
+    _breakpoint_scale = float(get_parameter("assignment", "breakpoint_scale", 1.0))
+    if _breakpoint_scale != 1.0:
+        road_links["breakpoint_flows"] = (
+            pd.to_numeric(road_links["breakpoint_flows"], errors="coerce")
+            * _breakpoint_scale
+        )
     initial_road_links_cols = road_links.columns
     flooded_edges = set(
         road_links.loc[road_links["damage_level_max"] != "no", "e_id"].astype(str)
@@ -741,6 +772,9 @@ def main(
         / str(flood_key)
     )
     out_path.mkdir(parents=True, exist_ok=True)
+
+    if active_overrides_path() is not None:
+        logging.info("Parameter overrides in force: %s", active_overrides_path())
 
     # Recovery reruns only need edge flows and cost totals, not path-index artifacts.
     os.environ["NIRD_BASELINE_PATH_OUTPUT_MODE"] = "none"
@@ -927,19 +961,28 @@ def main(
 
             logging.info("Updating road speed limits...")
             func.update_edge_speed(road_links, inplace=True)
+            # SA seam: residual-floodwater depth gates (m) controlling which
+            # links keep the speed constraint as the water recedes. Defaults
+            # equal the historical literals (2 m / 6 m); one Morris factor
+            # scales both gates coherently via `_scales: recovery.residual_depth_gates_m`.
+            _gates = get_parameter(
+                "recovery", "residual_depth_gates_m", {"intermediate": 2.0, "deep": 6.0}
+            )
+            gate_intermediate = float(_gates.get("intermediate", 2.0))
+            gate_deep = float(_gates.get("deep", 6.0))
             if event_day == 1:  # apply speed constraint to every road
                 road_links["acc_speed"] = road_links[["acc_speed", "max_speed"]].min(axis=1)
             if (
                 event_day == 2
             ):  # only apply speed constraint to roads with flooddepth (2-6) meters
-                mask = (road_links["flood_depth_max"] >= 2) & (
-                    road_links["flood_depth_max"] < 6
+                mask = (road_links["flood_depth_max"] >= gate_intermediate) & (
+                    road_links["flood_depth_max"] < gate_deep
                 )
                 road_links.loc[mask, "acc_speed"] = road_links.loc[
                     mask, ["acc_speed", "max_speed"]
                 ].min(axis=1)
             if event_day == 3:  # only for roads > 6 meters
-                mask = road_links["flood_depth_max"] >= 6
+                mask = road_links["flood_depth_max"] >= gate_deep
                 road_links.loc[mask, "acc_speed"] = road_links.loc[
                     mask, ["acc_speed", "max_speed"]
                 ].min(axis=1)
@@ -1113,9 +1156,29 @@ def main(
                 (isolation_df.origin_node != isolation_df.destination_node)
                 & (isolation_df.Car21 > 0)
             ].reset_index(drop=True)
+
+            # SA seam: monetize isolated trips at $/trip-day. Freight
+            # isolation monetization is a flagged open research question --
+            # this parameterizes the assumption without resolving it. The
+            # default (50.0) mirrors Script 5's ISOLATION_UNIT_COST_USD;
+            # monetized values land in *new* columns only, so existing
+            # outputs are unchanged.
+            isolation_usd_per_day = float(
+                get_parameter("cost_time", "isolation_usd_per_day", 50.0)
+            )
+            isolation_df["isolation_cost_usd"] = (
+                pd.to_numeric(isolation_df["Car21"], errors="coerce").fillna(0.0)
+                * isolation_usd_per_day
+            )
             isolation_df.to_csv(
                 out_path / f"trip_isolations_{mode_name}_s{scenario_id}_day{event_day}.csv",
                 index=False,
+            )
+            cost_rows[-1]["isolation_flow"] = float(
+                pd.to_numeric(isolation_df["Car21"], errors="coerce").fillna(0.0).sum()
+            )
+            cost_rows[-1]["isolation_cost_usd"] = float(
+                isolation_df["isolation_cost_usd"].sum()
             )
 
             # edge flows

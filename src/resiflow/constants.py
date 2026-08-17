@@ -43,20 +43,29 @@ FUEL_USD_PER_LITRE = get_parameter("cost_operating", "fuel_usd_per_litre", {
 })
 DEFAULT_FUEL_USD_PER_LITRE = get_parameter("conversions", "default_fuel_usd_per_litre", 0.95)
 
-# Fuel consumption in litres per mile (converted from per km)
-# Original units: litres per km. Convert by multiplying by CONV_KM_TO_MILE
+# Fuel consumption curve coefficients, litres per km, evaluated at speed in
+# km/h: L = a/v + b + c*v + d*v^2 (see road_revised.compute_costs_for_links,
+# which computes v_kmph and multiplies the resulting per-km rate by
+# distance_km). These are the original UK NIRD per-km coefficients -- no
+# mile conversion has been applied. UK-legacy values pending FHWA HERS
+# extraction; excluded from the Morris SA until replaced
+# (parameters/sa_morris_design.json `excluded`).
 FUEL_LITRE_PER_KM = get_parameter("cost_operating", "fuel_litre_per_km", {
-    "car": {"a": 0.75232, "b": 0.05130, "c": 0.00057, "d": 0.000000372},  # per mile (adjusted)
-    "lgv": {"a": 0.65074, "b": 0.09512, "c": -0.00301, "d": 0.000020},  # per mile (adjusted)
-    "ogv": {"a": 6.73854, "b": 0.13573, "c": -0.00191, "d": 0.000014},  # per mile (adjusted)
-    "psv": {"a": 5.41589, "b": 0.18347, "c": -0.00206, "d": 0.000015},  # per mile (adjusted)
+    "car": {"a": 0.75232, "b": 0.05130, "c": 0.00057, "d": 0.000000372},  # litres/km
+    "lgv": {"a": 0.65074, "b": 0.09512, "c": -0.00301, "d": 0.000020},  # litres/km
+    "ogv": {"a": 6.73854, "b": 0.13573, "c": -0.00191, "d": 0.000014},  # litres/km
+    "psv": {"a": 5.41589, "b": 0.18347, "c": -0.00206, "d": 0.000015},  # litres/km
 })
 
-# Non-fuel operating costs in cents USD per mile (converted from pence GBP per km)
-# Original: pence per km, converted to cents USD per mile
+# Non-fuel operating cost curve, hundredths of a currency unit per km,
+# evaluated at km/h: NFC = a + b/v (road_revised divides by 100 and
+# multiplies by distance_km). Like FUEL_LITRE_PER_KM these are the original
+# UK NIRD per-km coefficients (pence/km); the /100 yields GBP/km but the
+# result is consumed as USD without an explicit conversion -- currency
+# labeling unresolved, UK-legacy pending FHWA HERS extraction.
 NON_FUEL_PENCE_PER_KM = get_parameter("cost_operating", "non_fuel_cost_coeffs", {
-    "car": {"a": 8.74, "b": 239.77},  # cents USD per mile
-    "lgv": {"a": 12.70, "b": 83.06},  # cents USD per mile
-    "ogv": {"a": 17.41, "b": 680.18},  # cents USD per mile
-    "psv": {"a": 53.67, "b": 1223.40},  # cents USD per mile
+    "car": {"a": 8.74, "b": 239.77},  # per km
+    "lgv": {"a": 12.70, "b": 83.06},  # per km
+    "ogv": {"a": 17.41, "b": 680.18},  # per km
+    "psv": {"a": 53.67, "b": 1223.40},  # per km
 })
