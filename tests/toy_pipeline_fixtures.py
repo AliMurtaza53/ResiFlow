@@ -113,8 +113,8 @@ def network_spec(name: str) -> ToyNetworkSpec:
             reroute_gain_edge="e_mid",
             expected_disrupted_flow_freight=100.0,
             expected_disrupted_flow_passenger=30.0,
-            expected_rerouting_cost_freight=-95.27435151515712,
-            expected_rerouting_cost_passenger=25.071499098705655,
+            expected_rerouting_cost_freight=393.2144876810812,
+            expected_rerouting_cost_passenger=47.8878051466433,
             expected_reroute_flow_freight=24.0,
             expected_reroute_flow_passenger=24.0,
             origin_node="n1",
@@ -131,8 +131,8 @@ def network_spec(name: str) -> ToyNetworkSpec:
             reroute_gain_edge="e_13",
             expected_disrupted_flow_freight=12.0,
             expected_disrupted_flow_passenger=13.0,
-            expected_rerouting_cost_freight=5.160587707273884,
-            expected_rerouting_cost_passenger=5.5906366828800245,
+            expected_rerouting_cost_freight=29.378133916215816,
+            expected_rerouting_cost_passenger=31.82631174256713,
             expected_reroute_flow_freight=12.0,
             expected_reroute_flow_passenger=13.0,
             origin_node="n1",
@@ -190,6 +190,7 @@ def copy_parameters(toy_data_dir: Path, *, flow_cap_plph: int = 1) -> None:
         "network_mapping.faf5.json",
         "network_mapping.osm.json",
         "network_mapping.tntp.json",
+        "unified_parameters.json",
     ):
         shutil.copy2(PARAMETERS_SRC / name, dest / name)
     cap_value = int(flow_cap_plph)

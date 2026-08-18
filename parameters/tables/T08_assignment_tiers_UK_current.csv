@@ -1,0 +1,6 @@
+# T08a - CURRENT assignment tier values (ResiFlow assignment_profiles.json = UK DfT/COBA values relabeled to US tiers; matrix rows 8-10,14).
+tier,flow_cap_pc_per_lane_hr,flow_breakpoint_pc_per_lane_hr,free_flow_speed_mph,urban_speed_cap_mph,min_speed_mph,congestion_factor_mph_per_pcu
+freeway,2400,1400,70.0,55.0,10.0,0.033
+arterial,2200,1300,60.0,45.0,8.0,0.033
+collector,1700,1100,55.0,35.0,7.0,0.05
+local_access,1000,800,35.0,30.0,5.0,0.05

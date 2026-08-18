@@ -13,8 +13,11 @@ from resiflow.disruption.intensity_hazard import (
     intersections_with_intensity,
 )
 from resiflow.fragility.landslide_categorical import compute_damage_levels_vectorized
+from resiflow.parameters import get_parameter
 
-SCRIPT3_DEPTH_SCALE = 1.0 / 1000.0  # mm → meters for Script 3 surface depth column
+SCRIPT3_DEPTH_SCALE = get_parameter(
+    "hazard_disruption", "landslide_script3_depth_scale", 0.001
+)  # mm → meters for Script 3 surface depth column
 
 
 def intersections_with_landslide(

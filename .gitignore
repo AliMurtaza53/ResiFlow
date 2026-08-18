@@ -21,6 +21,10 @@ results/
 logs/
 experiments/perf_numcpu/runs/
 experiments/pass_a_convergence/runs/
+
+# Morris SA generated artifacts (keep the tracked dispatch example)
+sa_runs/*
+!sa_runs/dispatch_example.sh
 *.duckdb
 *.duckdb.wal
 

@@ -13,9 +13,12 @@ from resiflow.disruption.intensity_hazard import (
     intersections_with_intensity,
 )
 from resiflow.fragility.earthquake_categorical import compute_damage_levels_vectorized
+from resiflow.parameters import get_parameter
 
 # Script 3 shim: map PGA (g) to pseudo-depth meters (PLACEHOLDER scaling).
-SCRIPT3_DEPTH_SCALE = 0.5
+SCRIPT3_DEPTH_SCALE = get_parameter(
+    "hazard_disruption", "earthquake_script3_depth_scale", 0.5
+)
 
 
 def intersections_with_earthquake(

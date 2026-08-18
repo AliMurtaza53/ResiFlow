@@ -1,0 +1,11 @@
+# T26 - Step-wise recovery of road capacity (Li et al. 2026 Table 2; identical in both repos). Capacity steps: 0% -> 50% (intermediate day) -> 100% (full day).
+# US CANDIDATE re-anchoring (matrix row 26): fast ~45-60 d per US incentive contracting (I-85 Atlanta rebuilt 43 d, 2017); slow = multi-month structural cases;
+# calibrate against FHWA Emergency Relief records (fhwa.dot.gov/programadmin/erelief.cfm). Keep the 3-scenario structure - it is the SA envelope.
+damage_level,recovery_scenario,total_recovery_days,capacity_50pct_day,capacity_100pct_day,note
+minor_moderate,all,0,none,none,no capacity loss; speed restrictions only
+extensive,fast,60,30,45,
+extensive,average,110,60,90,
+extensive,slow,160,90,150,
+severe,fast,60,45,60,
+severe,average,110,90,110,
+severe,slow,160,150,160,

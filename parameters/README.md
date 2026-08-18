@@ -29,6 +29,22 @@ damage profile:
 
 Override the active source with `RESIFLOW_NETWORK_SOURCE=faf5|osm`.
 
+## Unified scalar parameters
+
+- `unified_parameters.json` — optional overrides for scalar (non-dict) numeric
+  constants used across the pipeline: unit conversions, BPR user-equilibrium
+  defaults, damage-aggregation currency scaling, FAF5 preprocessing defaults,
+  hazard depth-scale/closure-threshold constants, and synthetic-testbed hazard
+  peak intensities.
+- Loaded via `resiflow.parameters.get_parameter(section, key, default)`. If this
+  file (or a given section/key) is absent from the active data root, the caller's
+  hardcoded `default` is used instead — so this file is entirely optional and
+  omitting it changes nothing.
+- Structure: a flat JSON object of `{"section": {"key": value, ...}, ...}` groups
+  (`conversions`, `assignment_ue_bpr`, `damage_aggregation`, `preprocess`,
+  `hazard_disruption`, `testbed_synthetic_hazards`). See the bundled copy in this
+  directory for the current default values and exact key names.
+
 ## Pipeline integration
 
 `resiflow.networks.normalize_network_links()` adds:

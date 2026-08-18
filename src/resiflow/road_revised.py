@@ -22,6 +22,7 @@ import gc
 
 # Local
 import resiflow.constants as cons
+from resiflow.parameters import get_parameter
 import duckdb
 
 warnings.simplefilter("ignore")
@@ -289,22 +290,59 @@ def compute_costs_for_links(
         # safe speed
         v_kmph = distance_km / np.maximum(time_hr, eps)
 
-        # operate_cost per mile vectorised (use values from cons)
-        a, b, c, d = tuple(cons.FUEL_LITRE_PER_KM[vehicle_type].values())
-        L = a / np.maximum(v_kmph, eps) + b + c * v_kmph + d * v_kmph**2
+        # operating cost per km, vectorised (per-km curves at km/h; see
+        # constants.FUEL_LITRE_PER_KM / NON_FUEL_PENCE_PER_KM unit notes)
+        if get_parameter("cost_operating", "use_table_fuel_curve", False):
+            # discretized table path (parameters/tables); axis pinned to
+            # speed_kmh so UK/US files interchange regardless of column order
+            from resiflow.tables import interpolate, load_table
+
+            fuel_table = load_table(
+                get_parameter(
+                    "cost_operating",
+                    "fuel_curve_table",
+                    "T04_fuel_consumption_speed_UK_TAG_current",
+                )
+            )
+            L = interpolate(
+                fuel_table,
+                v_kmph,
+                f"fuel_l_per_km_{vehicle_type}",
+                axis_column="speed_kmh",
+            )  # litres/km
+        else:
+            a, b, c, d = tuple(cons.FUEL_LITRE_PER_KM[vehicle_type].values())
+            L = a / np.maximum(v_kmph, eps) + b + c * v_kmph + d * v_kmph**2  # litres/km
         # US fuel price (USD/litre) instead of the legacy UK pump price
         # (~1.4 GBP/L * 1.27). See constants.FUEL_USD_PER_LITRE.
         fuel_price = getattr(cons, "FUEL_USD_PER_LITRE", {}).get(
             vehicle_type, getattr(cons, "DEFAULT_FUEL_USD_PER_LITRE", 0.95)
         )
-        FC = L * fuel_price  # USD per mile (fuel component)
+        FC = L * fuel_price  # USD per km (fuel component)
 
-        a1, b1 = tuple(cons.NON_FUEL_PENCE_PER_KM[vehicle_type].values())
-        NFC = a1 + b1 / np.maximum(v_kmph, eps)  # cents USD per mile
-        NFC = NFC / 100.0  # USD per mile
+        if get_parameter("cost_operating", "use_table_nonfuel_curve", False):
+            from resiflow.tables import interpolate, load_table
 
-        operate_cost_per_mile = FC + NFC
-        operate_cost = operate_cost_per_mile * distance_km  # USD (vector)
+            nonfuel_table = load_table(
+                get_parameter(
+                    "cost_operating",
+                    "nonfuel_curve_table",
+                    "T05_nonfuel_cost_speed_UK_TAG_current",
+                )
+            )
+            NFC = interpolate(
+                nonfuel_table,
+                v_kmph,
+                f"nonfuel_pence_per_km_{vehicle_type}",
+                axis_column="speed_kmh",
+            )  # per km (UK-legacy pence/km)
+        else:
+            a1, b1 = tuple(cons.NON_FUEL_PENCE_PER_KM[vehicle_type].values())
+            NFC = a1 + b1 / np.maximum(v_kmph, eps)  # per km (UK-legacy pence/km)
+        NFC = NFC / 100.0  # per km (currency labeling unresolved; see constants)
+
+        operate_cost_per_km = FC + NFC
+        operate_cost = operate_cost_per_km * distance_km  # USD (vector)
 
         # value of time: allow dict or function
         if hasattr(cons, "VOT_POUND_PER_HOUR"):
@@ -323,7 +361,7 @@ def compute_costs_for_links(
         # compute according to vehicle_type
 
         if vehicle_type == "car":
-            ave_occ = 1.06
+            ave_occ = cons.AVG_VEHICLE_OCCUPANCY_CAR
             c_time = time_hr * ave_occ * vot
             # total_cost = c_time + operate_cost + toll
             out = np.vstack([c_time, operate_cost]).T
@@ -464,8 +502,30 @@ def edge_initial_speed_func(
         pd.to_numeric(urban_cap[urban_mask], errors="coerce"),
     )
     road_links["min_flow_speeds"] = map_tier_profile(road_links, min_flow_speed_dict)
+
+    # SA seam: additive free-flow speed shift (mph), floored at the per-tier
+    # minimum operating speed so links can't go non-positive. Default 0.0
+    # leaves speeds untouched (guarded to keep baseline dtypes unchanged).
+    speed_shift_mph = float(get_parameter("assignment", "speed_shift_mph", 0.0))
+    if speed_shift_mph != 0.0:
+        shifted = (
+            pd.to_numeric(road_links["free_flow_speeds"], errors="coerce")
+            + speed_shift_mph
+        )
+        road_links["free_flow_speeds"] = np.maximum(
+            shifted, pd.to_numeric(road_links["min_flow_speeds"], errors="coerce")
+        )
+
     road_links["initial_flow_speeds"] = road_links["free_flow_speeds"]
     road_links["breakpoint_flows"] = map_tier_profile(road_links, flow_breakpoint_dict)
+
+    # SA seam: breakpoint-flow scale (default 1.0 = historical behavior).
+    breakpoint_scale = float(get_parameter("assignment", "breakpoint_scale", 1.0))
+    if breakpoint_scale != 1.0:
+        road_links["breakpoint_flows"] = (
+            pd.to_numeric(road_links["breakpoint_flows"], errors="coerce")
+            * breakpoint_scale
+        )
     if max_flow_speed_dict is not None:
         road_links["max_speeds"] = road_links["e_id"].map(max_flow_speed_dict)
         # if max < min: close the roads
@@ -534,15 +594,25 @@ def edge_init(
     ), "initial_flow_speeds column not exists!"
 
     # initialise key variables
+    # SA seams: per-lane capacity scale and effective assignment hours/day.
+    # Defaults equal the historical literals (1.0 and 24), so a no-override
+    # run computes identical capacities.
+    capacity_scale = float(get_parameter("assignment", "capacity_scale", 1.0))
+    effective_hours = float(get_parameter("assignment", "effective_hours_per_day", 24))
     road_links["acc_flow"] = 0.0
     if "flow_cap_plph" in road_links.columns:
         per_lane_plph = pd.to_numeric(road_links["flow_cap_plph"], errors="coerce")
-        road_links["acc_capacity"] = per_lane_plph * road_links["lanes"] * 24
+        road_links["acc_capacity"] = (
+            per_lane_plph * capacity_scale * road_links["lanes"] * effective_hours
+        )
     else:
         from resiflow.networks.assignment import map_tier_profile
 
         road_links["acc_capacity"] = (
-            map_tier_profile(road_links, capacity_plph_dict) * road_links["lanes"] * 24
+            map_tier_profile(road_links, capacity_plph_dict)
+            * capacity_scale
+            * road_links["lanes"]
+            * effective_hours
         )
     road_links["acc_speed"] = road_links["initial_flow_speeds"]
     # current state mirrors initial state
@@ -556,13 +626,52 @@ def edge_init(
     return road_links
 
 
+# Hardcoded speed-flow congestion slopes per assignment tier. These are the
+# historical defaults and also the values shipped in
+# ``parameters/assignment_profiles.json`` -- so sourcing the tier dict from the
+# profile (below) is behaviour-preserving at baseline while making the JSON
+# authoritative (previously the profile's ``congestion_factor`` was dead config,
+# never mapped onto links, so this fallback was always used).
+_CONGESTION_FACTOR_FALLBACK: Dict[str, float] = {
+    "freeway": 0.033,
+    "arterial": 0.033,
+    "collector": 0.05,
+    "local_access": 0.05,
+}
+_congestion_factor_cache: Dict[str, Dict[str, float]] = {}
+
+
+def _resolve_congestion_factor_dict() -> Dict[str, float]:
+    """Tier-keyed congestion factors from the active assignment profile.
+
+    Memoized per resolved params root. Falls back to the hardcoded defaults if
+    profiles can't be resolved (e.g. unit tests with no config), so callers
+    never fail on config lookup.
+    """
+    try:
+        from resiflow.networks import load_assignment_profiles
+        from resiflow.networks.profiles import resolve_params_root
+
+        root = str(resolve_params_root(None))
+        if root not in _congestion_factor_cache:
+            profiles = load_assignment_profiles()
+            _congestion_factor_cache[root] = (
+                profiles.get("congestion_factor") or _CONGESTION_FACTOR_FALLBACK
+            )
+        return _congestion_factor_cache[root]
+    except Exception:
+        return _CONGESTION_FACTOR_FALLBACK
+
+
 def update_edge_speed(
     road_links: pd.DataFrame, inplace: bool = True
 ) -> pd.DataFrame | None:
     from resiflow.networks.assignment import map_tier_profile
 
     acc_flow = road_links["acc_flow"].to_numpy(dtype=float)  # vehicles per day
-    vp = acc_flow / 24.0  # vehicles per hour
+    # SA seam: same effective-hours divisor as edge_init (default 24).
+    effective_hours = float(get_parameter("assignment", "effective_hours_per_day", 24))
+    vp = acc_flow / effective_hours  # vehicles per hour
     initial_speed = road_links["initial_flow_speeds"].to_numpy(dtype=float)
     min_speed = road_links["min_flow_speeds"].to_numpy(dtype=float)
     breakpoint_flow = road_links["breakpoint_flows"].to_numpy(dtype=float)
@@ -571,13 +680,14 @@ def update_edge_speed(
         factor = pd.to_numeric(road_links["congestion_factor"], errors="coerce").fillna(0.0)
         factor = factor.to_numpy(dtype=float)
     else:
-        default_factors = {
-            "freeway": 0.033,
-            "arterial": 0.033,
-            "collector": 0.05,
-            "local_access": 0.05,
-        }
-        factor = map_tier_profile(road_links, default_factors).to_numpy(dtype=float)
+        factor = map_tier_profile(
+            road_links, _resolve_congestion_factor_dict()
+        ).to_numpy(dtype=float)
+
+    # SA seam: congestion-slope steepness scale (default 1.0 = historical).
+    congestion_scale = float(get_parameter("assignment", "congestion_scale", 1.0))
+    if congestion_scale != 1.0:
+        factor = factor * congestion_scale
 
     # compute reduction only where vp > breakpoint_flow
     excess = vp - breakpoint_flow

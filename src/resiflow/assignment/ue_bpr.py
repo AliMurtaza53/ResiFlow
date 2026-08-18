@@ -10,6 +10,13 @@ import numpy as np
 import pandas as pd
 
 from resiflow.networks.tntp import read_tntp_links, read_tntp_trips
+from resiflow.parameters import get_parameter
+
+_BPR_ALPHA_DEFAULT = get_parameter("assignment_ue_bpr", "bpr_alpha", 0.15)
+_BPR_BETA_DEFAULT = get_parameter("assignment_ue_bpr", "bpr_beta", 4.0)
+_MAX_ITERATIONS_DEFAULT = get_parameter("assignment_ue_bpr", "max_iterations", 500)
+_TARGET_GAP_DEFAULT = get_parameter("assignment_ue_bpr", "target_gap", 1e-4)
+_DEMAND_SCALE_DEFAULT = get_parameter("assignment_ue_bpr", "demand_scale", 1.0)
 
 
 @dataclass
@@ -18,8 +25,8 @@ class UELink:
     head: str
     capacity: float
     free_flow_time: float
-    alpha: float = 0.15
-    beta: float = 4.0
+    alpha: float = _BPR_ALPHA_DEFAULT
+    beta: float = _BPR_BETA_DEFAULT
     flow: float = 0.0
     cost: float = 0.0
 
@@ -137,8 +144,8 @@ def solve_user_equilibrium(
     od: pd.DataFrame,
     *,
     flow_col: str = "Car21",
-    max_iterations: int = 500,
-    target_gap: float = 1e-4,
+    max_iterations: int = _MAX_ITERATIONS_DEFAULT,
+    target_gap: float = _TARGET_GAP_DEFAULT,
 ) -> UEResult:
     """Frank-Wolfe user-equilibrium assignment with BPR travel times."""
     outgoing, link_by_key = _build_graph(links)
@@ -196,7 +203,7 @@ def solve_tntp_user_equilibrium(
     net_path: str,
     trips_path: str,
     *,
-    demand_scale: float = 1.0,
+    demand_scale: float = _DEMAND_SCALE_DEFAULT,
     node_id_formatter=None,
     **kwargs,
 ) -> UEResult:

@@ -1,0 +1,8 @@
+# T29 - Tons->trucks conversion. AUTHORITATIVE source: FHWA FAF5 Traffic Analysis payload equivalencies by commodity class (via bts.gov/faf; derived from Census VIUS).
+# Replace the all-commodities approximation with the full FAF5 commodity table verbatim so ResiFlow truck volumes match FHWA's published FAF assignment (matrix row 29).
+commodity_class,item,value,units,status
+all_commodities,loaded_payload_avg,16.0,short tons/truck,APPROXIMATE_VERIFY
+all_commodities,effective_incl_empties,~ loaded x (1 - empty_share),short tons/truck,DERIVE
+all_commodities,empty_mile_share,0.167,fraction (ATRI 2026: 16.7%),SOURCED
+days_per_year,-,365,days (FAF AADTT convention),ADOPTED_DOCUMENT
+weekday_factor,-,1.0-1.2,dimensionless (SA lever),SA_FACTOR

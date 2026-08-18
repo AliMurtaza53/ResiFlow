@@ -27,6 +27,7 @@ from resiflow.hazards.synthetic import (
     snow_band,
 )
 from resiflow.networks.tntp import build_node_geometries, read_tntp_links, read_tntp_nodes
+from resiflow.parameters import get_parameter
 from resiflow.testbeds import load_testbed
 
 MULTIHAZARD_VARIANT = "toy_sioux_falls_multihazard"
@@ -40,13 +41,13 @@ EVENT_MISS = "0"
 EVENT_BRIDGE = "1"
 EVENT_DISCONNECT = "3"
 
-FLOOD_PEAK_M = 0.50  # meters; above 30 cm closure threshold
-COASTAL_PEAK_M = 0.55
-RIVER_PEAK_M = 0.48
-PGA_PEAK_G = 0.45  # PLACEHOLDER — confirm with advisor
-LANDSLIDE_PEAK_MM = 180.0
-WINTER_STORM_PEAK_MM = 120.0
-WINTER_STORM_MODERATE_MM = 60.0
+FLOOD_PEAK_M = get_parameter("testbed_synthetic_hazards", "flood_peak_m", 0.50)  # meters; above 30 cm closure threshold
+COASTAL_PEAK_M = get_parameter("testbed_synthetic_hazards", "coastal_peak_m", 0.55)
+RIVER_PEAK_M = get_parameter("testbed_synthetic_hazards", "river_peak_m", 0.48)
+PGA_PEAK_G = get_parameter("testbed_synthetic_hazards", "pga_peak_g", 0.45)  # PLACEHOLDER — confirm with advisor
+LANDSLIDE_PEAK_MM = get_parameter("testbed_synthetic_hazards", "landslide_peak_mm", 180.0)
+WINTER_STORM_PEAK_MM = get_parameter("testbed_synthetic_hazards", "winter_storm_peak_mm", 120.0)
+WINTER_STORM_MODERATE_MM = get_parameter("testbed_synthetic_hazards", "winter_storm_moderate_mm", 60.0)
 
 
 def _load_sioux_links() -> gpd.GeoDataFrame:

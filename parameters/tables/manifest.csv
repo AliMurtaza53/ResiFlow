@@ -1,0 +1,17 @@
+# Parameter-table manifest. Convention: '#' provenance header lines, then labeled-axis columns with units embedded in column names.
+# status vocabulary: CURRENT_DISCRETIZED (faithful to repo) | APPROXIMATE_VERIFY (anchored, pull exact) | TEMPLATE_REPLACE_VALUES | PLACEHOLDER_DO_NOT_USE | SOURCED | ADOPTED | OPEN
+file,audit_matrix_rows,status,note
+T00_model_constants_comparison.csv,"1-3,7,18,25",MIXED,Scalars; pin editions/years before adoption
+T04_fuel_consumption_speed_UK_TAG_current.csv,4,CURRENT_DISCRETIZED,Faithful discretization of stored TAG coefficients; unit conflict flagged
+T04_fuel_consumption_speed_US_candidate.csv,4,APPROXIMATE_VERIFY,Anchored shape; finalize from EPA MOVES4
+T05_nonfuel_cost_speed_UK_TAG_current.csv,5,CURRENT_DISCRETIZED,Faithful discretization; unit conflict flagged
+T05_nonfuel_cost_US_candidate.csv,5,MIXED,ATRI headline figures sourced; component split verify against report tables
+T08_assignment_tiers_UK_current.csv,"8-10,14",CURRENT_DISCRETIZED,Verbatim from assignment_profiles.json
+T08_assignment_tiers_US_candidate.csv,"8-11,14",APPROXIMATE_VERIFY,Pull exact HCM/NCHRP exhibit values before adoption
+T19_speed_depth_curve_discretized.csv,18-19,ADOPTED,Curve retained; truck threshold is the candidate change
+T20_damage_level_depth_thresholds.csv,20-21,CURRENT+FLAGGED,Coastal rows are placeholders - do not run
+T22_damage_ratio_curves_TEMPLATE.csv,22,TEMPLATE_REPLACE_VALUES,Schema+grid final; values illustrative until extracted from workbook/van Ginkel SI
+T24_asset_unit_costs_US_candidate.csv,23-24,APPROXIMATE_VERIFY,Ranges only; exact extraction + UK workbook archival pending
+T26_recovery_design_current.csv,26,CURRENT+CANDIDATE_NOTE,Structure final; endpoint re-anchoring pending ER-record review
+T27_speed_restriction_schedule.csv,27,CURRENT+CANDIDATE,Expose gates in config; per-flood-type recession pending
+T29_payload_conversion_factors.csv,29,APPROXIMATE_VERIFY,Swap in FAF5 Traffic Analysis commodity table verbatim

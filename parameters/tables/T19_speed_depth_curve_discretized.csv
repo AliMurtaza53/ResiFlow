@@ -1,0 +1,17 @@
+# T19 - Speed-depth function V/Vmax = (x/xd - 1)^2 for x<=xd, else 0. Discretized for closure thresholds xd = 15/30/60 cm.
+# Source: Pregnolato et al. 2017, doi:10.1016/j.trd.2017.06.020. Identical in NIRD and ResiFlow (matrix rows 18-19).
+# US candidate change is threshold assignment, not curve shape: cars xd=30, heavy trucks xd=60 (Kramer et al. 2016).
+flood_depth_cm,v_ratio_xd15,v_ratio_xd30,v_ratio_xd60
+0,1.0,1.0,1.0
+5,0.4444,0.6944,0.8403
+10,0.1111,0.4444,0.6944
+15,0.0,0.25,0.5625
+20,0.0,0.1111,0.4444
+25,0.0,0.0278,0.3403
+30,0.0,0.0,0.25
+35,0.0,0.0,0.1736
+40,0.0,0.0,0.1111
+45,0.0,0.0,0.0625
+50,0.0,0.0,0.0278
+55,0.0,0.0,0.0069
+60,0.0,0.0,0.0

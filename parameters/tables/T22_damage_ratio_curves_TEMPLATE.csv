@@ -1,0 +1,18 @@
+# T22 - Depth-damage ratio curves C1-C6 (fraction of asset value damaged vs depth). Pairs: C1/C2 sophisticated, C3/C4 simple, C5/C6 ordinary (low/high flow).
+# STATUS: ILLUSTRATIVE SHAPES ONLY - monotone ramps with plausible maxima. The authoritative values live in the data bundle's damage_ratio_road_flood.xlsx
+# (not in the git repo) and in van Ginkel et al. 2021 supplementary (doi:10.5194/nhess-21-1011-2021). REPLACE these values from that source;
+# keep the depth grid and column labels so the loader and Morris theta/lambda embeddings are unaffected.
+# Morris SA: perturb via theta (C-low/C-high mixing) and lambda (depth-axis scale), never per-cell.
+depth_cm,C1_sophisticated_lowflow,C2_sophisticated_highflow,C3_simple_lowflow,C4_simple_highflow,C5_ordinary_lowflow,C6_ordinary_highflow
+0,0.0,0.0,0.0,0.0,0.0,0.0
+10,0.0,0.0,0.0,0.0,0.0,0.0
+25,0.0,0.0,0.0,0.0,0.006,0.011
+50,0.0,0.0,0.008,0.013,0.017,0.028
+75,0.005,0.009,0.016,0.026,0.028,0.046
+100,0.009,0.018,0.023,0.039,0.038,0.064
+150,0.018,0.036,0.039,0.065,0.059,0.1
+200,0.027,0.055,0.055,0.091,0.081,0.135
+300,0.045,0.091,0.086,0.143,0.123,0.206
+400,0.064,0.127,0.117,0.196,0.165,0.278
+500,0.082,0.164,0.149,0.248,0.208,0.349
+600,0.1,0.2,0.18,0.3,0.25,0.42

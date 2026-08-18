@@ -1,0 +1,273 @@
+{
+  "_comment": "Morris screening design over ResiFlow's non-data parameters (audit Section 6, HANDOFF_resiflow_sensitivity_analysis.md). Consumed by scripts/6_morris_screening.py. Targets: a dotted path sets a unified_parameters.json value directly; a '_scales:' prefix multiplies the existing value (dict targets move every numeric leaf coherently); a 'special:' prefix is a dispatcher-level handle recorded in the run's overrides.json under '_dispatch' (inert to the parameter loader). Stage codes: P=preprocess (network rebuild), 1=baseline assignment (expensive), 2=hazard intersection, 3=damage algebra (cheap), 4=recovery/rerouting loop. Report mu*/sigma per output component separately - never a composite.",
+  "morris": {
+    "num_levels": 4,
+    "delta": 0.6666666666666666,
+    "trajectories_min": 10,
+    "trajectories_max": 20,
+    "sampling": "campolongo_optimal_or_radial",
+    "outputs": ["direct_damage", "rerouting_freight", "rerouting_passenger", "isolation"]
+  },
+  "preconditions": [
+    "Determinism: pin flow-assignment ordering/seeds (imap_unordered nondeterminism inflates sigma). Blocking fix before production runs.",
+    "Dispatcher must assert RESIFLOW_MAX_FLOW_ITERATIONS and RESIFLOW_SAMPLE_OD_N are unset for production SA runs."
+  ],
+  "factors": [
+    {
+      "name": "vot_scale",
+      "group": "econ_time",
+      "stage": "1",
+      "dist": "logunif_scale",
+      "bounds": [0.80, 1.20],
+      "target": "_scales:cost_time.vot_usd_per_hour",
+      "tier": "A",
+      "note": "One multiplier over all vehicle-class VOT values (moves the tier-keyed dict coherently)."
+    },
+    {
+      "name": "car_occupancy",
+      "group": "econ_time",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [1.06, 1.50],
+      "target": "cost_time.avg_vehicle_occupancy_car",
+      "tier": "B",
+      "note": "Baseline 1.67 is NHTS all-purpose, not commute (~1.18) - value-level issue flagged in unified_parameters.json; do not change baseline mid-SA."
+    },
+    {
+      "name": "fuel_price_scale",
+      "group": "econ_operating",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [0.75, 1.25],
+      "target": "_scales:cost_operating.fuel_usd_per_litre",
+      "tier": "A",
+      "note": "EIA pump-price envelope as a scale over the per-class fuel price dict."
+    },
+    {
+      "name": "non_fuel_opcost_scale",
+      "group": "econ_operating",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [0.70, 1.30],
+      "target": "_scales:cost_operating.non_fuel_cost_coeffs",
+      "tier": "B",
+      "note": "Scales every a/b coefficient of the non-fuel operating-cost curves coherently."
+    },
+    {
+      "name": "isolation_usd_per_day_scale",
+      "group": "econ_isolation",
+      "stage": "4",
+      "dist": "logunif_scale",
+      "bounds": [0.5, 2.0],
+      "target": "_scales:cost_time.isolation_usd_per_day",
+      "tier": "C",
+      "note": "Freight isolation monetization is a flagged open research question - parameterized (5.5.3), not resolved."
+    },
+    {
+      "name": "capacity_scale",
+      "group": "capacity",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [0.60, 1.10],
+      "target": "assignment.capacity_scale",
+      "tier": "B",
+      "note": "Scales per-lane-per-hour capacity in edge_init (both the link-column and tier-profile branches)."
+    },
+    {
+      "name": "breakpoint_scale",
+      "group": "capacity",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [0.70, 1.10],
+      "target": "assignment.breakpoint_scale",
+      "tier": "B",
+      "note": "Scales the speed-decay onset flow (breakpoint_flows)."
+    },
+    {
+      "name": "effective_hours_per_day",
+      "group": "capacity",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [10, 24],
+      "target": "assignment.effective_hours_per_day",
+      "tier": "C",
+      "note": "Daily capacity multiplier / hourly-flow divisor (was hardcoded 24 in edge_init and update_edge_speed)."
+    },
+    {
+      "name": "congestion_scale",
+      "group": "congestion",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [0.5, 2.0],
+      "target": "assignment.congestion_scale",
+      "tier": "B",
+      "note": "Scales the per-tier speed-flow congestion slope in update_edge_speed."
+    },
+    {
+      "name": "congestion_model_family",
+      "group": "congestion",
+      "stage": "1",
+      "dist": "levels",
+      "levels": [0, 1],
+      "target": "special:congestion_model_family",
+      "tier": "structural",
+      "note": "Dispatcher switch: 0 = linear speed-decay path (road_revised), 1 = BPR path (assignment/ue_bpr)."
+    },
+    {
+      "name": "speed_shift_mph",
+      "group": "speeds",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [-10.0, 10.0],
+      "target": "assignment.speed_shift_mph",
+      "tier": "B",
+      "note": "Additive free-flow speed shift, floored at the per-tier minimum speed."
+    },
+    {
+      "name": "flood_closure_threshold_cm",
+      "group": "hazard_thresholds",
+      "stage": "2",
+      "dist": "levels",
+      "levels": [15, 30, 60],
+      "target": "hazard_disruption.flood_closure_threshold_cm",
+      "tier": "B",
+      "note": "Closure depth x_d for cars; literature spans ~15-60 cm."
+    },
+    {
+      "name": "speed_depth_exponent",
+      "group": "hazard_thresholds",
+      "stage": "4",
+      "dist": "unif",
+      "bounds": [1.0, 3.0],
+      "target": "hazard_disruption.speed_depth_exponent",
+      "tier": "structural_continuous",
+      "note": "p in V = V_max*(1 - d/d_c)**p; p=2 is the Pregnolato quadratic, p=1 the linear alternate (5.2)."
+    },
+    {
+      "name": "damage_threshold_scale",
+      "group": "vulnerability",
+      "stage": "3",
+      "dist": "unif",
+      "bounds": [0.75, 1.25],
+      "target": "vulnerability.damage_threshold_scale",
+      "tier": "B",
+      "note": "Multiplies every categorical depth threshold in fragility/flood_categorical.py (5.5.5)."
+    },
+    {
+      "name": "curve_theta",
+      "group": "vulnerability",
+      "stage": "3",
+      "dist": "unif",
+      "bounds": [0.0, 1.0],
+      "target": "vulnerability.curve_theta",
+      "tier": "B",
+      "note": "Convex low/high-flow damage-curve mixing (resiflow.sa.curves.mix_damage_curves; 5.2)."
+    },
+    {
+      "name": "depth_scale_lambda",
+      "group": "vulnerability",
+      "stage": "3",
+      "dist": "unif",
+      "bounds": [0.8, 1.25],
+      "target": "vulnerability.depth_scale_lambda",
+      "tier": "B",
+      "note": "Depth-axis stretch: curves evaluated at depth/lambda (damage-onset uncertainty; orthogonal to theta)."
+    },
+    {
+      "name": "road_cost_scale",
+      "group": "asset_costs",
+      "stage": "3",
+      "dist": "unif",
+      "bounds": [0.5, 2.0],
+      "target": "damage_costs.road_cost_scale",
+      "tier": "blocked_C",
+      "note": "Tier A once the cost-workbook GBP/USD relabel audit resolves; until then treated as blocked-C with a wide scale (Section 6 footnote). Applied to road+tunnel unit costs after workbook load (5.5.6)."
+    },
+    {
+      "name": "bridge_cost_scale",
+      "group": "asset_costs",
+      "stage": "3",
+      "dist": "logunif_scale",
+      "bounds": [0.5, 2.0],
+      "target": "damage_costs.bridge_cost_scale",
+      "tier": "C",
+      "note": "Applied to bridge-surface and bridge-river unit costs after workbook load (5.5.6)."
+    },
+    {
+      "name": "recovery_pathway",
+      "group": "recovery",
+      "stage": "4",
+      "dist": "levels",
+      "levels": [0, 1, 2],
+      "target": "special:recovery_pathway",
+      "tier": "structural",
+      "note": "Dispatcher switch over the existing fast/average/slow recovery-design scenario loop."
+    },
+    {
+      "name": "recovery_gate_scale",
+      "group": "recovery",
+      "stage": "4",
+      "dist": "unif",
+      "bounds": [0.5, 1.5],
+      "target": "_scales:recovery.residual_depth_gates_m",
+      "tier": "C",
+      "note": "Scales the 2 m / 6 m residual-floodwater gates coherently (5.5.4). The recession window itself (4-14 d) is governed by the recovery design table; vary it via special:recession_window_days in the dispatcher if a variant table is provided - workbooks/tables stay pristine."
+    },
+    {
+      "name": "freight_demand_scale",
+      "group": "demand",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [0.8, 1.2],
+      "target": "assignment_ue_bpr.demand_scale",
+      "tier": "A",
+      "note": "Global OD demand multiplier (already wired)."
+    },
+    {
+      "name": "payload_scale",
+      "group": "demand",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [0.85, 1.15],
+      "target": "special:freight_disagg_payload_scale",
+      "tier": "B",
+      "note": "Tons-per-truck payload factors live in the freight-disaggregation input tables; the dispatcher applies the scale after loading (tables stay pristine)."
+    },
+    {
+      "name": "weekday_factor",
+      "group": "demand",
+      "stage": "1",
+      "dist": "unif",
+      "bounds": [1.0, 1.2],
+      "target": "special:freight_disagg_weekday_factor",
+      "tier": "B",
+      "note": "Annual-to-weekday conversion factor in the freight disaggregation; dispatcher-applied."
+    },
+    {
+      "name": "faf5_default_lanes",
+      "group": "geometry",
+      "stage": "P",
+      "dist": "levels",
+      "levels": [1, 2, 3, 4],
+      "target": "preprocess.faf5_default_lanes",
+      "tier": "C",
+      "note": "Fallback lane count for links missing lane data (already wired)."
+    },
+    {
+      "name": "faf5_meters_per_lane",
+      "group": "geometry",
+      "stage": "P",
+      "dist": "unif",
+      "bounds": [3.0, 4.3],
+      "target": "preprocess.faf5_default_meters_per_lane",
+      "tier": "B",
+      "note": "Lane width in meters (already wired; US standard 3.6-3.7 m, envelope 3.0-4.3)."
+    }
+  ],
+  "excluded": [
+    {
+      "name": "fuel_curve_scale",
+      "reason": "FUEL_LITRE_PER_KM / non_fuel_cost_coeffs are the original UK NIRD per-km coefficients (comments corrected 2026-08: code consistently evaluates per-km curves at km/h and multiplies by distance_km). Still blocked: values are UK-legacy pending FHWA HERS extraction, and the non-fuel /100 step's currency labeling (pence->GBP consumed as USD) is unresolved. Perturbing a quantity with unresolved provenance/currency is meaningless until replaced."
+    }
+  ]
+}
