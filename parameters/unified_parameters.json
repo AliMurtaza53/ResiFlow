@@ -77,7 +77,9 @@
     "earth_radius_miles": 3958.7613,
     "faf5_default_lanes": 2,
     "faf5_default_avg_toll_cost": 0.0,
-    "faf5_default_meters_per_lane": 3.66
+    "faf5_default_meters_per_lane": 3.66,
+    "_comment_bridge_index": "nbi_bridge_index_path points at the output of scripts/build_nbi_bridge_index.py (e_id -> road_bridge/deck_width_m). null = no index configured yet; faf5_network.py falls back to road_bridge='no' for every link with a loud warning, never silently.",
+    "nbi_bridge_index_path": null
   },
 
   "hazard_disruption": {

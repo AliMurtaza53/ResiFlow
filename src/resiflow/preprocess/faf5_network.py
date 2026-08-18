@@ -84,6 +84,41 @@ DETAIL_CLASS_MAPPING = {
 }
 
 
+def apply_bridge_index(links: gpd.GeoDataFrame, bridge_index: pd.DataFrame) -> gpd.GeoDataFrame:
+    """Set road_bridge/averageWidth from a precomputed NBI bridge index.
+
+    Single source of truth for the bridge-wiring logic, called both from
+    convert_faf5_links() (a fresh conversion from the raw FAF5 geodatabase)
+    and from scripts/patch_faf5_bridge_attributes.py (patching the two
+    affected columns onto an already-converted faf5_road_links.gpq, used
+    when the raw source geodatabase isn't available for reconversion) --
+    kept as one function so the two paths can never silently diverge.
+    """
+    links = links.copy()
+    bridge_index = bridge_index.copy()
+    bridge_index["e_id"] = bridge_index["e_id"].astype(str)
+    links["e_id"] = links["e_id"].astype(str)
+
+    matched_ids = set(bridge_index["e_id"])
+    is_bridge = links["e_id"].isin(matched_ids)
+    if "road_bridge" not in links.columns:
+        links["road_bridge"] = "no"
+    links.loc[is_bridge, "road_bridge"] = "yes"
+
+    # NBI's surveyed deck width is a real measurement; prefer it over the
+    # lanes x lane-width estimate for links it actually covers (that
+    # estimate omits shoulders and understates bridge deck area --
+    # parameter_diff_final.xlsx item 34).
+    deck_width_by_e_id = bridge_index.set_index("e_id")["deck_width_m"]
+    overridden_width = links["e_id"].map(deck_width_by_e_id)
+    if "averageWidth" in links.columns:
+        links["averageWidth"] = overridden_width.fillna(links["averageWidth"])
+    else:
+        links["averageWidth"] = overridden_width
+
+    return links
+
+
 def _clean_label(value):
     if value is None:
         return None
@@ -383,9 +418,36 @@ def convert_faf5_links(
     else:
         assignment_links['average_toll_cost'] = DEFAULTS['average_toll_cost']
     
-    # 10. Bridge indicator - default to 'no'
+    # 10. Bridge indicator. FAF5's own schema (see this module's docstring)
+    # carries no bridge/structure field at all -- unlike every other DEFAULTS
+    # entry, there is no source column to check, so this was previously an
+    # unconditional 'no' for every link (confirmed: parameter_diff_final.xlsx
+    # audit item 36; the Script 3 costing code this feeds has always expected
+    # a real attribute here -- DAFNI-NIRD's GB source got it for free from OS
+    # MasterMap's structure field, which has no FAF5 equivalent). Loads a
+    # precomputed NBI-to-FAF5 spatial-join index if one exists (see
+    # scripts/download_nbi_bridges.py + scripts/build_nbi_bridge_index.py);
+    # falls back to the historical 'no'-for-everyone behavior with a loud
+    # warning, never silently, if the index isn't available.
+    bridge_index_path = get_parameter("preprocess", "nbi_bridge_index_path", None)
     assignment_links['road_bridge'] = DEFAULTS['road_bridge']
-    
+    if bridge_index_path and Path(bridge_index_path).exists():
+        bridge_index = pd.read_parquet(bridge_index_path)
+        assignment_links = apply_bridge_index(assignment_links, bridge_index)
+        n_bridges = int((assignment_links['road_bridge'] == 'yes').sum())
+        print(
+            f"  ✓ road_bridge: {n_bridges} of {len(assignment_links)} links "
+            f"({n_bridges / len(assignment_links):.2%}) matched to an NBI structure via {bridge_index_path}"
+        )
+    else:
+        print(
+            "  ⚠ road_bridge: NO NBI bridge index configured/found "
+            f"(preprocess.nbi_bridge_index_path={bridge_index_path!r}) -- every link is being "
+            "priced as non-bridge. Run scripts/download_nbi_bridges.py + "
+            "scripts/build_nbi_bridge_index.py and set preprocess.nbi_bridge_index_path in "
+            "unified_parameters.json to fix this."
+        )
+
     # 11. Optional: Copy useful attributes
     optional_columns = ['Road_Name', 'STATE', 'County_Name', 'FAFZONE', 
                        'Speed_Limit', 'AB_FinalSpeed', 'BA_FinalSpeed']
