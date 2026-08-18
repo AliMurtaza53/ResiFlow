@@ -33,8 +33,10 @@ export NIRD_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
 REPO=/scratch/akothaw/multimodal_hazard_data/code/ResiFlow
 DATA=/scratch/akothaw/multimodal_hazard_data
 NBI_OUT=$DATA/inputs_raw/nbi_bridges_2024.parquet
-FAF5_LINKS=$DATA/networks/faf5/faf5_road_links.gpq
-BRIDGE_INDEX_OUT=$DATA/networks/faf5/faf5_bridge_index.parquet
+# Under soge_clusters/, not directly under networks/ -- confirmed via a live
+# `find` against Hopper's scratch (2026-08-17), not assumed.
+FAF5_LINKS=$DATA/soge_clusters/networks/faf5/faf5_road_links.gpq
+BRIDGE_INDEX_OUT=$DATA/soge_clusters/networks/faf5/faf5_bridge_index.parquet
 
 if [ ! -f "$FAF5_LINKS" ]; then
   echo "ERROR: FAF5 road links not found at $FAF5_LINKS -- check the path before continuing." >&2
@@ -60,7 +62,7 @@ python "$REPO/scripts/build_nbi_bridge_index.py" \
 # patch the two affected columns (road_bridge, averageWidth) directly onto
 # the existing converted file instead, via the same apply_bridge_index()
 # logic. Writes to a NEW path; does not overwrite $FAF5_LINKS automatically.
-PATCHED_LINKS=$DATA/networks/faf5/faf5_road_links_bridge_patched.gpq
+PATCHED_LINKS=$DATA/soge_clusters/networks/faf5/faf5_road_links_bridge_patched.gpq
 python "$REPO/scripts/patch_faf5_bridge_attributes.py" \
   --road-links "$FAF5_LINKS" \
   --bridge-index "$BRIDGE_INDEX_OUT" \
@@ -69,6 +71,8 @@ python "$REPO/scripts/patch_faf5_bridge_attributes.py" \
 echo ""
 echo "Bridge index built and faf5_road_links patched (written to a NEW path,"
 echo "not swapped in automatically). Follow the verify-then-swap instructions"
-echo "the patch step just printed above before re-running Pass A -- this must"
-echo "happen BEFORE Script 2-4 for any hazard, since bridge identification"
-echo "changes the network itself (capacity/width), not just downstream costing."
+echo "the patch step just printed above before re-running Script 2-4 for any"
+echo "hazard -- confirmed via grep that road_revised.py (Pass A's flow-"
+echo "assignment code) never references road_bridge/averageWidth, so this is"
+echo "independent of the Pass A/conus_nandu_v1 timeline and does NOT need to"
+echo "happen before Pass A completes."
