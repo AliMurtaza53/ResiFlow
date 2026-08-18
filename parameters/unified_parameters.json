@@ -30,8 +30,8 @@
   },
 
   "cost_time": {
-    "_comment": "avg_vehicle_occupancy_car 1.67 is the NHTS ALL-PURPOSE occupancy, not commute (~1.18) -- known value-level issue; do not silently change the baseline mid-SA. isolation_usd_per_day monetizes isolated trips in Script 4 (freight monetization is a flagged open research question; default mirrors Script 5's ISOLATION_UNIT_COST_USD).",
-    "avg_vehicle_occupancy_car": 1.67,
+    "_comment": "avg_vehicle_occupancy_car 1.52 is NHTS 2022 Table 5-2's average all-purpose vehicle occupancy (persons per vehicle trip), replacing the audit's provisional 1.67 all-purpose figure -- 1.67 was flagged by the audit itself as a known value-level issue pending a sourced replacement; 1.52 is that replacement, not the commute-only figure (~1.18). isolation_usd_per_day monetizes isolated trips in Script 4 (freight monetization is a flagged open research question; default mirrors Script 5's ISOLATION_UNIT_COST_USD).",
+    "avg_vehicle_occupancy_car": 1.52,
     "isolation_usd_per_day": 50.0,
     "vot_usd_per_hour": {
       "car": 21.80,
