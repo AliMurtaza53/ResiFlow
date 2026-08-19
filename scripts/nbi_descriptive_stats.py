@@ -48,21 +48,28 @@ def main() -> int:
         print(f"  {label if pd.notna(label) else '(unrecorded)':38s} {n:>8,}  ({n / len(df):.1%})")
 
     print("\n--- Are ramps included? ---")
-    n_ramp = int(df["is_ramp_by_name"].sum())
-    print(f"  Structures with 'RAMP' in their facility-carried name: {n_ramp:,} ({n_ramp / len(df):.1%})")
-    print("  (text-match, not a classification code -- see download_nbi_bridges.py's")
-    print("   comment on why SERVICE_LEVEL_005C isn't used for this: an initial label")
-    print("   mapping from memory of the NBI Coding Guide didn't match real data, so")
-    print("   this uses direct text evidence instead, which needs no code lookup to trust.)")
-    print(f"  Raw SERVICE_LEVEL_005C codes present in the data: "
-          f"{sorted(df['service_level_raw_code'].dropna().unique())}")
+    n_ramp = int(df["is_ramp"].sum())
+    n_ramp_by_name = int(df["is_ramp_by_name"].sum())
+    print(f"  service_level == 'Ramp, Wye, Connector, etc.' (SERVICE_LEVEL_005C=7, "
+          f"authoritative per the NBI Coding Guide, p.14): {n_ramp:,} ({n_ramp / len(df):.1%})")
+    print(f"  Cross-check, 'RAMP' in facility-carried name (text-match, independent "
+          f"of the code above): {n_ramp_by_name:,} ({n_ramp_by_name / len(df):.1%})")
+    agree = int((df["is_ramp"] & df["is_ramp_by_name"]).sum())
+    print(f"  Both agree: {agree:,} of {n_ramp_by_name:,} name-matched structures "
+          f"({agree / n_ramp_by_name:.1%}) -- the gap is expected (many ramps aren't "
+          f"literally named 'ramp', e.g. 'I-95 CONNECTOR', but do carry code 7).")
 
     print("\n--- On the National Highway System? (HIGHWAY_SYSTEM_104) ---")
     counts = df["on_nhs"].value_counts(dropna=False)
     for code, n in counts.items():
         print(f"  code={code!r:8s} {n:>8,}  ({n / len(df):.1%})")
 
-    print("\n--- Owner (OWNER_022, raw codes -- not labeled, same reason as service_level) ---")
+    print("\n--- Designated level of service (SERVICE_LEVEL_005C) ---")
+    counts = df["service_level"].value_counts(dropna=False)
+    for label, n in counts.items():
+        print(f"  {label if pd.notna(label) else '(unrecorded)':40s} {n:>8,}  ({n / len(df):.1%})")
+
+    print("\n--- Owner (OWNER_022, raw codes -- see NBI Coding Guide Item 22 for labels) ---")
     print(df["owner"].value_counts(dropna=False).head(15).to_string())
 
     return 0

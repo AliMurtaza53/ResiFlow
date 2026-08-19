@@ -83,40 +83,67 @@ KEEP_COLUMNS = [
     "TOLL_020",
 ]
 
-# ROUTE_PREFIX_005B (NBI Recording and Coding Guide, Item 5B).
+# All three label mappings below are sourced from the official "Recording
+# and Coding Guide for the Structure Inventory and Appraisal of the Nation's
+# Bridges" (FHWA), reached via the data dictionary DOI the user supplied
+# (https://doi.org/10.21949/1519105 -> https://www.fhwa.dot.gov/bridge/
+# mtguide.pdf) -- confirmed 2026-08-18, page numbers below are from that PDF.
+# An EARLIER version of this file guessed these three mappings from memory
+# instead of consulting the guide; SERVICE_LEVEL_005C's guess was
+# demonstrably wrong (see the git history of this comment block) -- these
+# are the corrected, citable values, not guesses.
+
+# ROUTE_PREFIX_005B (Item 5B, guide p.14). Confirmed my earlier memory-based
+# guess was already correct for codes 1-8; there is no code 9 in the actual
+# guide (an earlier version of this dict invented one).
 ROUTE_PREFIX_LABELS = {
-    "1": "Interstate",
-    "2": "US Highway",
-    "3": "State Highway",
-    "4": "County Highway",
-    "5": "City Street",
-    "6": "Federal Lands Road",
-    "7": "State Lands Road",
-    "8": "Other",
-    "9": "No Route Prefix (unnumbered)",
+    "1": "Interstate highway",
+    "2": "U.S. numbered highway",
+    "3": "State highway",
+    "4": "County highway",
+    "5": "City street",
+    "6": "Federal lands road",
+    "7": "State lands road",
+    "8": "Other (incl. toll roads not otherwise identified)",
 }
 
-# SERVICE_LEVEL_005C (Item 5C): kept as a RAW code, not labeled. An initial
-# label mapping attempted here from memory of the NBI Coding Guide did not
-# hold up against real data (2026-08-18) -- code "4", guessed as "ramp",
-# never appears in Delaware's data at all, while code "7" (guessed as
-# "frontage road, not on system") is what real ramp-named structures
-# (facility_carried containing "RAMP") actually carry. Rather than ship a
-# demonstrably-wrong label, this stays as the raw code; use
-# facility_carried text matching for a reliable ramp identification instead
-# (see scripts/nbi_descriptive_stats.py).
+# SERVICE_LEVEL_005C (Item 5C, guide p.14) -- what kind of facility the
+# bridge's own route is (independent of what road class it belongs to).
+# Code 7 is the real ramp/connector code -- confirmed by both the guide
+# text and, independently, by real data (structures with "RAMP" in their
+# facility-carried name overwhelmingly carry code 7, not the code an
+# earlier guess here had assumed). No code 5 exists in the real scheme.
+SERVICE_LEVEL_LABELS = {
+    "0": "None of the below",
+    "1": "Mainline",
+    "2": "Alternate",
+    "3": "Bypass",
+    "4": "Spur",
+    "6": "Business",
+    "7": "Ramp, Wye, Connector, etc.",
+    "8": "Service and/or unclassified frontage road",
+}
 
-# FUNCTIONAL_CLASS_026 (Item 26) -- tens digit 0=rural/1=urban, ones digit is
-# the functional class. Ramps are NOT their own functional class here (that's
-# SERVICE_LEVEL_005C's job); this field describes the road system the bridge
-# belongs to.
+# FUNCTIONAL_CLASS_026 (Item 26, guide p.24) -- tens digit 0=rural/1=urban.
+# One real correction from an earlier version of this dict: rural code "02"
+# is "Principal Arterial - Other" generally, NOT specifically "freeway/
+# expressway" -- that freeway/expressway distinction only exists in the
+# urban scheme (code 12). Ramps are not their own functional class here
+# (that's SERVICE_LEVEL_005C's job); this field describes the road system
+# the bridge belongs to.
 FUNCTIONAL_CLASS_LABELS = {
-    "01": "Rural - Interstate", "02": "Rural - Other Freeway/Expressway",
-    "06": "Rural - Minor Arterial", "07": "Rural - Major Collector",
-    "08": "Rural - Minor Collector", "09": "Rural - Local",
-    "11": "Urban - Interstate", "12": "Urban - Other Freeway/Expressway",
-    "14": "Urban - Other Principal Arterial", "16": "Urban - Minor Arterial",
-    "17": "Urban - Collector", "19": "Urban - Local",
+    "01": "Rural - Principal Arterial - Interstate",
+    "02": "Rural - Principal Arterial - Other",
+    "06": "Rural - Minor Arterial",
+    "07": "Rural - Major Collector",
+    "08": "Rural - Minor Collector",
+    "09": "Rural - Local",
+    "11": "Urban - Principal Arterial - Interstate",
+    "12": "Urban - Principal Arterial - Other Freeway/Expressway",
+    "14": "Urban - Other Principal Arterial",
+    "16": "Urban - Minor Arterial",
+    "17": "Urban - Collector",
+    "19": "Urban - Local",
 }
 
 
@@ -229,7 +256,12 @@ def _fetch_state(state: str, *, retries: int = 3, timeout: float = 30.0) -> pd.D
     df["state"] = state
     df["route_prefix"] = df["ROUTE_PREFIX_005B"].str.strip().map(ROUTE_PREFIX_LABELS)
     df["service_level_raw_code"] = df["SERVICE_LEVEL_005C"].str.strip()
+    df["service_level"] = df["service_level_raw_code"].map(SERVICE_LEVEL_LABELS)
     df["functional_class"] = df["FUNCTIONAL_CLASS_026"].str.strip().str.zfill(2).map(FUNCTIONAL_CLASS_LABELS)
+    # Authoritative ramp flag (guide-confirmed code), plus the original
+    # text-match kept alongside as an independent cross-check -- the two
+    # agreeing is itself useful evidence neither is spuriously wrong.
+    df["is_ramp"] = df["service_level_raw_code"] == "7"
     df["is_ramp_by_name"] = df["FACILITY_CARRIED_007"].str.contains("RAMP", case=False, na=False)
     df["owner"] = df["OWNER_022"].str.strip()
     df["maintenance"] = df["MAINTENANCE_021"].str.strip()
@@ -247,10 +279,12 @@ def _fetch_state(state: str, *, retries: int = 3, timeout: float = 30.0) -> pd.D
             "year_built",
             "route_prefix",
             "service_level_raw_code",
+            "service_level",
             "functional_class",
             "owner",
             "maintenance",
             "on_nhs",
+            "is_ramp",
             "is_ramp_by_name",
         ]
     ]

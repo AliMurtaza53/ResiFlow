@@ -20,8 +20,29 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from download_nbi_bridges import _nbi_dms_to_decimal, _clean_deck_width  # noqa: E402
+from download_nbi_bridges import (  # noqa: E402
+    _nbi_dms_to_decimal,
+    _clean_deck_width,
+    ROUTE_PREFIX_LABELS,
+    SERVICE_LEVEL_LABELS,
+    FUNCTIONAL_CLASS_LABELS,
+)
 from build_nbi_bridge_index import build_bridge_index  # noqa: E402
+
+
+def test_label_mappings_match_authoritative_coding_guide():
+    # FHWA "Recording and Coding Guide", reached via the data dictionary DOI
+    # (https://doi.org/10.21949/1519105 -> bridge/mtguide.pdf), Items 5B/5C/26
+    # (pages 14, 14, 24). Locks in the corrected mappings against regression
+    # -- an earlier version of this dict guessed SERVICE_LEVEL_005C's codes
+    # from memory and got code 7 wrong (guessed "frontage road", it's
+    # actually "Ramp, Wye, Connector, etc.").
+    assert ROUTE_PREFIX_LABELS["4"] == "County highway"
+    assert "5" not in ROUTE_PREFIX_LABELS or "unnumbered" not in ROUTE_PREFIX_LABELS.get("5", "")
+    assert SERVICE_LEVEL_LABELS["7"] == "Ramp, Wye, Connector, etc."
+    assert "5" not in SERVICE_LEVEL_LABELS  # code 5 does not exist in the real scheme
+    assert FUNCTIONAL_CLASS_LABELS["02"] == "Rural - Principal Arterial - Other"
+    assert FUNCTIONAL_CLASS_LABELS["12"] == "Urban - Principal Arterial - Other Freeway/Expressway"
 
 
 def test_decode_real_delaware_latitude():
