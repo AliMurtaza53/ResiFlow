@@ -70,12 +70,54 @@ KEEP_COLUMNS = [
     "LAT_016",
     "LONG_017",
     "ROUTE_PREFIX_005B",
+    "SERVICE_LEVEL_005C",
     "ROUTE_NUMBER_005D",
     "DECK_WIDTH_MT_052",
     "STRUCTURE_LEN_MT_049",
     "MAIN_UNIT_SPANS_045",
     "YEAR_BUILT_027",
+    "FUNCTIONAL_CLASS_026",
+    "OWNER_022",
+    "MAINTENANCE_021",
+    "HIGHWAY_SYSTEM_104",
+    "TOLL_020",
 ]
+
+# ROUTE_PREFIX_005B (NBI Recording and Coding Guide, Item 5B).
+ROUTE_PREFIX_LABELS = {
+    "1": "Interstate",
+    "2": "US Highway",
+    "3": "State Highway",
+    "4": "County Highway",
+    "5": "City Street",
+    "6": "Federal Lands Road",
+    "7": "State Lands Road",
+    "8": "Other",
+    "9": "No Route Prefix (unnumbered)",
+}
+
+# SERVICE_LEVEL_005C (Item 5C): kept as a RAW code, not labeled. An initial
+# label mapping attempted here from memory of the NBI Coding Guide did not
+# hold up against real data (2026-08-18) -- code "4", guessed as "ramp",
+# never appears in Delaware's data at all, while code "7" (guessed as
+# "frontage road, not on system") is what real ramp-named structures
+# (facility_carried containing "RAMP") actually carry. Rather than ship a
+# demonstrably-wrong label, this stays as the raw code; use
+# facility_carried text matching for a reliable ramp identification instead
+# (see scripts/nbi_descriptive_stats.py).
+
+# FUNCTIONAL_CLASS_026 (Item 26) -- tens digit 0=rural/1=urban, ones digit is
+# the functional class. Ramps are NOT their own functional class here (that's
+# SERVICE_LEVEL_005C's job); this field describes the road system the bridge
+# belongs to.
+FUNCTIONAL_CLASS_LABELS = {
+    "01": "Rural - Interstate", "02": "Rural - Other Freeway/Expressway",
+    "06": "Rural - Minor Arterial", "07": "Rural - Major Collector",
+    "08": "Rural - Minor Collector", "09": "Rural - Local",
+    "11": "Urban - Interstate", "12": "Urban - Other Freeway/Expressway",
+    "14": "Urban - Other Principal Arterial", "16": "Urban - Minor Arterial",
+    "17": "Urban - Collector", "19": "Urban - Local",
+}
 
 
 def _nbi_dms_to_decimal(raw: str, *, digits_before_seconds: int) -> float | None:
@@ -100,6 +142,21 @@ def _nbi_dms_to_decimal(raw: str, *, digits_before_seconds: int) -> float | None
     if not (0 <= minutes < 60 and 0 <= seconds < 60):
         return None
     return deg + minutes / 60.0 + seconds / 3600.0
+
+
+def _clean_deck_width(raw: pd.Series) -> pd.Series:
+    """Parse DECK_WIDTH_MT_052, treating 0 as NBI's "not recorded" convention.
+
+    0 is not a real zero-width bridge (confirmed against real national data,
+    2026-08-18: 88,668 of 621,533 structures, 14.3%, carry exactly 0 -- far
+    too common to be genuine). Mapping it to NaN lets
+    apply_bridge_index()'s fillna-based fallback to the lanes-based width
+    estimate actually fire for these, instead of silently zeroing out that
+    link's bridge damage cost entirely (width x length x unit_cost = 0),
+    which would be worse than the original missing-road_bridge bug this
+    whole fix targets.
+    """
+    return pd.to_numeric(raw, errors="coerce").replace(0.0, pd.NA)
 
 
 # Loose bounding box covering CONUS + AK + HI + territories (GU/PR/VI), used
@@ -166,10 +223,17 @@ def _fetch_state(state: str, *, retries: int = 3, timeout: float = 30.0) -> pd.D
     df["structure_number"] = df["STRUCTURE_NUMBER_008"].str.strip()
     df["facility_carried"] = df["FACILITY_CARRIED_007"].str.strip().str.strip("'")
     df["location"] = df["LOCATION_009"].str.strip().str.strip("'")
-    df["deck_width_m"] = pd.to_numeric(df["DECK_WIDTH_MT_052"], errors="coerce")
+    df["deck_width_m"] = _clean_deck_width(df["DECK_WIDTH_MT_052"])
     df["structure_length_m"] = pd.to_numeric(df["STRUCTURE_LEN_MT_049"], errors="coerce")
     df["year_built"] = pd.to_numeric(df["YEAR_BUILT_027"], errors="coerce")
     df["state"] = state
+    df["route_prefix"] = df["ROUTE_PREFIX_005B"].str.strip().map(ROUTE_PREFIX_LABELS)
+    df["service_level_raw_code"] = df["SERVICE_LEVEL_005C"].str.strip()
+    df["functional_class"] = df["FUNCTIONAL_CLASS_026"].str.strip().str.zfill(2).map(FUNCTIONAL_CLASS_LABELS)
+    df["is_ramp_by_name"] = df["FACILITY_CARRIED_007"].str.contains("RAMP", case=False, na=False)
+    df["owner"] = df["OWNER_022"].str.strip()
+    df["maintenance"] = df["MAINTENANCE_021"].str.strip()
+    df["on_nhs"] = df["HIGHWAY_SYSTEM_104"].str.strip()
     return df[
         [
             "state",
@@ -181,6 +245,13 @@ def _fetch_state(state: str, *, retries: int = 3, timeout: float = 30.0) -> pd.D
             "deck_width_m",
             "structure_length_m",
             "year_built",
+            "route_prefix",
+            "service_level_raw_code",
+            "functional_class",
+            "owner",
+            "maintenance",
+            "on_nhs",
+            "is_ramp_by_name",
         ]
     ]
 

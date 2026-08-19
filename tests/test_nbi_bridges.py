@@ -20,7 +20,7 @@ SCRIPTS_DIR = Path(__file__).resolve().parents[1] / "scripts"
 if str(SCRIPTS_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPTS_DIR))
 
-from download_nbi_bridges import _nbi_dms_to_decimal  # noqa: E402
+from download_nbi_bridges import _nbi_dms_to_decimal, _clean_deck_width  # noqa: E402
 from build_nbi_bridge_index import build_bridge_index  # noqa: E402
 
 
@@ -57,6 +57,14 @@ def test_decode_rejects_invalid_minutes():
 def test_decode_blank_and_zero_are_unrecorded():
     assert _nbi_dms_to_decimal("", digits_before_seconds=4) is None
     assert _nbi_dms_to_decimal("00000000", digits_before_seconds=4) is None
+
+
+def test_deck_width_zero_is_treated_as_missing():
+    # 0 is NBI's "not recorded" convention (confirmed: 14.3% of real
+    # national structures carry exactly 0), not a genuine zero-width bridge.
+    cleaned = _clean_deck_width(pd.Series(["0", "0.0", "12.5", "", "8.2"]))
+    assert cleaned.isna().tolist() == [True, True, False, True, False]
+    assert cleaned.dropna().tolist() == pytest.approx([12.5, 8.2])
 
 
 def _toy_links_and_nbi(tmp_path):
