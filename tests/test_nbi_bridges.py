@@ -147,3 +147,75 @@ def test_join_flags_both_directions_of_bidirectional_pair(tmp_path):
     nbi_path, links_path = _toy_links_and_nbi(tmp_path)
     index, _stats = build_bridge_index(nbi_path, links_path, max_distance_m=100.0)
     assert {"a_fwd", "a_rev"}.issubset(set(index["e_id"]))
+
+
+def _toy_links_and_nbi_with_classification(tmp_path):
+    # Mirrors the real ArcGIS Pro finding (Loudoun County, VA, 2026-08-19):
+    # a non-ramp structure (e.g. a named parkway bridge) whose true road
+    # isn't in FAF5 at all, so proximity attaches it to the nearest link,
+    # which happens to be a ramp -- alongside a genuine ramp structure
+    # correctly matched to a ramp link, as a contrast case.
+    links = gpd.GeoDataFrame(
+        {
+            "e_id": ["ramp_link", "mainline_link"],
+            "road_classification": ["motorway_link", "motorway"],
+        },
+        geometry=[
+            LineString([(0, 0), (1000, 0)]),
+            LineString([(0, 5000), (1000, 5000)]),
+        ],
+        crs="EPSG:9311",
+    )
+    links_path = tmp_path / "links.gpq"
+    links.to_parquet(links_path)
+
+    mid_ramp = gpd.GeoSeries(
+        [LineString([(0, 0), (1000, 0)]).interpolate(0.5, normalized=True)], crs="EPSG:9311"
+    ).to_crs("EPSG:4326").iloc[0]
+    mid_mainline = gpd.GeoSeries(
+        [LineString([(0, 5000), (1000, 5000)]).interpolate(0.5, normalized=True)], crs="EPSG:9311"
+    ).to_crs("EPSG:4326").iloc[0]
+
+    nbi = pd.DataFrame(
+        {
+            "structure_number": ["RAMP_STRUCT", "PARKWAY_STRUCT"],
+            "latitude": [mid_ramp.y, mid_ramp.y],
+            "longitude": [mid_ramp.x, mid_ramp.x],
+            "deck_width_m": [8.0, 12.0],
+            "structure_length_m": [20.0, 25.0],
+            # RAMP_STRUCT is a real ramp (consistent with ramp_link).
+            # PARKWAY_STRUCT is NOT a ramp, but its true road (a local
+            # parkway) isn't in this toy FAF5 network at all, so it's
+            # forced to match the only nearby link -- the ramp -- same
+            # mechanism as the real River Creek Pkwy case.
+            "is_ramp": [True, False],
+        }
+    )
+    nbi_path = tmp_path / "nbi.parquet"
+    nbi.to_parquet(nbi_path)
+    return nbi_path, links_path
+
+
+def test_class_consistency_flags_ramp_vs_nonramp_mismatch(tmp_path):
+    nbi_path, links_path = _toy_links_and_nbi_with_classification(tmp_path)
+    index, stats = build_bridge_index(nbi_path, links_path, max_distance_m=100.0)
+
+    ramp_row = index.loc[index["e_id"] == "ramp_link"].iloc[0]
+    # Both structures matched the same (only nearby) link: one consistent
+    # (the real ramp), one not (the parkway forced onto the ramp).
+    assert ramp_row["n_structures"] == 2
+    assert ramp_row["n_class_inconsistent"] == 1
+
+    assert stats["class_consistency_checked_pairs"] == 2
+    assert stats["class_consistency_rate"] == pytest.approx(0.5)
+
+
+def test_class_consistency_skipped_without_classification_columns(tmp_path):
+    # The existing toy fixture has neither road_classification nor is_ramp
+    # -- the diagnostic should degrade gracefully, not error.
+    nbi_path, links_path = _toy_links_and_nbi(tmp_path)
+    index, stats = build_bridge_index(nbi_path, links_path, max_distance_m=100.0)
+
+    assert stats["class_consistency_rate"] is None
+    assert stats["class_consistency_checked_pairs"] == 0
+    assert (index["n_class_inconsistent"] == 0).all()
