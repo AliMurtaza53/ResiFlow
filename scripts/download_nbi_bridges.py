@@ -75,6 +75,10 @@ KEEP_COLUMNS = [
     "DECK_WIDTH_MT_052",
     "STRUCTURE_LEN_MT_049",
     "MAIN_UNIT_SPANS_045",
+    "MAX_SPAN_LEN_MT_048",
+    "DEGREES_SKEW_034",
+    "STRUCTURE_KIND_043A",
+    "STRUCTURE_TYPE_043B",
     "YEAR_BUILT_027",
     "FUNCTIONAL_CLASS_026",
     "OWNER_022",
@@ -253,6 +257,17 @@ def _fetch_state(state: str, *, retries: int = 3, timeout: float = 30.0) -> pd.D
     df["deck_width_m"] = _clean_deck_width(df["DECK_WIDTH_MT_052"])
     df["structure_length_m"] = pd.to_numeric(df["STRUCTURE_LEN_MT_049"], errors="coerce")
     df["year_built"] = pd.to_numeric(df["YEAR_BUILT_027"], errors="coerce")
+    # Added 2026-08-20 for HAZUS Hazus 6.1 bridge classification (Table 7-1) --
+    # main_unit_spans, max_span_length_m, skew_degrees, structure_kind,
+    # structure_type. skew_degrees==99 is NBI's own "major variation across
+    # substructure units" convention (guide p.30, confirmed earlier this
+    # project), not a literal 99-degree skew -- treated as unusable/unknown
+    # by src/resiflow/hazards/hazus_bridge.py, not coerced to a number here.
+    df["main_unit_spans"] = pd.to_numeric(df["MAIN_UNIT_SPANS_045"], errors="coerce")
+    df["max_span_length_m"] = pd.to_numeric(df["MAX_SPAN_LEN_MT_048"], errors="coerce")
+    df["skew_degrees"] = pd.to_numeric(df["DEGREES_SKEW_034"], errors="coerce")
+    df["structure_kind_code"] = df["STRUCTURE_KIND_043A"].str.strip()
+    df["structure_type_code"] = df["STRUCTURE_TYPE_043B"].str.strip().str.zfill(2)
     df["state"] = state
     df["route_prefix"] = df["ROUTE_PREFIX_005B"].str.strip().map(ROUTE_PREFIX_LABELS)
     df["service_level_raw_code"] = df["SERVICE_LEVEL_005C"].str.strip()
@@ -276,6 +291,11 @@ def _fetch_state(state: str, *, retries: int = 3, timeout: float = 30.0) -> pd.D
             "longitude",
             "deck_width_m",
             "structure_length_m",
+            "main_unit_spans",
+            "max_span_length_m",
+            "skew_degrees",
+            "structure_kind_code",
+            "structure_type_code",
             "year_built",
             "route_prefix",
             "service_level_raw_code",

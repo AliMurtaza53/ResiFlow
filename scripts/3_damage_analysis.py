@@ -519,6 +519,20 @@ def format_intersections(
     if "averageWidth" not in rl.columns:
         rl["averageWidth"] = 3.65
 
+    # HAZUS bridge-classification fields (added 2026-08-20, see
+    # preprocess/faf5_network.py's apply_bridge_index() and
+    # hazards/hazus_bridge.py) -- must be carried through this merge
+    # explicitly like every other road_links attribute above, or they
+    # silently vanish here even though they survive all the way from
+    # road_links through disruption/build.py.
+    hazus_cols = [
+        "year_built", "main_unit_spans", "max_span_length_m",
+        "skew_degrees", "structure_kind_code", "structure_type_code", "bridge_state",
+    ]
+    for col in hazus_cols:
+        if col not in rl.columns:
+            rl[col] = np.nan
+
     intersections_gp = intersections_gp.merge(
         rl[
             [
@@ -530,6 +544,7 @@ def format_intersections(
                 "lanes",
                 "averageWidth",
                 "road_label",
+                *hazus_cols,
             ]
         ],
         on="e_id",
@@ -769,20 +784,67 @@ def main():
         intersections["river_unit_cost_min"] = np.nan
         intersections["river_unit_cost_max"] = np.nan
 
-        # run damage analysis
-        intersections_with_damage = calculate_damage(
-            intersections, damage_curves, damage_values
-        )
-        from resiflow.damage_aggregation import add_consolidated_damage_columns
+        # Resolve hazard_type for this scenario -- earthquake/landslide route
+        # through the real HAZUS 6.1 methodology (hazards/hazus_bridge.py)
+        # instead of calculate_damage()'s flood-only path (hardcoded
+        # flood_types=["surface","river"], priced with FLOOD's
+        # damage_ratio_road_flood.xlsx/damage_cost_road_flood.xlsx --
+        # confirmed 2026-08-20 that every earthquake/landslide
+        # direct_damage_total up to that point was flood repair costs
+        # applied to a relabeled non-flood intensity value, see
+        # disruption/build.py's SHIM comments and this function's own
+        # docstring for the full history).
+        from resiflow.hazards.scenario_registry import resolve_active_scenario
 
-        intersections_with_damage = add_consolidated_damage_columns(intersections_with_damage)
-        # filter out undamaged intersections
-        intersections_with_damage = intersections_with_damage[
-            ~(
-                (intersections_with_damage.damage_level_river == "no")
-                & (intersections_with_damage.damage_level_surface == "no")
+        try:
+            active_scenario = resolve_active_scenario(
+                scenario_param=int(scenario_param), event_id=str(flood_key), base_path=base_path
             )
-        ].reset_index(drop=True)
+            hazard_type = active_scenario.hazard_type
+        except Exception:
+            hazard_type = "flood"
+
+        if hazard_type in ("earthquake", "landslide"):
+            from resiflow.hazards.hazus_bridge import compute_row_direct_damage_musd
+
+            if hazard_type == "earthquake":
+                print(
+                    "  earthquake: HAZUS bridge ground-shaking fragility needs Sa(1.0s), "
+                    "not PGA -- Sa(1.0s) isn't intersected against the network anywhere "
+                    "in this pipeline yet, so direct_damage_mean_musd is reported as 0.0 "
+                    "(honest gap) rather than computed from a mismatched intensity. "
+                    "See hazards/hazus_bridge.py's compute_row_direct_damage_musd docstring."
+                )
+            intersections_with_damage = intersections.copy()
+            intersections_with_damage["direct_damage_mean_musd"] = intersections_with_damage.apply(
+                lambda row: compute_row_direct_damage_musd(row, hazard_type=hazard_type), axis=1
+            )
+            intersections_with_damage["direct_damage_mean_usd"] = (
+                intersections_with_damage["direct_damage_mean_musd"] * 1_000_000.0
+            )
+            # Filter on the computed cost itself, not a "damage_level_max"
+            # string column -- format_intersections()'s groupby uses
+            # numeric_only=True and doesn't special-case damage_level_max
+            # the way it does damage_level_surface/river, so that column
+            # doesn't reliably survive to this point.
+            intersections_with_damage = intersections_with_damage[
+                intersections_with_damage["direct_damage_mean_musd"] > 0
+            ].reset_index(drop=True)
+        else:
+            # run damage analysis
+            intersections_with_damage = calculate_damage(
+                intersections, damage_curves, damage_values
+            )
+            from resiflow.damage_aggregation import add_consolidated_damage_columns
+
+            intersections_with_damage = add_consolidated_damage_columns(intersections_with_damage)
+            # filter out undamaged intersections
+            intersections_with_damage = intersections_with_damage[
+                ~(
+                    (intersections_with_damage.damage_level_river == "no")
+                    & (intersections_with_damage.damage_level_surface == "no")
+                )
+            ].reset_index(drop=True)
         # export results
         (out_path).mkdir(parents=True, exist_ok=True)
         intersections_with_damage.to_csv(

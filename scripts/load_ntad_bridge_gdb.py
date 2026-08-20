@@ -61,6 +61,15 @@ def load_ntad_bridges(gdb_path: Path, layer: str = "National_Bridge_Inventory") 
             "longitude": pd.to_numeric(gdf["LONGDD"], errors="coerce"),
             "deck_width_m": _clean_deck_width(gdf["DECK_WIDTH_MT_052"]),
             "structure_length_m": pd.to_numeric(gdf["STRUCTURE_LEN_MT_049"], errors="coerce"),
+            # Added 2026-08-20 for HAZUS 6.1 bridge classification (Table
+            # 7-1) -- see download_nbi_bridges.py's identical fields for the
+            # skew_degrees==99 caveat (NBI's "major variation" convention,
+            # not a literal 99 degrees).
+            "main_unit_spans": pd.to_numeric(gdf["MAIN_UNIT_SPANS_045"], errors="coerce"),
+            "max_span_length_m": pd.to_numeric(gdf["MAX_SPAN_LEN_MT_048"], errors="coerce"),
+            "skew_degrees": pd.to_numeric(gdf["DEGREES_SKEW_034"], errors="coerce"),
+            "structure_kind_code": gdf["STRUCTURE_KIND_043A"].astype(str).str.strip(),
+            "structure_type_code": gdf["STRUCTURE_TYPE_043B"].astype(str).str.strip().str.zfill(2),
             "year_built": pd.to_numeric(gdf["YEAR_BUILT_027"], errors="coerce"),
             "owner": gdf["OWNER_022"].astype(str).str.strip(),
             "maintenance": gdf["MAINTENANCE_021"].astype(str).str.strip(),

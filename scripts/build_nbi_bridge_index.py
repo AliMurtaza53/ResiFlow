@@ -161,6 +161,30 @@ def build_bridge_index(
     )
     index["road_bridge"] = "yes"
 
+    # HAZUS bridge-classification fields (Table 7-1: state, year_built,
+    # spans, max_span_length, skew, structure_kind/type) are per-structure
+    # categorical/structural attributes, not something to average across
+    # multiple physical structures mapped to the same e_id -- taken instead
+    # from each e_id's DOMINANT structure (largest structure_length_m), a
+    # documented approximation, not a measured group property.
+    hazus_cols = [
+        "e_id",
+        "state",
+        "year_built",
+        "main_unit_spans",
+        "max_span_length_m",
+        "skew_degrees",
+        "structure_kind_code",
+        "structure_type_code",
+    ]
+    available_hazus_cols = [c for c in hazus_cols if c in matched.columns]
+    if len(available_hazus_cols) > 1:
+        dominant = (
+            matched.sort_values("structure_length_m", ascending=False)
+            .drop_duplicates(subset=["e_id"], keep="first")[available_hazus_cols]
+        )
+        index = index.merge(dominant, on="e_id", how="left")
+
     stats["distinct_links_flagged_as_bridge"] = len(index)
     stats["total_links"] = len(road_links)
     stats["links_flagged_share"] = (

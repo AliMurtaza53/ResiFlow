@@ -116,6 +116,28 @@ def apply_bridge_index(links: gpd.GeoDataFrame, bridge_index: pd.DataFrame) -> g
     else:
         links["averageWidth"] = overridden_width
 
+    # HAZUS bridge-classification fields (added 2026-08-20; see
+    # scripts/build_nbi_bridge_index.py's "dominant structure" comment for
+    # how these are chosen when multiple structures map to one e_id).
+    # NaN/absent for non-bridge links and for bridges the index doesn't
+    # carry these columns for (e.g. an older index built before this field
+    # set existed) -- src/resiflow/hazards/hazus_bridge.py must handle
+    # missing values, not assume every road_bridge=='yes' link has them.
+    hazus_cols = [
+        "year_built",
+        "main_unit_spans",
+        "max_span_length_m",
+        "skew_degrees",
+        "structure_kind_code",
+        "structure_type_code",
+    ]
+    bridge_index_by_e_id = bridge_index.set_index("e_id")
+    for col in hazus_cols:
+        if col in bridge_index_by_e_id.columns:
+            links[col] = links["e_id"].map(bridge_index_by_e_id[col])
+    if "state" in bridge_index_by_e_id.columns:
+        links["bridge_state"] = links["e_id"].map(bridge_index_by_e_id["state"])
+
     return links
 
 
