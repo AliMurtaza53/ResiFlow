@@ -28,7 +28,8 @@ if str(REPO_ROOT) not in sys.path:
 import numpy as np
 import rasterio
 from rasterio.transform import Affine, from_origin
-from rasterio.warp import Resampling, reproject
+from rasterio.coords import BoundingBox
+from rasterio.warp import Resampling, reproject, transform_bounds
 
 from resiflow.geo_runtime import CONUS_TARGET_CRS, canonical_crs, rasterio_env
 from resiflow.utils import load_config
@@ -50,6 +51,35 @@ def reference_grid(reference_path: Path) -> dict:
             "resolution": ref.res[0],
             "bounds": ref.bounds,
         }
+
+
+def grid_from_source_bounds(input_path: Path, resolution: float) -> dict:
+    """Derive a target grid directly from --input's own bounds, at
+    ``resolution`` metres in the project's standard CRS.
+
+    For a REGIONAL (non-VA) hazard raster -- use this instead of the default
+    VA reference. Aligning a wide-footprint event (e.g. a multi-state
+    earthquake scenario) against the default VA-sized reference grid would
+    silently clip it down to just the VA bounding box, discarding the whole
+    point of using a bigger event. This is exactly what
+    scripts/prepare_harvey_depths.py already had to do by hand for the
+    Houston/Harris County Harvey case study (its own bounds -> EPSG:9311 at
+    a chosen resolution) -- generalized here so future regional hazards
+    don't need their own one-off copy of the same few lines. Harvey's script
+    still does its own streaming reproject rather than using this (its
+    source raster is ~84GB, too large for align_raster's full src.read());
+    this path is for the common case where the source is small enough to
+    read in one shot.
+    """
+    with rasterio.open(input_path) as src:
+        target_crs = canonical_crs(CONUS_TARGET_CRS)
+        bounds = transform_bounds(src.crs, target_crs, *src.bounds)
+
+    return {
+        "crs": target_crs,
+        "resolution": resolution,
+        "bounds": BoundingBox(*bounds),
+    }
 
 
 def align_raster(
@@ -139,6 +169,22 @@ def main() -> None:
         "(default: the toy VA flood raster under config.json's soge_clusters path)",
     )
     parser.add_argument(
+        "--own-bounds",
+        action="store_true",
+        help="Derive the target grid from --input's own bounds instead of a VA "
+        "reference raster -- use for a REGIONAL (non-VA) hazard whose footprint "
+        "would otherwise get silently clipped to the small VA reference grid. "
+        "Mutually exclusive with --reference. Requires --resolution.",
+    )
+    parser.add_argument(
+        "--resolution",
+        type=float,
+        default=None,
+        help="Target resolution in metres, only used with --own-bounds (VA's "
+        "convention is 50m -- match it for cross-region comparability unless "
+        "there's a specific reason not to).",
+    )
+    parser.add_argument(
         "--unit-scale",
         type=float,
         default=1.0,
@@ -160,18 +206,32 @@ def main() -> None:
 
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s", force=True)
 
-    reference = args.reference or _default_reference()
-    args.reference = reference
-    if not reference.exists():
-        raise SystemExit(f"Reference raster not found: {reference}")
-    grid = reference_grid(args.reference)
-    logging.info(
-        "Target grid from %s: crs=%s, resolution=%sm, bounds=%s",
-        args.reference,
-        grid["crs"],
-        grid["resolution"],
-        grid["bounds"],
-    )
+    if args.own_bounds:
+        if args.reference is not None:
+            raise SystemExit("--own-bounds and --reference are mutually exclusive")
+        if args.resolution is None:
+            raise SystemExit("--own-bounds requires --resolution")
+        grid = grid_from_source_bounds(args.input, args.resolution)
+        logging.info(
+            "Target grid from %s's own bounds: crs=%s, resolution=%sm, bounds=%s",
+            args.input,
+            grid["crs"],
+            grid["resolution"],
+            grid["bounds"],
+        )
+    else:
+        reference = args.reference or _default_reference()
+        args.reference = reference
+        if not reference.exists():
+            raise SystemExit(f"Reference raster not found: {reference}")
+        grid = reference_grid(args.reference)
+        logging.info(
+            "Target grid from %s: crs=%s, resolution=%sm, bounds=%s",
+            args.reference,
+            grid["crs"],
+            grid["resolution"],
+            grid["bounds"],
+        )
 
     result = align_raster(
         args.input,

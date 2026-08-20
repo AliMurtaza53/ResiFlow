@@ -103,9 +103,99 @@ class RealEarthquakeShakeMapSource(SiouxFallsMultihazardSource):
     multihazard_dir = REAL_VA_DIR
 
 
+class RealEarthquakeNewMadridScenarioSource(SiouxFallsMultihazardSource):
+    """USGS Earthquake Scenarios M7.5 New Madrid central fault (BSSC2014).
+
+    A physically-modeled SCENARIO on a real, well-characterized fault --
+    not an instrumentally-recorded historical event (the actual 1811-1812
+    New Madrid earthquakes predate ShakeMap-quality instrumentation). Added
+    2026-08-20 specifically for a genuinely regional/sub-national-scale
+    earthquake footprint: Central/Eastern US crust transmits shaking much
+    further than West Coast crust, so even this M7.5 event's damage
+    footprint spans 8 states (MO/AR/TN/KY/IL/IN/MS/AL), unlike Mineral VA's
+    essentially single-state reach. This is the field-standard reference
+    case for this kind of question (used the same way in FEMA/HAZUS
+    national risk studies).
+
+    Aligned via --own-bounds (scripts/align_hazard_rasters.py), NOT the
+    default VA reference grid -- using the VA reference would silently clip
+    this event's multi-state footprint down to just the VA bounding box,
+    defeating the entire point of choosing it over Mineral. See
+    align_hazard_rasters.grid_from_source_bounds()'s docstring.
+
+    scripts/prepare_shakemap_pga.py produces the aligned input: this
+    download's raw grid uses percent-g LINEAR units (confirmed by direct
+    inspection: positive values up to ~131, i.e. 1.31g near-fault -- NOT
+    natural-log g like the real-time ShakeMap system's Mineral download),
+    and a lower-left-corner .hdr convention (XLLCORNER/YLLCORNER/CELLSIZE)
+    rather than Mineral's upper-left-corner one (ULXMAP/ULYMAP/XDIM/YDIM) --
+    both confirmed by inspecting the actual downloaded files, not assumed
+    by analogy with Mineral.
+    """
+
+    hazard_type = "earthquake"
+    hazard_subtype = "earthquake_new_madrid_m75_scenario"
+    intensity_unit = "g_pga"
+    raster_field = "pga"
+    multihazard_dir = REAL_VA_DIR
+
+
 class RealWinterStormSource(SiouxFallsMultihazardSource):
     hazard_type = "winter_storm"
     hazard_subtype = "winter_storm"
+    intensity_unit = "mm_ice"
+    raster_field = "winter_storm"
+    multihazard_dir = REAL_VA_DIR
+
+
+class RealWinterStormUriSource(SiouxFallsMultihazardSource):
+    """NOAA SNODAS snow depth, 2021-02-17 (Winter Storm Uri peak day).
+
+    Added 2026-08-20 for winter-storm severity/regional diversity alongside
+    the existing single day (2016-01-23, Winter Storm Jonas). Aligned at
+    FULL CONUS extent via --own-bounds (not clipped to the VA reference
+    grid, and not clipped to Texas either -- SNODAS's own daily product
+    already covers the whole country, so there's no reason to discard any
+    of it) -- an initial VA-clipped version was tried first and rejected:
+    clipping to VA specifically would have thrown away Uri's real severity
+    center (Texas) for no reason, when the source data already has full
+    national coverage for free. Resolution is 1000m (SNODAS's own native
+    resolution, ~926m at these latitudes) rather than the VA convention's
+    50m -- full-CONUS at 50m is ~9 billion pixels, both computationally
+    intractable (confirmed: timed out past 3 minutes) and fake precision
+    for source data that's never finer than ~1km to begin with.
+    """
+
+    hazard_type = "winter_storm"
+    hazard_subtype = "winter_storm_uri"
+    intensity_unit = "mm_ice"
+    raster_field = "winter_storm"
+    multihazard_dir = REAL_VA_DIR
+
+
+class RealWinterStormElliottSource(SiouxFallsMultihazardSource):
+    """NOAA SNODAS snow depth, 2022-12-24 (Winter Storm Elliott), full CONUS extent.
+
+    See RealWinterStormUriSource's docstring for the extent/resolution
+    reasoning (identical for all three added SNODAS days).
+    """
+
+    hazard_type = "winter_storm"
+    hazard_subtype = "winter_storm_elliott"
+    intensity_unit = "mm_ice"
+    raster_field = "winter_storm"
+    multihazard_dir = REAL_VA_DIR
+
+
+class RealWinterStormSnowmageddonSource(SiouxFallsMultihazardSource):
+    """NOAA SNODAS snow depth, 2010-02-06 ("Snowmageddon"), full CONUS extent.
+
+    See RealWinterStormUriSource's docstring for the extent/resolution
+    reasoning (identical for all three added SNODAS days).
+    """
+
+    hazard_type = "winter_storm"
+    hazard_subtype = "winter_storm_snowmageddon"
     intensity_unit = "mm_ice"
     raster_field = "winter_storm"
     multihazard_dir = REAL_VA_DIR
@@ -146,7 +236,11 @@ def resolve_real_source(
         "earthquake": RealEarthquakeShakeMapSource,
         "earthquake_shakemap_mineral": RealEarthquakeShakeMapSource,
         "earthquake_nshm": RealEarthquakeSource,
+        "earthquake_new_madrid_m75_scenario": RealEarthquakeNewMadridScenarioSource,
         "winter_storm": RealWinterStormSource,
+        "winter_storm_uri": RealWinterStormUriSource,
+        "winter_storm_elliott": RealWinterStormElliottSource,
+        "winter_storm_snowmageddon": RealWinterStormSnowmageddonSource,
         "landslide": RealLandslideSource,
     }
     if hazard_type == "flood" and flood_subtype:

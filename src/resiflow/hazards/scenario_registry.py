@@ -81,8 +81,39 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(
         402, "earthquake", hazard_subtype="earthquake_nshm", closure_threshold=25, label="earthquake_nshm"
     ),
+    # USGS Earthquake Scenarios M7.5 New Madrid central fault (BSSC2014) --
+    # a genuinely regional/sub-national earthquake footprint (8 states),
+    # unlike Mineral's single-state reach. See
+    # hazards/real_va.py's RealEarthquakeNewMadridScenarioSource.
+    HazardScenario(
+        403,
+        "earthquake",
+        hazard_subtype="earthquake_new_madrid_m75_scenario",
+        closure_threshold=25,
+        label="earthquake_new_madrid_m75_scenario",
+    ),
     HazardScenario(501, "landslide", closure_threshold=100, label="landslide"),
     HazardScenario(601, "winter_storm", closure_threshold=100, label="winter_storm"),
+    # Additional real SNODAS days for winter-storm severity/regional
+    # diversity beyond the single 2016-01-23 (Jonas) default -- see
+    # hazards/real_va.py's RealWinterStormUri/Elliott/SnowmageddonSource.
+    HazardScenario(
+        602, "winter_storm", hazard_subtype="winter_storm_uri", closure_threshold=100, label="winter_storm_uri"
+    ),
+    HazardScenario(
+        603,
+        "winter_storm",
+        hazard_subtype="winter_storm_elliott",
+        closure_threshold=100,
+        label="winter_storm_elliott",
+    ),
+    HazardScenario(
+        604,
+        "winter_storm",
+        hazard_subtype="winter_storm_snowmageddon",
+        closure_threshold=100,
+        label="winter_storm_snowmageddon",
+    ),
     HazardScenario(701, "snow", closure_threshold=150, label="snow"),
     # Legacy single-hazard keys (scenario_param == closure_threshold).
     HazardScenario(30, "flood", closure_threshold=30, label="flood_legacy"),
