@@ -185,6 +185,21 @@ def build_earthquake_link_disruption(
         scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
+    # SHIM, NOT A REAL COST MODEL -- confirmed 2026-08-20 while investigating
+    # whether direct damage costs use hazard-appropriate methodology (they
+    # don't). PGA(g) * 0.5 is repackaged into a column literally named
+    # flood_depth_max purely so it numerically resembles a plausible flood
+    # depth in metres -- downstream, calculate_damage() (scripts/
+    # 3_damage_analysis.py) evaluates this against damage_ratio_road_flood.xlsx
+    # and prices it with damage_cost_road_flood.xlsx, i.e. every earthquake_401
+    # run's direct_damage_total_usd is FLOOD repair costs applied to a fake
+    # "flood depth" derived from PGA, not any earthquake-specific damage
+    # function. calculate_damage() itself hardcodes flood_types=["surface",
+    # "river"] with no hazard_type branching at all -- there is currently no
+    # earthquake-specific damage-ratio/cost table anywhere in this repo.
+    # Do not trust direct_damage_total for this hazard until a real
+    # PGA-to-damage-ratio/cost table (e.g. from FEMA HAZUS's Earthquake
+    # Technical Manual, Ch. 7) replaces this.
     out["flood_depth_max"] = out["intensity_primary"] * 0.5
     return out
 
@@ -216,6 +231,13 @@ def build_landslide_link_disruption(
         scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
+    # SHIM, NOT A REAL COST MODEL -- see build_earthquake_link_disruption's
+    # comment above for the full explanation; same mechanism here (PGD mm /
+    # 1000 repackaged as a fake "flood depth" in metres, then priced with
+    # FLOOD's damage_ratio/cost tables via calculate_damage()). Do not trust
+    # direct_damage_total for landslide until a real PGD-to-damage-ratio/cost
+    # table (HAZUS's ground-failure section, same source already used for
+    # the PGD computation itself) replaces this.
     out["flood_depth_max"] = out["landslide_max_mm"] / 1000.0
     return out
 
@@ -252,6 +274,13 @@ def build_winter_storm_link_disruption(
         scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
+    # SHIM, NOT A REAL COST MODEL -- see build_earthquake_link_disruption's
+    # comment above for the full explanation; same mechanism here (ice/snow
+    # mm / 1000 repackaged as a fake "flood depth" in metres, then priced
+    # with FLOOD's damage_ratio/cost tables via calculate_damage()). No
+    # HAZUS reference exists for this hazard (winter storm isn't one of
+    # HAZUS's four modules) -- a real cost table here would need a different
+    # source, e.g. state DOT snow/ice removal cost data.
     out["flood_depth_max"] = out["winter_storm_max_mm"] / 1000.0
     return out
 

@@ -281,6 +281,21 @@ def calculate_damage(
     """
     Calculate damage fractions and costs for disrupted road links based on flood depth.
 
+    CONFIRMED SHIM for non-flood hazards (2026-08-20): this function is
+    flood-only by construction -- hardcoded flood_types=["surface","river"],
+    no hazard_type parameter, reads/prices via damage_ratio_road_flood.xlsx
+    and damage_cost_road_flood.xlsx exclusively. For earthquake/landslide/
+    winter_storm, disruption/build.py's build_{earthquake,landslide,
+    winter_storm}_link_disruption() functions repackage each hazard's own
+    intensity (PGA in g, PGD in mm, ice/snow in mm) into a column literally
+    named flood_depth_max via an arbitrary unit-matching multiplier (e.g.
+    PGA * 0.5), which flows into this function's flood_depth_surface/river
+    columns and gets priced with FLOOD repair costs. There is no
+    earthquake/landslide/winter_storm-specific damage-ratio or unit-cost
+    table anywhere in this repo -- do not trust direct_damage_total for
+    those hazards until real hazard-specific tables replace this (see
+    disruption/build.py's per-hazard SHIM comments for what's needed).
+
     Parameters
     ----------
     disrupted_links: pd.DataFrame
