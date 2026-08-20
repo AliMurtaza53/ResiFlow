@@ -349,13 +349,66 @@ direct_damage_total` (both the per-day and final aggregate computations); new
 `cost_matrix_*_by_scenario.csv` outputs. `pytest tests/` and the toy
 disruption pipeline both verified passing after the change.
 
-## Open: direct-cost source
+## Resolved: direct-cost source now uses real HAZUS 6.1 methodology for earthquake/landslide (2026-08-20)
 
-**Direct costs** (Script 3) currently price all four hazards off the same flood-only
-depth-damage-ratio curve (`damage_curves/damage_ratio_road_flood.xlsx`) — a known
-shim. Real HAZUS unit-repair-cost tables per hazard are the intended real source;
-needs the exact published figures from the user (same "supply the table, don't
-invent" pattern as landslide's HAZUS PGD coefficients), not yet started.
+**Background:** Direct costs (Script 3) originally priced all four hazards off
+the same flood-only depth-damage-ratio curve
+(`damage_curves/damage_ratio_road_flood.xlsx`) — confirmed via a real Hopper
+`cost_matrix_by_scenario.csv` showing nonzero `direct_damage_total_usd` for
+`earthquake_401` that traced back to `disruption/build.py`'s
+`build_earthquake_link_disruption()`/`build_landslide_link_disruption()`/
+`build_winter_storm_link_disruption()` each repackaging their own hazard's real
+intensity (PGA×0.5, PGD_mm/1000, ice_mm/1000) into a column literally named
+`flood_depth_max`, priced by `scripts/3_damage_analysis.py`'s
+`calculate_damage()` (hardcoded `flood_types=["surface","river"]`, no
+`hazard_type` branching at all). Every non-flood hazard's direct cost was
+FLOOD repair cost applied to a relabeled non-flood intensity value, not any
+hazard-specific damage function.
+
+**Fix — the core module:** `src/resiflow/hazards/hazus_bridge.py` (new, ~570
+lines) implements FEMA Hazus 6.1's Earthquake Model Technical Manual (July
+2024) Ch. 7 "Direct Physical Damage to Transportation Systems" and the
+Inventory Technical Manual (Aug 2024) Ch. 9 replacement-cost tables — full
+28-class HWB bridge classification (Table 7-1), lognormal fragility curves for
+both ground-shaking (Sa(1.0s), Table 7-6) and ground-failure (PGD, Table
+7-5/7-7) axes, damage-ratio-by-state (Table 11-10), and $/km road / $/sqft
+bridge replacement costs (Table 9-2/9-3). Every table was verified against the
+actual FEMA PDF via page-image rendering (an earlier text-layer extraction
+pass silently misaligned one table and dropped another's embedded
+stacked-fraction equations). KNOWN LIMITATIONS are documented in the module's
+own docstring (Kshape correction not implemented; Sa+PGD combination uses
+"more severe axis governs," not HAZUS's possibly-more-nuanced combined
+treatment; HWB28 falls back to HWB1's curve).
+
+**Per-hazard status:**
+
+| Hazard | Direct cost source | Notes |
+|---|---|---|
+| Flood | Real flood depth-damage curves (`damage_ratio_road_flood.xlsx`) | Always was the real source for this hazard; no shim |
+| Landslide | Real HAZUS PGD (ground-failure axis only) | Bridges + roads. Committed `a6b6f0b` |
+| Earthquake | Real HAZUS Sa(1.0s) (ground-shaking axis only), bridges only | Roads report $0 for earthquake — correct per HAZUS: Table 7-5's road fragility is PGD/ground-failure-only, no shaking curve, and this pipeline has no liquefaction PGD computed for earthquake (only landslide's Newmark PGD exists). Sa(1.0s) intersection wired `bde7c55` (2026-08-20) — see below |
+| Winter storm | **Still the flood shim** | HAZUS has no dedicated module for this hazard at all (confirmed by the research pass) — a real cost source here would need a different data source entirely (e.g. state DOT snow/ice removal cost data), not started |
+
+**How earthquake's Sa(1.0s) gets to the network** (closed 2026-08-20, was
+deferred as too high-blast-radius the session before): earthquake sources with
+a prepared Sa(1.0s) companion raster (`RealEarthquakeShakeMapSource`,
+`RealEarthquakeNewMadridScenarioSource` — flagged via a new `sa1p0_companion`
+class attribute on `SiouxFallsMultihazardSource`) now run a second raster
+intersection pass alongside PGA, plumbed through via a `source_field` kwarg on
+the three intensity-hazard `intersections_fn` callbacks
+(`disruption/earthquake.py` branches on it; `landslide.py`/`winter_storm.py`
+accept-and-ignore it for call-signature compatibility with the shared
+`run_intensity_disruption` loop in `disruption/pipeline_intensity.py`). The
+resulting `psa1p0_g` column flows through Script 3 exactly like `pga_g`/
+`landslide_mm` already do — no Script 3 changes needed beyond
+`compute_row_direct_damage_musd`'s earthquake branch, which reads it directly.
+Verified end-to-end against the real local New Madrid Sa(1.0s) raster
+(~0.12–0.14g near the epicenter) with a synthetic line GeoDataFrame, plus the
+full local test suite.
+
+**Where the tests live:** `tests/test_hazus_bridge.py` (28 tests — classification
+edge cases, fragility math, cost scaling/governing-axis selection, the
+`compute_row_direct_damage_musd` integration points for every hazard type).
 
 ## Resolved: freight-by-industry breakdown now uses each hazard's real commodity mix (2026-08-03)
 
@@ -476,3 +529,18 @@ corridors rather than reproducing the flat proxy.
   earlier `consistent_baseline` fix, traced to isolated (unroutable) flow
   being priced at $0 instead of via a proper isolation-cost (SC) term -- see
   "Resolved: negative day0 rerouting cost" above.
+- **2026-08-20**: Replaced the flood-shim direct-cost path with real HAZUS 6.1
+  methodology for earthquake and landslide (see "Resolved: direct-cost source"
+  above) -- new `src/resiflow/hazards/hazus_bridge.py` module, full 28-class
+  HWB bridge fragility + PGD road fragility + replacement-cost tables. Also
+  added New Madrid M7.5 scenario ShakeMap (earthquake, `scenario_param=403`)
+  and 3 additional full-CONUS-extent SNODAS winter-storm days (Uri/Elliott/
+  Snowmageddon, `scenario_param=602/603/604`) -- New Madrid chosen over a
+  probabilistic (return-period) hazard map per methodological direction from
+  Li et al. 2026's framework: a coherent single-event ShakeMap is what traffic
+  can realistically reroute around, a statistical envelope isn't. Wired
+  Sa(1.0s) into the earthquake raster-intersection path (previously deferred
+  as high-blast-radius) so earthquake bridges now get a real Sa(1.0s)-based
+  cost instead of reporting $0. Fixed a NaN-truthy bug in the new module
+  caught by the existing toy pipeline test before being called done. Winter
+  storm remains on the flood shim -- HAZUS has no dedicated module for it.
