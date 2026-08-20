@@ -43,6 +43,13 @@ KNOWN LIMITATIONS (documented, not silent):
     curve in Table 7-6 -- this module uses HWB1's curve (the least-refined
     "major bridge, non-seismic-era" case) as a conservative default for
     HWB28, not a HAZUS-published value for that class specifically.
+  - Earthquake direct cost is bridges-only and ground-shaking-only (Sa(1.0s),
+    wired 2026-08-20). Roads report $0 for earthquake -- correct per HAZUS
+    (Table 7-5 road fragility is PGD/ground-failure-only, no shaking curve),
+    not a gap, since this project has no liquefaction PGD computed for the
+    earthquake hazard itself. Earthquake bridges also report $0 whenever no
+    Sa(1.0s) raster exists for the active hazard_source (e.g.
+    RealEarthquakeSource/earthquake_nshm has no Sa companion prepared).
 """
 
 from __future__ import annotations
@@ -507,24 +514,61 @@ def compute_row_direct_damage_musd(row: pd.Series, *, hazard_type: str) -> float
     """Per-row (Script 3's intersections_gp) HAZUS direct damage, million USD.
 
     Replaces the flood-shim path (calculate_damage() + damage_ratio_road_
-    flood.xlsx/damage_cost_road_flood.xlsx) for landslide. NOT wired for
-    earthquake yet -- HAZUS's bridge ground-shaking fragility (Table 7-6) is
-    calibrated to Sa(1.0 sec), not PGA, and Sa(1.0s) isn't currently
-    intersected against the road network anywhere in this pipeline (only
-    PGA is, via run_intensity_disruption's single hazard_source). Feeding
-    PGA into an Sa-calibrated curve would produce a number that looks
-    HAZUS-sourced while being wrong -- worse than reporting zero with this
-    comment attached. Returns 0.0 for earthquake, not a computed value,
-    until that raster-intersection gap is closed (see disruption/build.py's
-    build_earthquake_link_disruption for the same caveat).
+    flood.xlsx/damage_cost_road_flood.xlsx) for earthquake and landslide.
 
-    Ground-failure (PGD) only, matching what compute_landslide_pgd.py
+    landslide: ground-failure (PGD) only, matching what compute_landslide_pgd.py
     actually produces for this project -- HAZUS's ground-shaking axis isn't
     applicable to landslide's own PGD-only intensity in this pipeline.
+
+    earthquake: ground-shaking (Sa(1.0s)) only, bridges only. Sa(1.0s) is
+    intersected as a second raster pass alongside PGA -- see
+    hazards/sioux_falls_multihazard.py's sa1p0_companion flag,
+    disruption/earthquake.py's intersections_with_earthquake source_field
+    branch, and disruption/pipeline_intensity.py's source_field plumbing.
+    "psa1p0_g" is 0.0 (not NaN) when no Sa(1.0s) raster exists for a given
+    hazard_source, so this correctly falls through to $0 for those cases
+    (e.g. RealEarthquakeSource, the NSHM source, has no Sa companion).
+    Roads always get $0 for earthquake: HAZUS's road fragility (Table 7-5)
+    is PGD-only (permanent ground deformation) with no ground-shaking curve
+    -- this project has no liquefaction/ground-failure PGD computed for the
+    earthquake hazard itself (only landslide's Newmark PGD exists), so this
+    is a real HAZUS methodology fact, not a gap.
     """
-    if hazard_type != "landslide":
+    if hazard_type not in ("earthquake", "landslide"):
         return 0.0
 
+    is_bridge = _safe_str(row.get("road_label")).strip().lower() == "bridge"
+    length_m = _safe_float(row.get("length")) or 0.0
+
+    if hazard_type == "earthquake":
+        if not is_bridge:
+            return 0.0
+        sa_1p0_g = _safe_float(row.get("psa1p0_g"))
+        if sa_1p0_g is None or sa_1p0_g <= 0:
+            return 0.0
+        hwb_class = classify_hwb(
+            structure_kind_code=row.get("structure_kind_code"),
+            structure_type_code=row.get("structure_type_code"),
+            state=row.get("bridge_state"),
+            year_built=row.get("year_built"),
+            num_spans=row.get("main_unit_spans"),
+            max_span_length_m=row.get("max_span_length_m"),
+        )
+        width_m = _safe_float(row.get("averageWidth")) or 3.65
+        deck_area_sqft = (length_m * width_m) / _SQM_PER_SQFT
+        cost_usd, _level = bridge_direct_cost_usd(
+            hwb_class=hwb_class,
+            sa_1p0_g=sa_1p0_g,
+            pgd_in=None,
+            num_spans=row.get("main_unit_spans"),
+            span_width_m=width_m,
+            bridge_length_m=length_m,
+            skew_degrees=row.get("skew_degrees"),
+            deck_area_sqft=deck_area_sqft,
+        )
+        return cost_usd / 1_000_000.0
+
+    # hazard_type == "landslide"
     # "landslide_mm" is Script 2's raw per-segment column name
     # (disruption/landslide.py's intersections_with_landslide) --
     # format_intersections()'s groupby(...).max() keeps this name as-is
@@ -534,9 +578,6 @@ def compute_row_direct_damage_musd(row: pd.Series, *, hazard_type: str) -> float
     if pgd_mm is None or pgd_mm <= 0:
         return 0.0
     pgd_in = pgd_mm / _MM_PER_INCH
-
-    is_bridge = _safe_str(row.get("road_label")).strip().lower() == "bridge"
-    length_m = _safe_float(row.get("length")) or 0.0
 
     if is_bridge:
         hwb_class = classify_hwb(

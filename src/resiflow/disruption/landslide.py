@@ -26,6 +26,8 @@ def intersections_with_landslide(
     raster_path: str,
     clip_path: Optional[str],
     boundary_gdf: Optional[gpd.GeoDataFrame] = None,
+    *,
+    source_field: Optional[str] = None,
 ) -> gpd.GeoDataFrame | None:
     return intersections_with_intensity(
         road_links,

@@ -100,6 +100,7 @@ def run_intensity_disruption(
                     raster_path,
                     clip_str,
                     analysis_boundary,
+                    source_field=_field_name,
                 )
                 if temp_file is None or temp_file.empty:
                     continue

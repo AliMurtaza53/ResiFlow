@@ -186,10 +186,29 @@ def test_hazus_damage_level_crosswalk_is_complete_and_matches_existing_vocabular
     assert set(hz.HAZUS_TO_RESIFLOW_DAMAGE_LEVEL.keys()) == set(hz.HAZUS_DAMAGE_STATES)
 
 
-def test_compute_row_direct_damage_musd_earthquake_is_always_zero():
-    # Documented gap: Sa(1.0s) isn't intersected against the network yet,
-    # so earthquake must report 0, not a value computed from mismatched PGA.
+def test_compute_row_direct_damage_musd_earthquake_zero_without_sa1p0():
+    # No psa1p0_g on the row (e.g. hazard_source has no Sa(1.0s) companion
+    # raster) -- must report 0, not a value computed from mismatched PGA.
     row = pd.Series({"landslide_mm": 500.0, "road_label": "bridge", "length": 50.0, "averageWidth": 10.0})
+    assert hz.compute_row_direct_damage_musd(row, hazard_type="earthquake") == 0.0
+
+
+def test_compute_row_direct_damage_musd_earthquake_bridge_nonzero_with_sa1p0():
+    row = pd.Series({
+        "psa1p0_g": 0.8, "road_label": "bridge", "length": 60.0, "averageWidth": 10.0,
+        "structure_kind_code": "1", "structure_type_code": "02", "bridge_state": "VA",
+        "year_built": 1960.0, "main_unit_spans": 3.0, "max_span_length_m": 20.0, "skew_degrees": 0.0,
+    })
+    musd = hz.compute_row_direct_damage_musd(row, hazard_type="earthquake")
+    assert musd > 0.0
+
+
+def test_compute_row_direct_damage_musd_earthquake_road_always_zero_even_with_sa1p0():
+    # HAZUS's road fragility (Table 7-5) is PGD-only, no ground-shaking
+    # curve -- roads report $0 for earthquake regardless of Sa(1.0s).
+    row = pd.Series({
+        "psa1p0_g": 2.0, "road_label": "road", "length": 500.0, "road_classification": "primary",
+    })
     assert hz.compute_row_direct_damage_musd(row, hazard_type="earthquake") == 0.0
 
 

@@ -101,6 +101,7 @@ class RealEarthquakeShakeMapSource(SiouxFallsMultihazardSource):
     intensity_unit = "g_pga"
     raster_field = "pga"
     multihazard_dir = REAL_VA_DIR
+    sa1p0_companion = True
 
 
 class RealEarthquakeNewMadridScenarioSource(SiouxFallsMultihazardSource):
@@ -138,6 +139,7 @@ class RealEarthquakeNewMadridScenarioSource(SiouxFallsMultihazardSource):
     intensity_unit = "g_pga"
     raster_field = "pga"
     multihazard_dir = REAL_VA_DIR
+    sa1p0_companion = True
 
 
 class RealWinterStormSource(SiouxFallsMultihazardSource):

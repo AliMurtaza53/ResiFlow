@@ -26,6 +26,11 @@ class SiouxFallsMultihazardSource:
     intensity_unit: str = "unitless"
     raster_field: str = "intensity"
     multihazard_dir: str = MULTIHAZARD_DIR
+    # Set True on earthquake sources that have a companion Sa(1.0s) raster
+    # aligned under inputs/<multihazard_dir>/<hazard_subtype>_sa1p0/ (same
+    # event_<id>.tif convention) -- HAZUS bridge ground-shaking fragility
+    # (Table 7-6) needs Sa(1.0s), not PGA. See hazards/hazus_bridge.py.
+    sa1p0_companion: bool = False
 
     def __init__(self, base_path: Path) -> None:
         self.base_path = Path(base_path)
@@ -66,6 +71,19 @@ class SiouxFallsMultihazardSource:
                 logging.warning("Missing multihazard raster: %s", path)
                 continue
             event_dict[str(key)][self.raster_field].append(str(path))
+            if self.sa1p0_companion:
+                sa_root = self.base_path / "inputs" / self.multihazard_dir / f"{self.hazard_subtype}_sa1p0"
+                sa_path = sa_root / f"event_{key}.tif"
+                if sa_path.exists():
+                    event_dict[str(key)]["psa1p0"].append(str(sa_path))
+                else:
+                    logging.warning(
+                        "Sa(1.0s) companion raster not found: %s -- HAZUS bridge "
+                        "ground-shaking cost stays $0 for event %s (see "
+                        "hazards/hazus_bridge.py)",
+                        sa_path,
+                        key,
+                    )
         return event_dict
 
     def resolve_event(self, event_id: str) -> HazardEvent:

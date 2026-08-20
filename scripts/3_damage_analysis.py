@@ -809,10 +809,12 @@ def main():
 
             if hazard_type == "earthquake":
                 print(
-                    "  earthquake: HAZUS bridge ground-shaking fragility needs Sa(1.0s), "
-                    "not PGA -- Sa(1.0s) isn't intersected against the network anywhere "
-                    "in this pipeline yet, so direct_damage_mean_musd is reported as 0.0 "
-                    "(honest gap) rather than computed from a mismatched intensity. "
+                    "  earthquake: HAZUS bridge ground-shaking cost uses Sa(1.0s) "
+                    "(psa1p0_g), computed only for bridges -- roads report $0 "
+                    "(HAZUS's road fragility, Table 7-5, is PGD/ground-failure-only, "
+                    "no shaking curve; no liquefaction PGD is computed for earthquake "
+                    "in this pipeline). Bridges also report $0 if the active hazard "
+                    "source has no Sa(1.0s) companion raster. "
                     "See hazards/hazus_bridge.py's compute_row_direct_damage_musd docstring."
                 )
             intersections_with_damage = intersections.copy()
