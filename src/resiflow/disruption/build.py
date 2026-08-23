@@ -389,7 +389,24 @@ def run_disruption(
 
             base_path = Path(load_config()["paths"]["soge_clusters"])
         if hazard_source is None:
-            hazard_source = resolve_real_source(base_path, "winter_storm")
+            # BUG (found 2026-08-21): this branch never read scenario.hazard_subtype,
+            # unlike earthquake's/landslide's branches -- resolve_real_source(...,
+            # "winter_storm") with no hazard_subtype always mapped to the "winter_storm"
+            # key (RealWinterStormSource, the original 2016 Jonas raster), REGARDLESS of
+            # scenario_param. Confirmed on Hopper: scenario_param 601/602/603/604 (Jonas/
+            # Uri/Elliott/Snowmageddon, distinct hazard_subtypes in scenario_registry.py)
+            # all produced IDENTICAL direct_damage_total/rerouting_cost, because all four
+            # silently ran against the same Jonas raster under different labels -- not a
+            # coincidence, this was the mechanism. Fixed to read scenario.hazard_subtype
+            # first, same pattern as the earthquake branch above.
+            winter_storm_subtype = (
+                scenario.hazard_subtype
+                or os.environ.get("RESIFLOW_WINTER_STORM_SUBTYPE", "").strip()
+                or None
+            )
+            hazard_source = resolve_real_source(
+                base_path, "winter_storm", hazard_subtype=winter_storm_subtype
+            )
         run_winter_storm_disruption(
             path_key,
             event_key,
