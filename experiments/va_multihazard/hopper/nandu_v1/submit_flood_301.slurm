@@ -6,11 +6,14 @@
 # (043603b, "Add Pass A + 4-hazard Hopper jobs for conus_nandu_v1
 # baseline") only added earthquake/landslide/winter_storm/harvey and
 # missed flood -- submit_flood_301.slurm still targets the old
-# convergence_cpu8_bounded18 baseline, not this one. --mem/--time reuse
-# earthquake's proven nandu_v1 config; flood (single-edge closure) is
-# the smallest of the 5 hazards so this is not under-provisioned.
-# Must run AFTER submit_cpu8_nandu_v1.slurm (Pass A) completes.
-#SBATCH --time=06:00:00
+# convergence_cpu8_bounded18 baseline, not this one.
+# --time bumped 24h (2026-08-24): the original 6h budget assumed flood
+# was the smallest of the 5 hazards ("single-edge closure") -- wrong.
+# Confirmed on Hopper (job 9456528): Script 2 alone took 9388s (~2.6h),
+# leaving Script 3/4 too little of the remaining budget and the job hit
+# TIMEOUT with no output. flood's damaged-edge footprint is evidently
+# comparable to winter_storm's, which needed up to 18.5h -- match that.
+#SBATCH --time=24:00:00
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=160G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_nandu_flood_301_%j.out
