@@ -1263,3 +1263,114 @@ def subset_links_for_map(
     return active.assign(_viz_flow=flows.loc[active.index]).nlargest(limit, "_viz_flow").drop(
         columns="_viz_flow"
     )
+
+
+_DAMAGE_LEVEL_ORDINAL: dict[str, int] = {"no": 0, "minor": 1, "moderate": 2, "extensive": 3, "severe": 4}
+
+
+def plot_multihazard_damage_maps(
+    links_by_hazard: dict[str, gpd.GeoDataFrame],
+    *,
+    hazard_meta: dict[str, dict[str, str]] | None = None,
+    max_edges: int | None = None,
+):
+    """Small-multiple CONUS maps of per-link damage level, one panel per hazard.
+
+    Follows Bor et al. 2026 (arXiv:2605.23053, github.com/denniesbor/mhtran)'s
+    Fig. 3/6 pattern: a grid of small-multiple maps sharing ONE color scale so
+    magnitudes are comparable across panels, not just within one. We use
+    damage_level_max's ordinal (no/minor/moderate/extensive/severe -> 0-4)
+    rather than a dollar value, since that column is reliably present at
+    link-geometry level for every hazard already (Script 2's output), unlike
+    per-row HAZUS dollar costs which currently only exist in Script 3's
+    separate, non-geometry CSV -- this keeps the map real and consistent
+    across all hazards rather than mixing a $-based scale for HAZUS-priced
+    hazards with something else for the rest.
+
+    Undamaged links render as a faint gray context layer (the network's own
+    shape reads as the CONUS outline at this density -- no separate
+    basemap/state-boundary dependency needed). Damaged links use a single-hue
+    sequential colormap (magnitude, not identity -- see dataviz conventions),
+    shared across every panel via one Normalize instance + one colorbar.
+
+    ``links_by_hazard``: ``{hazard_label: gdf}`` with a ``damage_level_max``
+    column and geometry -- caller loads/subsets these (e.g. via
+    ``subset_links_for_map``) since CONUS-scale I/O and edge-count capping is
+    already handled there; this function only renders.
+    ``hazard_meta``: optional ``{hazard_label: {"hazard_type":..., "hazard_subtype":...}}``
+    for panel-title coloring (falls back to muted ink if omitted).
+    ``max_edges``: re-applies ``subset_links_for_map`` per panel as a safety
+    net even if the caller already subsetted (cheap no-op when already small).
+    """
+    import matplotlib.pyplot as plt
+    from matplotlib.cm import ScalarMappable
+    from matplotlib.colors import LinearSegmentedColormap, Normalize
+    from matplotlib.lines import Line2D
+
+    if not links_by_hazard:
+        raise ValueError("links_by_hazard is empty")
+
+    hazard_meta = hazard_meta or {}
+    cmap = LinearSegmentedColormap.from_list(
+        "damage_severity", ["#fee8c8", "#fdbb84", "#fc8d59", "#e34a33", "#b30000"]
+    )
+    norm = Normalize(vmin=0, vmax=4)
+
+    labels = list(links_by_hazard.keys())
+    n = len(labels)
+    ncols = min(3, n)
+    nrows = -(-n // ncols)
+    plt.rcParams["font.family"] = "sans-serif"
+    fig, axes = plt.subplots(
+        nrows, ncols, figsize=(4.6 * ncols, 3.0 * nrows), facecolor=_SURFACE, squeeze=False,
+    )
+    flat_axes = axes.flatten()
+
+    for ax, label in zip(flat_axes, labels):
+        gdf = links_by_hazard[label]
+        if max_edges:
+            gdf = subset_links_for_map(gdf, max_edges=max_edges, min_flow=-1.0)
+        levels = gdf.get("damage_level_max", pd.Series(dtype=object)).astype(str).str.lower()
+        ordinal = levels.map(_DAMAGE_LEVEL_ORDINAL).fillna(0).astype(int)
+        undamaged = gdf.loc[ordinal == 0]
+        damaged = gdf.loc[ordinal > 0]
+
+        if not undamaged.empty:
+            undamaged.plot(ax=ax, color=_GRIDLINE, linewidth=0.35, zorder=1)
+        if not damaged.empty:
+            damaged.plot(
+                ax=ax, color=cmap(norm(ordinal.loc[damaged.index])),
+                linewidth=1.1, zorder=2,
+            )
+
+        meta = hazard_meta.get(label, {})
+        title_color = _hazard_color(meta.get("hazard_type", ""), meta.get("hazard_subtype", ""))
+        ax.set_title(
+            f"{label}  (n={len(damaged):,} damaged / {len(gdf):,})",
+            fontsize=10.5, color=title_color, fontweight="bold", loc="left",
+        )
+        ax.set_facecolor(_SURFACE)
+        ax.set_xticks([])
+        ax.set_yticks([])
+        for spine in ax.spines.values():
+            spine.set_visible(False)
+        ax.set_aspect("equal")
+
+    for ax in flat_axes[n:]:
+        ax.set_visible(False)
+
+    sm = ScalarMappable(norm=norm, cmap=cmap)
+    sm.set_array([])
+    cbar = fig.colorbar(
+        sm, ax=flat_axes[:n], orientation="horizontal", fraction=0.03, pad=0.04, aspect=40,
+    )
+    cbar.set_ticks([1, 2, 3, 4])
+    cbar.set_ticklabels(["minor", "moderate", "extensive", "severe"])
+    cbar.ax.tick_params(labelsize=9, colors=_INK_SECONDARY)
+    cbar.outline.set_visible(False)
+    context_handle = Line2D([0], [0], color=_GRIDLINE, linewidth=1.5, label="Undamaged link")
+    fig.legend(handles=[context_handle], loc="lower left", fontsize=8.5, frameon=False,
+               bbox_to_anchor=(0.01, 0.0))
+
+    fig.suptitle("Damaged network extent by hazard", fontsize=14, color=_INK_PRIMARY, y=0.99)
+    return fig, axes
