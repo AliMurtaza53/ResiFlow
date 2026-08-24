@@ -554,7 +554,8 @@ def validate_multihazard_summary(
 # extend with slot 5+ (magenta) only if a 5th hazard is ever added, and
 # re-check the adjacent-pair guarantee still holds for that count.
 HAZARD_PALETTE: dict[str, str] = {
-    "flood_surface": "#2a78d6",  # slot 1: blue
+    "flood": "#2a78d6",  # slot 1: blue -- hazard_type-level fallback for any flood subtype
+    "flood_surface": "#2a78d6",
     "flood_river": "#2a78d6",
     "flood_coastal": "#2a78d6",
     "earthquake": "#eb6834",  # slot 2: orange
@@ -569,8 +570,21 @@ _SURFACE = "#fcfcfb"
 
 
 def _hazard_color(hazard_type: str, hazard_subtype: str = "") -> str:
-    key = hazard_subtype or hazard_type
-    return HAZARD_PALETTE.get(str(key).lower(), _INK_MUTED)
+    """Color by hazard TYPE identity (the bounded, 4-way categorical dimension) --
+    never a per-subtype hue. Subtypes (earthquake_shakemap_mineral,
+    earthquake_new_madrid_m75_scenario, winter_storm_uri, ...) keep growing as
+    more real events are added; giving each its own hue would mean cycling
+    colors or repainting existing hazards' color every time a new event is
+    registered, both of which break "color encodes hazard identity
+    consistently across the whole report." HAZARD_PALETTE is keyed by
+    hazard_subtype only for flood's 3 sub-scenarios (surface/river/coastal),
+    which are still genuinely one flat "flood" hue in practice -- for
+    everything else this falls straight through to hazard_type.
+    """
+    subtype_key = str(hazard_subtype or "").lower()
+    if subtype_key in HAZARD_PALETTE:
+        return HAZARD_PALETTE[subtype_key]
+    return HAZARD_PALETTE.get(str(hazard_type or "").lower(), _INK_MUTED)
 
 
 # Real 2022 FAF5 national truck-trip shares by SCTG-G5 commodity group (from
@@ -635,95 +649,172 @@ def load_freight_industry_mix(
     return shares_by_hazard
 
 
+def load_direct_damage_by_asset_type(
+    results_root: Path,
+    variant: str,
+    summary: pd.DataFrame,
+) -> dict[str, dict[str, float]]:
+    """Load each hazard's direct damage split by asset type (bridge/road).
+
+    Reads ``damage_analysis/<variant>/<depth_key>/direct_damage_by_asset_type_
+    <flood_key>.json`` -- scripts/compute_direct_damage_by_asset_type.py's
+    output. Hazards without that file (script not yet run for that event)
+    are simply absent from the returned dict.
+    """
+    by_hazard: dict[str, dict[str, float]] = {}
+    if summary.empty:
+        return by_hazard
+    for _, row in summary.iterrows():
+        if "depth_key" not in row or "flood_key" not in row:
+            continue
+        path = (
+            results_root
+            / "damage_analysis"
+            / variant
+            / str(int(row["depth_key"]))
+            / f"direct_damage_by_asset_type_{int(row['flood_key'])}.json"
+        )
+        if not path.exists():
+            continue
+        payload = json.loads(path.read_text())
+        split = payload.get("by_asset_type_musd") or {}
+        if split:
+            by_hazard[str(row["hazard_label"])] = split
+    return by_hazard
+
+
+# Direct/baseline comparison pair, adapted from Bor et al.'s io_sector_loss_dodged.py
+# (github.com/denniesbor/mhtran) -- a ColorBrewer RdBu-blue pair used there for
+# direct-vs-indirect Leontief I-O loss. We don't have an I-O cascade model, but
+# the same two-tone dodge cleanly encodes our own real-vs-baseline comparison.
+_SHARE_REAL_COLOR = "#2166AC"
+_SHARE_BASELINE_COLOR = "#92C5DE"
+
+SCTG_SHORT_LABELS: dict[str, str] = {
+    "sctg0109": "Ag/fish/forestry",
+    "sctg1014": "Mining",
+    "sctg1519": "Petroleum & coal",
+    "sctg2033": "Manuf. goods",
+    "sctg3499": "Mixed & other",
+}
+
+
 def plot_freight_industry_breakdown(
     summary: pd.DataFrame,
     *,
-    variant: str | None = None,
-    industry_shares: dict[str, float] | None = None,
-    shares_are_national_proxy: bool = True,
+    industry_shares: dict[str, dict[str, float]] | None = None,
+    baseline_shares: dict[str, float] | None = None,
 ):
-    """Small multiples: freight indirect cost by SCTG-G5 industry group, per hazard.
+    """Per-hazard panels of real vs. national-baseline freight commodity share.
 
-    One mini bar chart per hazard (5 bars, one per commodity group), each
-    facet colored in that hazard's already-established hue (consistency with
-    plot_multihazard_cost_panels rather than introducing a second, clashing
-    categorical color system for industry identity -- industry is conveyed
-    via the x-axis labels instead).
+    Design follows Bor et al. 2026 (arXiv:2605.23053, github.com/denniesbor/
+    mhtran)'s io_sector_loss_dodged.py: one panel per hazard, categories on the
+    y-axis, horizontal dodged bar pairs. That figure dodges direct vs. indirect
+    Leontief I-O loss (two independently-computed numbers); we don't have an
+    I-O cascade model, so we dodge the equivalent honest pair we DO have --
+    each hazard's real disrupted-corridor commodity share (from
+    scripts/compute_freight_industry_mix.py) against the flat national average
+    share (SCTG_NATIONAL_SHARES) -- so the deviation from baseline is a
+    directly-plotted quantity, not something a reader has to infer from subtly
+    different bar-chart shapes.
 
-    ``industry_shares`` defaults to SCTG_NATIONAL_SHARES (real 2022 FAF5
-    national truck-trip shares) applied proportionally to each hazard's total
-    freight indirect cost -- a flat proxy, not each hazard's actual disrupted-
-    corridor commodity mix. Pass ``load_freight_industry_mix(results_root,
-    variant, summary)``'s output (real per-hazard shares from
-    scripts/compute_freight_industry_mix.py) here instead, and set
-    shares_are_national_proxy=False once every hazard in ``summary`` has a
-    real entry (a hazard missing from that dict still falls back to the
-    proxy individually -- see load_freight_industry_mix's docstring).
+    A hazard with no real share yet (compute_freight_industry_mix.py hasn't
+    run for it, or found zero disrupted freight OD pairs) shows only the
+    baseline bar, with a small "(real share pending)" note on that panel --
+    partial completion is visible per-hazard, not hidden by a global caveat.
+
+    ``industry_shares``: output of ``load_freight_industry_mix(results_root,
+    variant, summary)`` -- ``{hazard_label: {sctg_code: share}}``. Omit to
+    render baseline-only for every hazard.
+    ``baseline_shares``: defaults to SCTG_NATIONAL_SHARES.
     """
     import matplotlib.pyplot as plt
     import numpy as np
+    from matplotlib.patches import Patch
 
     if summary.empty:
         raise ValueError("multihazard summary is empty")
 
-    resolved_variant = variant or (
-        str(summary["variant"].iloc[0]) if "variant" in summary.columns else ""
-    )
     df = summary.reset_index(drop=True)
-    freight_total = pd.to_numeric(df["rerouting_cost_freight_usd"], errors="coerce").fillna(0.0)
-    max_abs = float(freight_total.abs().max() or 0.0)
-    shares_default = industry_shares is None
-    shares = industry_shares or SCTG_NATIONAL_SHARES
+    real_shares_by_hazard = industry_shares or {}
+    baseline = baseline_shares or SCTG_NATIONAL_SHARES
     sctg_codes = list(SCTG_G5_LABELS.keys())
-    sctg_short = {
-        "sctg0109": "Ag/fish/forestry",
-        "sctg1014": "Mining",
-        "sctg1519": "Petroleum & coal",
-        "sctg2033": "Manuf. goods",
-        "sctg3499": "Mixed & other",
-    }
-    max_industry_val = max_abs * max(shares.get(c, 0.0) for c in sctg_codes) if shares else max_abs
-
-    unit = resolve_cost_display_unit(max_industry_val, variant=resolved_variant)
-    divisor = {"usd": 1.0, "kusd": 1e3, "musd": 1e6, "busd": 1e9}[unit]
-    unit_label = {"usd": "USD", "kusd": "USD (thousands)", "musd": "USD (millions)", "busd": "USD (billions)"}[unit]
+    y = np.arange(len(sctg_codes))
+    bar_h = 0.35
+    gap = 0.06
 
     n = len(df)
+    ncols = min(3, n)
+    nrows = -(-n // ncols)  # ceil
     plt.rcParams["font.family"] = "sans-serif"
-    fig, axes = plt.subplots(1, n, figsize=(3.3 * n, 4.6), sharey=True, facecolor=_SURFACE)
-    if n == 1:
-        axes = [axes]
-    x = np.arange(len(sctg_codes))
+    fig, axes = plt.subplots(
+        nrows, ncols, figsize=(4.6 * ncols, 1.0 + 1.35 * len(sctg_codes) * nrows),
+        sharex=True, sharey=True, facecolor=_SURFACE, squeeze=False,
+    )
+    flat_axes = axes.flatten()
 
-    for ax, (_, row) in zip(axes, df.iterrows()):
-        color = _hazard_color(row.get("hazard_type", ""), row.get("hazard_subtype", ""))
-        row_shares = shares if shares_default else shares.get(row["hazard_label"], SCTG_NATIONAL_SHARES)
-        vals = np.array([freight_total[row.name] * row_shares.get(c, 0.0) / divisor for c in sctg_codes])
-        ax.bar(x, vals, 0.62, color=color, edgecolor=_INK_PRIMARY, linewidth=0.6, zorder=2)
-        for xi, v in zip(x, vals):
-            ax.annotate(f"{v:,.2f}", (xi, v), xytext=(0, 3), textcoords="offset points",
-                        ha="center", va="bottom", fontsize=7, color=_INK_SECONDARY)
-        ax.set_xticks(x)
-        ax.set_xticklabels(
-            [sctg_short[c] for c in sctg_codes], fontsize=7.8, rotation=30, ha="right",
-            rotation_mode="anchor",
-        )
-        ax.set_title(str(row["hazard_label"]), fontsize=10.5, color=_INK_PRIMARY)
-        ymin, ymax = ax.get_ylim()
-        ax.set_ylim(0, ymax * 1.2)
+    for ax, (_, row) in zip(flat_axes, df.iterrows()):
+        hazard_label = str(row["hazard_label"])
+        title_color = _hazard_color(row.get("hazard_type", ""), row.get("hazard_subtype", ""))
+        real_shares = real_shares_by_hazard.get(hazard_label)
+        baseline_vals = np.array([baseline.get(c, 0.0) * 100.0 for c in sctg_codes])
+
+        if real_shares:
+            real_vals = np.array([real_shares.get(c, 0.0) * 100.0 for c in sctg_codes])
+            ax.barh(
+                y - (bar_h / 2 + gap / 2), real_vals, bar_h,
+                color=_SHARE_REAL_COLOR, edgecolor=_INK_PRIMARY, linewidth=0.5,
+                alpha=0.92, zorder=2,
+            )
+            ax.barh(
+                y + (bar_h / 2 + gap / 2), baseline_vals, bar_h,
+                color=_SHARE_BASELINE_COLOR, edgecolor=_INK_PRIMARY, linewidth=0.5,
+                alpha=0.92, zorder=2,
+            )
+        else:
+            ax.barh(
+                y, baseline_vals, bar_h * 2 + gap,
+                color=_SHARE_BASELINE_COLOR, edgecolor=_INK_PRIMARY, linewidth=0.5,
+                alpha=0.92, zorder=2,
+            )
+            ax.text(
+                0.98, 0.04, "real share pending", transform=ax.transAxes,
+                fontsize=7.5, color=_INK_MUTED, ha="right", va="bottom", style="italic",
+            )
+
+        ax.set_yticks(y)
+        ax.set_yticklabels([SCTG_SHORT_LABELS[c] for c in sctg_codes], fontsize=8.5)
+        ax.invert_yaxis()
+        ax.set_title(hazard_label, fontsize=11, color=title_color, loc="left", fontweight="bold")
         _style_axis(ax)
+        ax.yaxis.grid(False)
+        ax.xaxis.grid(True, color=_GRIDLINE, linewidth=0.8, zorder=0)
 
-    axes[0].set_ylabel(unit_label, fontsize=9.5)
-    fig.suptitle("Freight indirect cost by industry, per hazard", fontsize=14, color=_INK_PRIMARY, y=1.04)
-    if shares_are_national_proxy:
-        fig.text(
-            0.01, -0.05,
-            "* Industry mix: real 2022 FAF5 national truck-trip shares by commodity "
-            "group, applied proportionally to each hazard's total freight cost -- "
-            "not yet each hazard's own disrupted-corridor commodity mix.",
-            fontsize=8, color=_INK_MUTED, ha="left",
-        )
-    fig.tight_layout()
+    for ax in flat_axes[n:]:
+        ax.set_visible(False)
+    for ax in flat_axes[max(0, n - ncols):n]:
+        ax.set_xlabel("Share of disrupted freight (%)", fontsize=9.5)
+
+    legend_handles = [
+        Patch(facecolor=_SHARE_REAL_COLOR, edgecolor=_INK_PRIMARY, linewidth=0.5,
+              label="Real disrupted-corridor share"),
+        Patch(facecolor=_SHARE_BASELINE_COLOR, edgecolor=_INK_PRIMARY, linewidth=0.5,
+              label="National baseline share"),
+    ]
+    fig.legend(handles=legend_handles, loc="upper right", fontsize=9, frameon=False,
+               bbox_to_anchor=(0.99, 1.0))
+    fig.suptitle(
+        "Freight commodity mix by hazard: real disrupted corridors vs. national baseline",
+        fontsize=14, color=_INK_PRIMARY, y=1.0,
+    )
+    fig.text(
+        0.01, -0.01,
+        "* Real share: each hazard's own disrupted freight OD pairs, joined against "
+        "faf5_od_matrix_by_sctg.pq (scripts/compute_freight_industry_mix.py). "
+        "Baseline: 2022 FAF5 national truck-trip shares, unweighted by any hazard.",
+        fontsize=8, color=_INK_MUTED, ha="left",
+    )
+    fig.tight_layout(rect=(0, 0, 1, 0.97))
     return fig, axes
 
 
@@ -746,8 +837,9 @@ def plot_multihazard_cost_panels(
     *,
     variant: str | None = None,
     direct_cost_caveat: str | None = (
-        "Direct costs: illustrative placeholder pending HAZUS-sourced "
-        "unit-repair-cost tables"
+        "Direct costs: real HAZUS 6.1 methodology for flood/earthquake/landslide; "
+        "winter storm still uses a placeholder flood-derived cost pending a "
+        "winter-storm-specific source (HAZUS has no module for this hazard)"
     ),
 ):
     """Two-panel comparison: direct vs. indirect cost, and freight vs.
@@ -835,6 +927,122 @@ def plot_multihazard_cost_panels(
     fig.suptitle("Multi-hazard cost comparison", fontsize=14, color=_INK_PRIMARY, y=1.02)
     if direct_cost_caveat:
         fig.text(0.01, -0.02, f"* {direct_cost_caveat}", fontsize=8, color=_INK_MUTED, ha="left")
+    fig.tight_layout()
+    return fig, (ax_a, ax_b)
+
+
+def plot_ranked_cost_by_asset_type(
+    summary: pd.DataFrame,
+    *,
+    variant: str | None = None,
+    asset_type_split: dict[str, dict[str, float]] | None = None,
+):
+    """Rank hazards by total cost; companion panel decomposes direct damage by asset type.
+
+    Mirrors Bor et al. 2026 (arXiv:2605.23053)'s Fig. 5: a horizontal bar
+    ranks hazards by total expected damage, with a companion panel breaking
+    the same ranking down by asset type (substations vs. lines, there;
+    bridges vs. roads, here). Ranking (not an arbitrary input order) is the
+    point -- it's what lets a reader immediately see which hazard dominates.
+
+    Panel A: hazards ranked descending by combined_total_usd (direct +
+    rerouting + isolation), one solid bar per hazard, hazard-identity color.
+    Panel B: same ranking, direct damage only, dodged bridge (solid) vs road
+    (hatched) bars -- same solid/hatched convention as
+    plot_multihazard_cost_panels, so the two style channels mean the same
+    thing everywhere in the report.
+
+    ``asset_type_split``: output of ``load_direct_damage_by_asset_type(
+    results_root, variant, summary)``. A hazard missing from it renders a
+    single unsplit direct-damage bar in Panel B with a "split pending" note,
+    same partial-completion pattern as plot_freight_industry_breakdown.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from matplotlib.patches import Patch
+
+    if summary.empty:
+        raise ValueError("multihazard summary is empty")
+
+    resolved_variant = variant or (
+        str(summary["variant"].iloc[0]) if "variant" in summary.columns else ""
+    )
+    df = summary.reset_index(drop=True).copy()
+    df["combined_total_usd"] = pd.to_numeric(df.get("combined_total_usd", 0.0), errors="coerce").fillna(0.0)
+    df["direct_damage_usd"] = pd.to_numeric(df.get("direct_damage_usd", 0.0), errors="coerce").fillna(0.0)
+    df = df.sort_values("combined_total_usd", ascending=True).reset_index(drop=True)  # ascending: barh draws bottom-up
+    splits = asset_type_split or {}
+
+    labels = df["hazard_label"].astype(str).tolist()
+    colors = [
+        _hazard_color(row.get("hazard_type", ""), row.get("hazard_subtype", ""))
+        for _, row in df.iterrows()
+    ]
+    total = df["combined_total_usd"]
+    direct = df["direct_damage_usd"]
+    bridge_vals = np.array([
+        splits.get(lbl, {}).get("bridge", float("nan")) * 1e6 for lbl in labels
+    ])
+    road_vals = np.array([
+        splits.get(lbl, {}).get("road", float("nan")) * 1e6 for lbl in labels
+    ])
+    has_split = ~np.isnan(bridge_vals)
+
+    max_abs = float(pd.concat([total, direct]).abs().max() or 0.0)
+    unit = resolve_cost_display_unit(max_abs, variant=resolved_variant)
+    divisor = {"usd": 1.0, "kusd": 1e3, "musd": 1e6, "busd": 1e9}[unit]
+    unit_label = {"usd": "USD", "kusd": "USD (thousands)", "musd": "USD (millions)", "busd": "USD (billions)"}[unit]
+
+    plt.rcParams["font.family"] = "sans-serif"
+    fig, (ax_a, ax_b) = plt.subplots(1, 2, figsize=(12, 0.62 * len(labels) + 2), facecolor=_SURFACE)
+    y = np.arange(len(labels))
+
+    ax_a.barh(y, total / divisor, 0.62, color=colors, edgecolor=_INK_PRIMARY, linewidth=0.6, zorder=2)
+    for yi, v in zip(y, total / divisor):
+        ax_a.annotate(f"{v:,.1f}", (v, yi), xytext=(4, 0), textcoords="offset points",
+                       ha="left", va="center", fontsize=8, color=_INK_SECONDARY)
+    ax_a.set_yticks(y)
+    ax_a.set_yticklabels(labels, fontsize=9.5)
+    ax_a.set_xlabel(unit_label, fontsize=9.5)
+    ax_a.set_title("Total cost, ranked", fontsize=12, color=_INK_PRIMARY, loc="left")
+    ax_a.set_xlim(0, float((total / divisor).max() or 1.0) * 1.18)
+    _style_axis(ax_a)
+    ax_a.xaxis.grid(True, color=_GRIDLINE, linewidth=0.8, zorder=0)
+    ax_a.yaxis.grid(False)
+
+    bar_h = 0.34
+    for yi, (lbl, color, has, bv, rv, dtotal) in enumerate(
+        zip(labels, colors, has_split, bridge_vals, road_vals, direct)
+    ):
+        if has:
+            ax_b.barh(yi - bar_h / 2, bv / divisor, bar_h, color=color,
+                      edgecolor=_INK_PRIMARY, linewidth=0.6, zorder=2)
+            ax_b.barh(yi + bar_h / 2, rv / divisor, bar_h, color=color,
+                      edgecolor=_INK_PRIMARY, linewidth=0.6, hatch="////", alpha=0.55, zorder=2)
+        else:
+            ax_b.barh(yi, dtotal / divisor, bar_h * 2 + 0.06, color=color,
+                       edgecolor=_INK_PRIMARY, linewidth=0.6, alpha=0.55, zorder=2)
+            ax_b.annotate(
+                "asset-type split pending", (max(dtotal / divisor, 0.0), yi),
+                xytext=(4, 0), textcoords="offset points", ha="left", va="center",
+                fontsize=7.5, color=_INK_MUTED, style="italic",
+            )
+    ax_b.set_yticks(y)
+    ax_b.set_yticklabels([])
+    ax_b.set_xlabel(unit_label, fontsize=9.5)
+    ax_b.set_title("Direct damage by asset type", fontsize=12, color=_INK_PRIMARY, loc="left")
+    _style_axis(ax_b)
+    ax_b.xaxis.grid(True, color=_GRIDLINE, linewidth=0.8, zorder=0)
+    ax_b.yaxis.grid(False)
+    ax_b.set_ylim(ax_a.get_ylim())
+
+    legend_handles = [
+        Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6, label="Bridge"),
+        Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6, hatch="////", alpha=0.55, label="Road"),
+    ]
+    ax_b.legend(handles=legend_handles, loc="lower right", fontsize=8.5, frameon=False)
+
+    fig.suptitle("Multi-hazard cost ranking and asset-type decomposition", fontsize=14, color=_INK_PRIMARY, y=1.02)
     fig.tight_layout()
     return fig, (ax_a, ax_b)
 
