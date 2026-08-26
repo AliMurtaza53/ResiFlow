@@ -836,6 +836,7 @@ def plot_multihazard_cost_panels(
     summary: pd.DataFrame,
     *,
     variant: str | None = None,
+    log_scale: bool = False,
     direct_cost_caveat: str | None = (
         "Direct costs: real HAZUS 6.1 methodology for flood/earthquake/landslide; "
         "winter storm still uses a placeholder flood-derived cost pending a "
@@ -853,6 +854,14 @@ def plot_multihazard_cost_panels(
     dimension a reader tracks across the whole figure); the solid/hatched
     texture is the secondary channel distinguishing the two bars within each
     hazard, so the split reads without relying on hue alone.
+
+    ``log_scale``: use a symmetric-log y-axis (handles exact 0.0 values,
+    which a plain log axis can't) -- turn this on whenever hazard magnitudes
+    span multiple orders of magnitude on a linear axis (e.g. a placeholder
+    cost source blowing up at CONUS scale), so every bar stays visible
+    instead of the largest one visually erasing the rest. Linear remains the
+    default because it's the honest, undistorted read when magnitudes are
+    actually comparable.
 
     ``direct_cost_caveat`` renders as a figure-level footnote -- pass None
     once direct costs are backed by real hazard-specific unit-cost tables.
@@ -905,8 +914,14 @@ def plot_multihazard_cost_panels(
                         ha="center", va="bottom", fontsize=7.5, color=_INK_SECONDARY)
         ax.set_xticks(x)
         ax.set_xticklabels(labels, rotation=15, ha="right")
-        ymin, ymax = ax.get_ylim()
-        ax.set_ylim(ymin, ymax * 1.22)  # headroom so the legend clears the tallest bar/label
+        if log_scale:
+            all_vals = np.concatenate([solid_vals / divisor, hatched_vals / divisor])
+            nonzero_min = float(all_vals[all_vals > 0].min()) if (all_vals > 0).any() else 1.0
+            ax.set_yscale("symlog", linthresh=max(nonzero_min * 0.5, 1e-9))
+            ax.set_ylim(0, float(all_vals.max() or 1.0) * 3.0)
+        else:
+            ymin, ymax = ax.get_ylim()
+            ax.set_ylim(ymin, ymax * 1.22)  # headroom so the legend clears the tallest bar/label
         _style_axis(ax)
         from matplotlib.patches import Patch
         legend_handles = [
@@ -914,15 +929,24 @@ def plot_multihazard_cost_panels(
             Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6,
                   hatch="////", alpha=0.55, label=hatched_label),
         ]
-        ax.legend(handles=legend_handles, loc="upper right", fontsize=8.5, frameon=False)
+        if log_scale:
+            # A corner legend can collide with whichever bar happens to be
+            # tallest (data-dependent, not knowable in advance on a log
+            # axis where bar heights vary by orders of magnitude) -- anchor
+            # above the axes instead, where no bar can ever reach.
+            ax.legend(handles=legend_handles, loc="lower center", bbox_to_anchor=(0.5, 1.12),
+                      ncol=2, fontsize=8.5, frameon=False)
+        else:
+            ax.legend(handles=legend_handles, loc="upper right", fontsize=8.5, frameon=False)
 
+    ylabel = f"{unit_label} (log scale)" if log_scale else unit_label
     _paired_bars(ax_a, direct, indirect_total, "Direct", "Indirect (freight + passenger)")
     ax_a.set_title("Direct vs. indirect cost", fontsize=12, color=_INK_PRIMARY, loc="left")
-    ax_a.set_ylabel(unit_label, fontsize=9.5)
+    ax_a.set_ylabel(ylabel, fontsize=9.5)
 
     _paired_bars(ax_b, freight, passenger, "Freight", "Passenger")
     ax_b.set_title("Indirect cost by mode", fontsize=12, color=_INK_PRIMARY, loc="left")
-    ax_b.set_ylabel(unit_label, fontsize=9.5)
+    ax_b.set_ylabel(ylabel, fontsize=9.5)
 
     fig.suptitle("Multi-hazard cost comparison", fontsize=14, color=_INK_PRIMARY, y=1.02)
     if direct_cost_caveat:
@@ -936,6 +960,7 @@ def plot_ranked_cost_by_asset_type(
     *,
     variant: str | None = None,
     asset_type_split: dict[str, dict[str, float]] | None = None,
+    log_scale: bool = False,
 ):
     """Rank hazards by total cost; companion panel decomposes direct damage by asset type.
 
@@ -1003,9 +1028,16 @@ def plot_ranked_cost_by_asset_type(
                        ha="left", va="center", fontsize=8, color=_INK_SECONDARY)
     ax_a.set_yticks(y)
     ax_a.set_yticklabels(labels, fontsize=9.5)
-    ax_a.set_xlabel(unit_label, fontsize=9.5)
+    ax_a.set_xlabel(f"{unit_label} (log scale)" if log_scale else unit_label, fontsize=9.5)
     ax_a.set_title("Total cost, ranked", fontsize=12, color=_INK_PRIMARY, loc="left")
-    ax_a.set_xlim(0, float((total / divisor).max() or 1.0) * 1.18)
+    if log_scale:
+        nonzero = (total / divisor)
+        nonzero = nonzero[nonzero > 0]
+        linthresh = float(nonzero.min() * 0.5) if len(nonzero) else 1.0
+        ax_a.set_xscale("symlog", linthresh=max(linthresh, 1e-9))
+        ax_a.set_xlim(0, float((total / divisor).max() or 1.0) * 3.0)
+    else:
+        ax_a.set_xlim(0, float((total / divisor).max() or 1.0) * 1.18)
     _style_axis(ax_a)
     ax_a.xaxis.grid(True, color=_GRIDLINE, linewidth=0.8, zorder=0)
     ax_a.yaxis.grid(False)
@@ -1029,8 +1061,13 @@ def plot_ranked_cost_by_asset_type(
             )
     ax_b.set_yticks(y)
     ax_b.set_yticklabels([])
-    ax_b.set_xlabel(unit_label, fontsize=9.5)
+    ax_b.set_xlabel(f"{unit_label} (log scale)" if log_scale else unit_label, fontsize=9.5)
     ax_b.set_title("Direct damage by asset type", fontsize=12, color=_INK_PRIMARY, loc="left")
+    if log_scale:
+        nonzero_b = pd.concat([pd.Series(bridge_vals), pd.Series(road_vals), direct]) / divisor
+        nonzero_b = nonzero_b[nonzero_b > 0]
+        linthresh_b = float(nonzero_b.min() * 0.5) if len(nonzero_b) else 1.0
+        ax_b.set_xscale("symlog", linthresh=max(linthresh_b, 1e-9))
     _style_axis(ax_b)
     ax_b.xaxis.grid(True, color=_GRIDLINE, linewidth=0.8, zorder=0)
     ax_b.yaxis.grid(False)
