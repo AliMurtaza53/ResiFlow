@@ -848,10 +848,24 @@ def main():
                 )
             ].reset_index(drop=True)
         # export results
+        # Atomic write (tmp file + os.replace): this CSV is shared -- every
+        # hazard job's Script 3 step walks and rewrites EVERY scenario's file
+        # under this results tree, every time it runs (not just its own), so
+        # concurrent jobs routinely rewrite the same path. A plain to_csv()
+        # in place is not atomic: a concurrent reader (Script 4, or this same
+        # script from a sibling job) can observe a partially-written file
+        # mid-write. Confirmed as the root cause of a real bug (2026-08-26):
+        # earthquake_401 and landslide_501's Script 4 runs read direct-damage
+        # totals 393x and 9.3x too low respectively, because their own
+        # damage CSV was mid-overwrite by a concurrently-running sibling
+        # hazard job's Script 3 pass at the exact moment Script 4 read it.
+        # os.replace() is atomic on both POSIX and Windows, so a reader always
+        # sees either the complete old file or the complete new one.
         (out_path).mkdir(parents=True, exist_ok=True)
-        intersections_with_damage.to_csv(
-            out_path / f"{flood_key}_with_damage_values.csv", index=False
-        )
+        final_path = out_path / f"{flood_key}_with_damage_values.csv"
+        tmp_path = out_path / f".{flood_key}_with_damage_values.csv.tmp{os.getpid()}"
+        intersections_with_damage.to_csv(tmp_path, index=False)
+        os.replace(tmp_path, final_path)
 
 
 if __name__ == "__main__":
