@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=nandu_earthquake_403
-#SBATCH --partition=normal
+#SBATCH --partition=bigmem
 # Full Script 2 -> 3 -> 3_postprocess -> 4 for earthquake (403, New Madrid
 # M7.5 BSSC2014 scenario ShakeMap) against the conus_nandu_v1 baseline. Raw
 # ShakeMap PGA raster is already aligned under
@@ -8,9 +8,15 @@
 # (shared across results_variants) -- only re-runs the variant-dependent
 # steps. Must run AFTER submit_cpu8_nandu_v1.slurm (Pass A) AND
 # submit_build_edge_index.slurm complete.
-#SBATCH --time=06:00:00
+# --partition/--mem bumped to bigmem/900G (2026-08-26) after job 9462182
+# OOM-killed 5h14m in, during Script 4's DuckDB chunked-compact aggregation
+# (1/20 chunks) -- New Madrid's real multi-state damaged-edge footprint (MO/
+# AR/TN/KY/IL/IN/MS/AL) is evidently much larger than Mineral VA's
+# single-state one, same "widespread hazard" pattern winter_storm/601 hit
+# before it moved to bigmem. --time bumped to 24h for the same reason.
+#SBATCH --time=24:00:00
 #SBATCH --cpus-per-task=8
-#SBATCH --mem=160G
+#SBATCH --mem=900G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_nandu_earthquake_403_%j.out
 #SBATCH --error=/home/akothaw/multimodal_hazard_project/logs_nandu_earthquake_403_%j.err
 #SBATCH --exclude=hop059
@@ -22,7 +28,7 @@ export RESIFLOW_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
 export NIRD_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
 export NIRD_RESULTS_VARIANT=conus_nandu_v1
 export RESIFLOW_RESULTS_VARIANT=conus_nandu_v1
-export NIRD_DUCKDB_MEMORY_LIMIT=130GB
+export NIRD_DUCKDB_MEMORY_LIMIT=800GB
 export NIRD_DUCKDB_TEMP_DIRECTORY=/scratch/akothaw/multimodal_hazard_data/duckdb_tmp_va_multihazard_nandu
 export NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact
 export NIRD_LCP_DEST_CHUNK_SIZE=1000

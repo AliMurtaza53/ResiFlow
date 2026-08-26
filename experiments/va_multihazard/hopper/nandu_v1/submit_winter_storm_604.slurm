@@ -10,7 +10,12 @@
 # row explosion for widespread hazards". Must run AFTER
 # submit_cpu8_nandu_v1.slurm (Pass A) AND submit_build_edge_index.slurm
 # complete.
-#SBATCH --time=24:00:00
+# --time bumped 24h -> 48h (2026-08-26): job 9462185 hit the 24h TIMEOUT wall
+# with no output -- the real, full-CONUS SNODAS data (deployed 2026-08-23)
+# has a materially larger damaged-edge footprint than the old Jonas-fallback
+# run this budget was originally sized against. bigmem partition allows up
+# to 7 days, so there's ample headroom.
+#SBATCH --time=48:00:00
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=900G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_nandu_winter_storm_604_%j.out
