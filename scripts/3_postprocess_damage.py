@@ -71,7 +71,18 @@ def main() -> None:
 
     summary_path = results_root / "damage_summary.csv"
     summary_path.parent.mkdir(parents=True, exist_ok=True)
-    temp.to_csv(summary_path, index=False)
+    # Atomic write (tmp file + os.replace): every hazard job runs this script
+    # and rewrites this SAME shared aggregate path each time, walking every
+    # scenario's damage CSV it finds on disk -- concurrent jobs' writes can
+    # otherwise interleave/truncate each other. This is the second instance
+    # of the same race-condition class fixed in 3_damage_analysis.py's
+    # per-scenario CSV write (2026-08-26): confirmed here too by a real
+    # mismatch (2026-08-27) between this file's value for scenario 403
+    # ($198.5B) and 403's own, trustworthy cost_matrix_by_scenario.csv
+    # ($1.94B, computed via the already-atomic per-scenario CSV).
+    tmp_path = summary_path.parent / f".damage_summary.csv.tmp{os.getpid()}"
+    temp.to_csv(tmp_path, index=False)
+    os.replace(tmp_path, summary_path)
     print(f"Saved damage summary to {summary_path}")
     print(temp.to_string(index=False))
 
