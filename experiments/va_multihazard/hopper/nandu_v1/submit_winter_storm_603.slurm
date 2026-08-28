@@ -10,12 +10,14 @@
 # explosion for widespread hazards". Must run AFTER
 # submit_cpu8_nandu_v1.slurm (Pass A) AND submit_build_edge_index.slurm
 # complete.
-# --time bumped 24h -> 48h (2026-08-26): job 9462184 hit the 24h TIMEOUT wall
-# with no output -- the real, full-CONUS SNODAS data (deployed 2026-08-23)
-# has a materially larger damaged-edge footprint than the old Jonas-fallback
-# run this budget was originally sized against. bigmem partition allows up
-# to 7 days, so there's ample headroom.
-#SBATCH --time=48:00:00
+# --time bumped 48h -> 96h (2026-08-28): job 9471509 was still deep in
+# Script 4 (DuckDB chunked-compact aggregation, ~1/20 chunks per recovery
+# day x 6 days) at 47h48m with no checkpoint/resume capability -- a SLURM
+# TimeLimit extension on a running job requires operator/admin privileges
+# regular users don't have (confirmed: `scontrol update ... TimeLimit=`
+# returned "Access/permission denied"), so the budget has to be sized
+# generously up front rather than extended live. bigmem allows up to 7 days.
+#SBATCH --time=96:00:00
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=900G
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_nandu_winter_storm_603_%j.out
