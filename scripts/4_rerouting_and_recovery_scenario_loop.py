@@ -32,6 +32,7 @@ from resiflow.demand import (
     apply_sample_od_n,
     restrict_od_to_pairs,
     sample_od_n_from_env,
+    combine_freight_passenger_od,
 )
 from resiflow.networks import load_assignment_profiles, normalize_network_links
 from resiflow.networks.assignment import map_tier_profile
@@ -257,6 +258,65 @@ def overlay_passenger_flows(
 ) -> pd.DataFrame:
     """Restrict disrupted path candidates to passenger OD pairs and use passenger demand."""
     return overlay_assignment_flows(disrupted_candidates, passenger_od)
+
+
+def overlay_combined_flows(
+    disrupted_candidates: pd.DataFrame,
+    freight_od: pd.DataFrame,
+    passenger_od: pd.DataFrame,
+) -> pd.DataFrame:
+    """Overlay freight+passenger demand as one combined, capacity-competing flow.
+
+    Freight and passenger vehicles physically share the same road capacity.
+    Routing them as two independent ``network_flow_model`` solves (the
+    previous per-mode loop -- see git history) let each mode see the *full*
+    remaining post-disruption capacity as if the other mode's disrupted flow
+    didn't exist, so both could independently fill the same detour link up
+    to its capacity -- double-counting one physical capacity pool as two.
+    Combining into a single ``Car21`` total (mirroring how Pass A/Script 1
+    already combines demand via ``combine_freight_passenger_od``) fixes that
+    for the one thing that matters physically: how much total vehicle flow
+    competes for a link. ``freight_flow``/``passenger_flow`` are kept per OD
+    pair so results can still be split back out by mode afterwards.
+
+    That post-hoc split is a per-OD-pair *known-composition* allocation
+    (exact for isolation, which is reported per OD pair; a flow-share
+    proportion for rerouting cost and edge flow, which the solver only
+    returns as network-wide aggregates) -- not a full per-path trace of
+    which mode's vehicles used which edge. Getting the latter would require
+    re-enabling per-path (``odpfc``) output inside this recovery loop, which
+    is deliberately skipped here for performance at CONUS scale (see
+    ``NIRD_ODPFC_OUTPUT_MODE=skip`` below).
+
+    Access restrictions (a corridor open to cars but closed to trucks) would
+    break the "equal, shared access" assumption this relies on. Not modeled:
+    the current network has no such link attribute, and isn't dense enough
+    for one to be meaningful yet.
+    """
+    combined_demand = combine_freight_passenger_od(freight_od, passenger_od)
+
+    candidates = disrupted_candidates.copy()
+    if "origin_node" not in candidates.columns or "destination_node" not in candidates.columns:
+        raise ValueError(
+            "disrupted_candidates must include origin_node and destination_node for demand overlay"
+        )
+    candidates["origin_node"] = candidates["origin_node"].astype(str)
+    candidates["destination_node"] = candidates["destination_node"].astype(str)
+    candidates = candidates.drop_duplicates(
+        subset=["origin_node", "destination_node"],
+        keep="first",
+    )
+
+    merged = candidates.merge(
+        combined_demand,
+        on=["origin_node", "destination_node"],
+        how="inner",
+    )
+    merged["freight_flow"] = pd.to_numeric(merged["freight_flow"], errors="coerce").fillna(0.0)
+    merged["passenger_flow"] = pd.to_numeric(merged["passenger_flow"], errors="coerce").fillna(0.0)
+    merged["flow"] = pd.to_numeric(merged["Car21"], errors="coerce").fillna(0.0)
+    merged = merged.drop(columns=["Car21"])
+    return merged.reset_index(drop=True)
 
 
 def safe_event_id(value) -> str:
@@ -875,7 +935,6 @@ def main(
     else:
         freight_candidates = base_disrupted_candidates.copy()
 
-    reroute_modes: list[tuple[str, pd.DataFrame]] = [("freight", freight_candidates)]
     passenger_reroute_enabled = os.environ.get(
         "RESIFLOW_ENABLE_PASSENGER_REROUTING",
         os.environ.get("NIRD_ENABLE_PASSENGER_REROUTING", "0"),
@@ -884,12 +943,24 @@ def main(
         "true",
         "yes",
     }
-    if passenger_reroute_enabled and passenger_od_df is not None:
-        reroute_modes.append(
-            ("passenger", overlay_passenger_flows(base_disrupted_candidates, passenger_od_df))
+    # Freight and passenger vehicles physically share the same road capacity,
+    # so when both are requested they're routed as ONE combined mode (single
+    # network_flow_model solve per recovery day) and split back out by mode
+    # afterwards -- see overlay_combined_flows() for why two independent
+    # per-mode solves double-count shared capacity, and what is/isn't exact
+    # about the post-hoc split.
+    if passenger_reroute_enabled and passenger_od_df is not None and freight_od_df is not None:
+        combined_candidates = overlay_combined_flows(
+            base_disrupted_candidates, freight_od_df, passenger_od_df
         )
-    elif passenger_reroute_enabled:
-        logging.warning("Passenger rerouting enabled but passenger OD not found.")
+        reroute_modes: list[tuple[str, pd.DataFrame]] = [("combined", combined_candidates)]
+    else:
+        if passenger_reroute_enabled:
+            logging.warning(
+                "Passenger rerouting enabled but freight or passenger OD not found; "
+                "falling back to freight-only."
+            )
+        reroute_modes = [("freight", freight_candidates)]
 
     out_path = (
         base_path.parent
@@ -923,7 +994,10 @@ def main(
         # Keyed by recovery day: the recovery design table reuses scenario=1 for every
         # event_day, so we must NOT key results by scenario_id (that collapses all days
         # into one overwritten row, leaving only the fully-recovered final day).
-        cost_rows = []
+        # A "combined" solve still reports out as separate freight/passenger cost
+        # rows (see overlay_combined_flows docstring for how that split works).
+        output_modes = ("freight", "passenger") if mode_name == "combined" else (mode_name,)
+        cost_rows_by_output: Dict[str, list] = {m: [] for m in output_modes}
 
         # Load link recovery scenarios (both capacity and speed)
         for day_idx, (scenario_id, event_day) in enumerate(zip(scenarios, conditions)):
@@ -1029,11 +1103,64 @@ def main(
             disrupted_od = disrupted_od[disrupted_od["disrupted_flow"] > 0].reset_index(
                 drop=True
             )
+
+            # Per-OD-pair mode composition, known exactly from the input demand
+            # (not estimated) -- used below to split the combined solve's
+            # disrupted-flow totals by mode. See overlay_combined_flows() for
+            # what downstream of this (rerouting cost, edge flow) can and can't
+            # inherit this same exactness.
+            if mode_name == "combined":
+                denom = (disrupted_od["freight_flow"] + disrupted_od["passenger_flow"]).replace(
+                    0, np.nan
+                )
+                disrupted_od["freight_share"] = (
+                    disrupted_od["freight_flow"] / denom
+                ).fillna(0.0)
+            else:
+                disrupted_od["freight_share"] = 1.0 if mode_name == "freight" else 0.0
+            disrupted_od["freight_disrupted_flow"] = (
+                disrupted_od["disrupted_flow"] * disrupted_od["freight_share"]
+            )
+            disrupted_od["passenger_disrupted_flow"] = (
+                disrupted_od["disrupted_flow"] - disrupted_od["freight_disrupted_flow"]
+            )
+
             total_disrupted_flow = float(disrupted_od.disrupted_flow.sum())
             unique_disrupted_flow = float(
                 disrupted_od.groupby(["origin_node", "destination_node"])["disrupted_flow"]
                 .sum()
                 .sum()
+            )
+            total_disrupted_flow_by_output = {
+                "freight": float(disrupted_od.freight_disrupted_flow.sum()),
+                "passenger": float(disrupted_od.passenger_disrupted_flow.sum()),
+            }
+            unique_disrupted_flow_by_output = {
+                "freight": float(
+                    disrupted_od.groupby(["origin_node", "destination_node"])[
+                        "freight_disrupted_flow"
+                    ]
+                    .sum()
+                    .sum()
+                ),
+                "passenger": float(
+                    disrupted_od.groupby(["origin_node", "destination_node"])[
+                        "passenger_disrupted_flow"
+                    ]
+                    .sum()
+                    .sum()
+                ),
+            }
+            # Aggregate allocator for rerouting cost / edge flow below: each
+            # mode's share of this day's total disrupted flow. Exact as a
+            # flow-share number; applying it to the solver's network-wide
+            # aggregate dollar/flow totals is a proportional allocation, not a
+            # per-path trace (the solver doesn't tag which mode's vehicles
+            # used which path).
+            freight_share_of_disrupted = (
+                total_disrupted_flow_by_output["freight"] / total_disrupted_flow
+                if total_disrupted_flow > 0
+                else 0.0
             )
             logging.info(f"The total disrupted flows: {total_disrupted_flow}")
             logging.info(f"The unique-OD disrupted flows: {unique_disrupted_flow}")
@@ -1279,54 +1406,49 @@ def main(
             # vehicle isn't a commuter losing wages, it's cargo/hauling capacity
             # lost for the day, so we use the existing sourced VOT_USD_PER_HOUR
             # value-of-time constant for the relevant vehicle type x 24h/day.
-            vot_key = "ogv" if mode_name == "freight" else "car"
-            omega_usd_per_flow_per_day = cons.VOT_USD_PER_HOUR[vot_key] * 24
-            isolation_cost = isolated_flow_total * omega_usd_per_flow_per_day
+            #
+            # For a combined solve, isolation splits by mode EXACTLY: isolation_df
+            # is already one row per OD pair, so each isolated pair's own known
+            # freight/passenger composition (disrupted_od["freight_share"]) gives
+            # an exact freight/passenger isolated-flow split -- no network-wide
+            # proportional assumption needed here (unlike rerouting cost / edge
+            # flow below, which the solver only returns as aggregates).
+            if mode_name == "combined":
+                iso_shares = disrupted_od[
+                    ["origin_node", "destination_node", "freight_share"]
+                ].drop_duplicates(subset=["origin_node", "destination_node"])
+                isolation_df = isolation_df.merge(
+                    iso_shares, on=["origin_node", "destination_node"], how="left"
+                )
+                isolation_df["freight_share"] = isolation_df["freight_share"].fillna(0.0)
+                freight_isolated_flow = float(
+                    (isolation_df["Car21"] * isolation_df["freight_share"]).sum()
+                )
+                isolated_flow_by_output = {
+                    "freight": freight_isolated_flow,
+                    "passenger": isolated_flow_total - freight_isolated_flow,
+                }
+            else:
+                isolated_flow_by_output = {mode_name: isolated_flow_total}
+
+            isolation_cost_by_output = {}
+            for out_mode, iso_flow in isolated_flow_by_output.items():
+                vot_key = "ogv" if out_mode == "freight" else "car"
+                isolation_cost_by_output[out_mode] = iso_flow * cons.VOT_USD_PER_HOUR[vot_key] * 24
             logging.info(
                 f"Isolated flow (post-disruption, unroutable): {isolated_flow_total}"
             )
             logging.info(
-                f"The isolation cost for scenario {scenario_id}: $ million {isolation_cost / 1e6}"
+                f"The isolation cost for scenario {scenario_id}: $ million "
+                f"{sum(isolation_cost_by_output.values()) / 1e6}"
             )
 
             logging.info("Saving results to disk...")
 
-            # rerouting costs (one row per recovery day; see cost_rows note above)
-            cost_rows.append(
-                {
-                    "scenario": scenario_id,
-                    "event_day": event_day,
-                    "total_disrupted_flow": total_disrupted_flow,
-                    "total_disrupted_flow_unique_od": unique_disrupted_flow,
-                    "rer_time": rer_time,
-                    "rer_operate": rer_operate,
-                    "rer_toll": rer_toll,
-                    "rerouting_cost": rerouting_cost,
-                    "isolated_flow_total": isolated_flow_total,
-                    "isolation_cost": isolation_cost,
-                }
-            )
-            cost_df = pd.DataFrame(cost_rows)
-            cost_df["direct_damage_total_musd"] = direct_damage_total_musd
-            cost_df["direct_damage_total_usd"] = direct_damage_total
-            cost_df["direct_damage_total"] = direct_damage_total
-            cost_df["combined_total_cost"] = (
-                cost_df["rerouting_cost"]
-                + cost_df["isolation_cost"]
-                + cost_df["direct_damage_total"]
-            )
-            cost_df.to_csv(
-                out_path / f"rerouting_cost_{mode_name}_s{scenario_id}_day{event_day}.csv", index=False
-            )
-
-            # trip isolations (isolation_df already read/filtered above, right after
-            # the post-disruption flow simulation, to compute isolated_flow_total
-            # for the SC term -- rerouting_cost + isolation_cost above uses that
-            # freight-VOT-anchored SC. isolation_cost_usd below is a second,
-            # independently-parameterized isolation valuation (SA seam, default
-            # $/trip-day from parameters/unified_parameters.json), kept alongside
-            # rather than merged with SC so both are auditable and Morris can
-            # screen the isolation-valuation assumption on its own axis.
+            # Rerouting cost / edge flow (below) are network-wide aggregates the
+            # solver returns for the combined flow -- split proportionally by
+            # each mode's share of this day's disrupted flow (freight_share_of_
+            # disrupted), not per-path-exact. See overlay_combined_flows().
             isolation_usd_per_day = float(
                 get_parameter("cost_time", "isolation_usd_per_day", 50.0)
             )
@@ -1334,16 +1456,82 @@ def main(
                 pd.to_numeric(isolation_df["Car21"], errors="coerce").fillna(0.0)
                 * isolation_usd_per_day
             )
-            isolation_df.to_csv(
-                out_path / f"trip_isolations_{mode_name}_s{scenario_id}_day{event_day}.csv",
-                index=False,
-            )
-            cost_rows[-1]["isolation_flow"] = float(
-                pd.to_numeric(isolation_df["Car21"], errors="coerce").fillna(0.0).sum()
-            )
-            cost_rows[-1]["isolation_cost_usd"] = float(
-                isolation_df["isolation_cost_usd"].sum()
-            )
+
+            for out_mode in output_modes:
+                if mode_name == "combined":
+                    share = (
+                        freight_share_of_disrupted
+                        if out_mode == "freight"
+                        else (1.0 - freight_share_of_disrupted)
+                    )
+                    out_disrupted_flow = total_disrupted_flow_by_output[out_mode]
+                    out_unique_disrupted_flow = unique_disrupted_flow_by_output[out_mode]
+                    iso_share_col = (
+                        isolation_df["freight_share"]
+                        if out_mode == "freight"
+                        else (1.0 - isolation_df["freight_share"])
+                    )
+                    out_iso_df = isolation_df.copy()
+                    out_iso_df["Car21"] = (
+                        pd.to_numeric(out_iso_df["Car21"], errors="coerce").fillna(0.0)
+                        * iso_share_col
+                    )
+                    out_iso_df["isolation_cost_usd"] = out_iso_df["isolation_cost_usd"] * iso_share_col
+                    out_iso_df = out_iso_df.drop(columns=["freight_share"])
+                else:
+                    share = 1.0
+                    out_disrupted_flow = total_disrupted_flow
+                    out_unique_disrupted_flow = unique_disrupted_flow
+                    out_iso_df = isolation_df
+
+                # rerouting costs (one row per recovery day; see cost_rows note above)
+                cost_rows_by_output[out_mode].append(
+                    {
+                        "scenario": scenario_id,
+                        "event_day": event_day,
+                        "total_disrupted_flow": out_disrupted_flow,
+                        "total_disrupted_flow_unique_od": out_unique_disrupted_flow,
+                        "rer_time": rer_time * share,
+                        "rer_operate": rer_operate * share,
+                        "rer_toll": rer_toll * share,
+                        "rerouting_cost": rerouting_cost * share,
+                        "isolated_flow_total": isolated_flow_by_output[out_mode],
+                        "isolation_cost": isolation_cost_by_output[out_mode],
+                    }
+                )
+                cost_df = pd.DataFrame(cost_rows_by_output[out_mode])
+                cost_df["direct_damage_total_musd"] = direct_damage_total_musd
+                cost_df["direct_damage_total_usd"] = direct_damage_total
+                cost_df["direct_damage_total"] = direct_damage_total
+                cost_df["combined_total_cost"] = (
+                    cost_df["rerouting_cost"]
+                    + cost_df["isolation_cost"]
+                    + cost_df["direct_damage_total"]
+                )
+                cost_df.to_csv(
+                    out_path / f"rerouting_cost_{out_mode}_s{scenario_id}_day{event_day}.csv",
+                    index=False,
+                )
+
+                # trip isolations (isolation_df already read/filtered above, right
+                # after the post-disruption flow simulation, to compute
+                # isolated_flow_total for the SC term -- rerouting_cost +
+                # isolation_cost above uses that VOT-anchored SC.
+                # isolation_cost_usd below is a second, independently-parameterized
+                # isolation valuation (SA seam, default $/trip-day from
+                # parameters/unified_parameters.json), kept alongside rather than
+                # merged with SC so both are auditable and Morris can screen the
+                # isolation-valuation assumption on its own axis.
+                out_iso_df.to_csv(
+                    out_path / f"trip_isolations_{out_mode}_s{scenario_id}_day{event_day}.csv",
+                    index=False,
+                )
+                cost_rows_by_output[out_mode][-1]["isolation_flow"] = float(
+                    pd.to_numeric(out_iso_df["Car21"], errors="coerce").fillna(0.0).sum()
+                )
+                cost_rows_by_output[out_mode][-1]["isolation_cost_usd"] = float(
+                    out_iso_df["isolation_cost_usd"].sum()
+                )
 
             # edge flows
             def _to_scalar_float(value):
@@ -1373,9 +1561,25 @@ def main(
             road_links.loc[updated_acc_flow.index, "acc_flow"] = updated_acc_flow.to_numpy(dtype=float)
             road_links = road_links.reset_index()
             road_links["change_flow"] = road_links["acc_flow"] - road_links["current_flow"]
-            road_links.to_parquet(
-                out_path / f"edge_flows_{mode_name}_s{scenario_id}_day{event_day}.gpq"
-            )
+
+            # Edge flow is the solver's network-wide result for the combined
+            # flow -- same proportional-allocation caveat as rerouting cost
+            # above (no per-edge mode trace available without per-path output).
+            for out_mode in output_modes:
+                if mode_name == "combined":
+                    share = (
+                        freight_share_of_disrupted
+                        if out_mode == "freight"
+                        else (1.0 - freight_share_of_disrupted)
+                    )
+                    out_links = road_links.copy()
+                    out_links["change_flow"] = road_links["change_flow"] * share
+                    out_links["acc_flow"] = road_links["current_flow"] + out_links["change_flow"]
+                else:
+                    out_links = road_links
+                out_links.to_parquet(
+                    out_path / f"edge_flows_{out_mode}_s{scenario_id}_day{event_day}.gpq"
+                )
 
             # reset road_links for next scenario
             road_links = road_links[initial_road_links_cols]
@@ -1385,22 +1589,24 @@ def main(
             del valid_road_links
             gc.collect()
 
-        logging.info("Saving overall rerouting costs to disk (mode=%s)...", mode_name)
-        if len(cost_rows) == 0:
-            logging.info("No rerouting results to save for mode=%s.", mode_name)
-            continue
-        cost_df = pd.DataFrame(cost_rows)
-        cost_df["direct_damage_total_musd"] = direct_damage_total_musd
-        cost_df["direct_damage_total_usd"] = direct_damage_total
-        cost_df["direct_damage_total"] = direct_damage_total
-        cost_df["combined_total_cost"] = (
-            cost_df["rerouting_cost"]
-            + cost_df["isolation_cost"]
-            + cost_df["direct_damage_total"]
-        )
-        cost_df.to_csv(out_path / f"cost_matrix_{mode_name}_by_scenario.csv", index=False)
-        if mode_name == "freight":
-            cost_df.to_csv(out_path / "cost_matrix_by_scenario.csv", index=False)
+        for out_mode in output_modes:
+            logging.info("Saving overall rerouting costs to disk (mode=%s)...", out_mode)
+            rows = cost_rows_by_output[out_mode]
+            if len(rows) == 0:
+                logging.info("No rerouting results to save for mode=%s.", out_mode)
+                continue
+            cost_df = pd.DataFrame(rows)
+            cost_df["direct_damage_total_musd"] = direct_damage_total_musd
+            cost_df["direct_damage_total_usd"] = direct_damage_total
+            cost_df["direct_damage_total"] = direct_damage_total
+            cost_df["combined_total_cost"] = (
+                cost_df["rerouting_cost"]
+                + cost_df["isolation_cost"]
+                + cost_df["direct_damage_total"]
+            )
+            cost_df.to_csv(out_path / f"cost_matrix_{out_mode}_by_scenario.csv", index=False)
+            if out_mode == "freight":
+                cost_df.to_csv(out_path / "cost_matrix_by_scenario.csv", index=False)
 
 
 if __name__ == "__main__":

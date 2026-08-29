@@ -128,6 +128,33 @@ def _assert_pipeline_outputs(tmp_path, env, spec) -> None:
     assert flooded_freight == pytest.approx(-spec.expected_disrupted_flow_freight)
     assert flooded_passenger == pytest.approx(-spec.expected_disrupted_flow_passenger)
 
+    # Shared-capacity invariant (2026-08-29 fix): freight and passenger now
+    # compete for one physical capacity pool per edge, so their post-reroute
+    # flows on the detour edge must sum to no more than that edge's actual
+    # capacity -- never each independently maxing it out (the bug this test
+    # would have caught: previously freight alone AND passenger alone could
+    # each reach the edge's full capacity, silently double-booking it).
+    detour_capacity = pd.read_parquet(
+        reroute_out / "edge_flows_freight_s1_day1.gpq"
+    ).set_index("e_id").loc[spec.reroute_gain_edge, "acc_capacity"]
+    combined_detour_flow = _flow_on_edge(
+        freight_post, spec.reroute_gain_edge
+    ) + _flow_on_edge(passenger_post, spec.reroute_gain_edge)
+    assert combined_detour_flow <= float(detour_capacity) + 1e-6, (
+        f"freight+passenger combined flow on {spec.reroute_gain_edge} "
+        f"({combined_detour_flow}) exceeds its real capacity ({detour_capacity}) "
+        "-- shared capacity is being double-counted again"
+    )
+
+    # Demand-conservation invariant: the freight/passenger split of
+    # total_disrupted_flow must add back up to each mode's own known input
+    # demand -- the split is by exact per-OD composition, not an estimate.
+    freight_costs = pd.read_csv(cost_matrix)
+    passenger_costs = pd.read_csv(passenger_cost_matrix)
+    assert float(freight_costs["total_disrupted_flow"].iloc[0]) + float(
+        passenger_costs["total_disrupted_flow"].iloc[0]
+    ) == pytest.approx(spec.freight_flow + spec.passenger_flow)
+
 
 @pytest.mark.parametrize("network_name", ["three_parallel", "braess"])
 def test_pipeline_scripts_reroute_toy_network(tmp_path, network_name):

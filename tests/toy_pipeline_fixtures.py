@@ -104,6 +104,19 @@ def network_edges(name: str) -> list[dict]:
 
 
 def network_spec(name: str) -> ToyNetworkSpec:
+    # expected_rerouting_cost_*/expected_reroute_flow_* below reflect the
+    # combined-capacity fix (2026-08-29): freight and passenger now compete
+    # for one shared post-disruption capacity pool per detour edge (a single
+    # network_flow_model solve, split back out by known per-OD composition --
+    # see overlay_combined_flows() in scripts/4_rerouting_and_recovery_
+    # scenario_loop.py) instead of each mode independently getting the FULL
+    # remaining capacity as if the other mode's disrupted flow didn't exist.
+    # Proof this actually fixed the double-counting, from this fixture's own
+    # numbers: three_parallel's e_mid has ~24 units of true capacity (see
+    # baseline_edge_flows below); previously freight alone reached 24.0 AND
+    # passenger alone also reached 24.0 there (48 total on a 24-capacity
+    # edge). Now freight gets 18.46 and passenger gets 5.54 -- summing to
+    # exactly 24, the edge's real shared capacity.
     if name == "three_parallel":
         return ToyNetworkSpec(
             name=name,
@@ -113,10 +126,10 @@ def network_spec(name: str) -> ToyNetworkSpec:
             reroute_gain_edge="e_mid",
             expected_disrupted_flow_freight=100.0,
             expected_disrupted_flow_passenger=30.0,
-            expected_rerouting_cost_freight=367.2063831050812,
-            expected_rerouting_cost_passenger=43.475715977500414,
-            expected_reroute_flow_freight=24.0,
-            expected_reroute_flow_passenger=24.0,
+            expected_rerouting_cost_freight=282.46644854237013,
+            expected_rerouting_cost_passenger=84.73993456271103,
+            expected_reroute_flow_freight=18.461538461538463,
+            expected_reroute_flow_passenger=5.538461538461537,
             origin_node="n1",
             destination_node="n2",
             freight_flow=100.0,
@@ -131,10 +144,10 @@ def network_spec(name: str) -> ToyNetworkSpec:
             reroute_gain_edge="e_13",
             expected_disrupted_flow_freight=12.0,
             expected_disrupted_flow_passenger=13.0,
-            expected_rerouting_cost_freight=24.76324737475815,
-            expected_rerouting_cost_passenger=26.826851322654647,
-            expected_reroute_flow_freight=12.0,
-            expected_reroute_flow_passenger=13.0,
+            expected_rerouting_cost_freight=41.77047695468973,
+            expected_rerouting_cost_passenger=45.25135003424721,
+            expected_reroute_flow_freight=11.52,
+            expected_reroute_flow_passenger=12.48,
             origin_node="n1",
             destination_node="n4",
             freight_flow=12.0,
