@@ -62,6 +62,14 @@ powershell -File scripts/run_patch5_recovery_conus.ps1 -IncludePassenger -MaxFlo
 
 Script 1 merges freight FAF5 OD with passenger `Car21` when `NIRD_PASSENGER_OD_PATH` is set.
 Script 4 writes `cost_matrix_passenger_by_scenario.csv` alongside freight `cost_matrix_by_scenario.csv`.
+When `NIRD_ENABLE_PASSENGER_REROUTING=1`, freight and passenger are routed as one
+combined, capacity-competing solve per recovery day (they physically share the same
+road capacity) and split back out into the two cost-matrix files afterward -- isolation
+splits exactly by each OD pair's known freight/passenger composition; rerouting cost and
+edge flow split proportionally by each mode's share of that day's disrupted flow, since
+the solver only returns network-wide aggregates for those. See
+`overlay_combined_flows()` in `scripts/4_rerouting_and_recovery_scenario_loop.py` for the
+full accounting.
 
 Missing LODES files are downloaded on demand into `data/lodes_data/{state}/` when no local mirror is populated.
 - Hazard/rerouting coupling for passenger mode in Script 4.
