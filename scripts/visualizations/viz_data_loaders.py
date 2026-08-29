@@ -576,6 +576,21 @@ _GRIDLINE = "#ececec"
 _SURFACE = "#ffffff"
 _FONT_FAMILY = ["Lato", "Arial", "sans-serif"]
 
+# Urban Institute type scale (guide gives PDF pt / web px per element; these
+# are matplotlib point sizes tuned for on-screen PNG viewing, i.e. scaled
+# toward the guide's web column rather than its print column, since these
+# figures are viewed directly, not placed in a print layout). Applied via
+# these constants -- not per-chart guesses -- so every chart in this module
+# shares one deliberate hierarchy: title > subtitle > legend > axis label >
+# tick/data label > source note.
+_FS_TITLE = 17.5
+_FS_SUBTITLE = 12.5
+_FS_LEGEND = 11
+_FS_AXIS_LABEL = 11.5
+_FS_TICK = 11
+_FS_DATA_LABEL = 10
+_FS_SOURCE = 9.5
+
 
 def _hazard_color(hazard_type: str, hazard_subtype: str = "") -> str:
     """Color by hazard TYPE identity (the bounded, 4-way categorical dimension) --
@@ -787,19 +802,20 @@ def plot_freight_industry_breakdown(
             )
             ax.text(
                 0.98, 0.04, "real share pending", transform=ax.transAxes,
-                fontsize=7.5, color=_INK_MUTED, ha="right", va="bottom", style="italic",
+                fontsize=_FS_DATA_LABEL, color=_INK_MUTED, ha="right", va="bottom", style="italic",
             )
 
         ax.set_yticks(y)
-        ax.set_yticklabels([SCTG_SHORT_LABELS[c] for c in sctg_codes], fontsize=8.5)
+        ax.set_yticklabels([SCTG_SHORT_LABELS[c] for c in sctg_codes], fontsize=_FS_TICK)
+        ax.tick_params(axis="x", labelsize=_FS_TICK)
         ax.invert_yaxis()
-        ax.set_title(hazard_label, fontsize=11, color=title_color, loc="left", fontweight="bold")
+        ax.set_title(hazard_label, fontsize=_FS_SUBTITLE, color=title_color, loc="left", fontweight="bold")
         _style_axis(ax, horizontal=True, show_gridlines=True)
 
     for ax in flat_axes[n:]:
         ax.set_visible(False)
     for ax in flat_axes[max(0, n - ncols):n]:
-        ax.set_xlabel("Share of disrupted freight (%)", fontsize=9.5)
+        ax.set_xlabel("Share of disrupted freight (%)", fontsize=_FS_AXIS_LABEL)
 
     legend_handles = [
         Patch(facecolor=_SHARE_REAL_COLOR, edgecolor=_INK_PRIMARY, linewidth=0.5,
@@ -807,26 +823,26 @@ def plot_freight_industry_breakdown(
         Patch(facecolor=_SHARE_BASELINE_COLOR, edgecolor=_INK_PRIMARY, linewidth=0.5,
               label="National baseline share"),
     ]
-    fig.legend(handles=legend_handles, loc="upper right", fontsize=9, frameon=False,
+    fig.legend(handles=legend_handles, loc="upper right", fontsize=_FS_LEGEND, frameon=False,
                bbox_to_anchor=(0.99, 1.02))
     fig.suptitle(
-        "Freight Commodity Mix by Hazard", fontsize=15.5, color=_INK_PRIMARY,
-        x=0.01, ha="left", y=1.04,
+        "Freight Commodity Mix by Hazard", fontsize=_FS_TITLE, color=_INK_PRIMARY,
+        x=0.01, ha="left", y=1.05, fontweight="bold",
     )
     fig.text(
-        0.01, 1.005,
+        0.01, 1.012,
         "Real share = each hazard's own disrupted freight corridors. "
         "Baseline = national average commodity mix, unweighted by any hazard.",
-        fontsize=10.5, color=_INK_SECONDARY, ha="left", va="bottom",
+        fontsize=_FS_SUBTITLE, color=_INK_SECONDARY, ha="left", va="bottom",
         transform=fig.transFigure,
     )
     fig.text(
         0.01, -0.01,
         "Source: scripts/compute_freight_industry_mix.py (real share, joined against "
         "faf5_od_matrix_by_sctg.pq) and 2022 FAF5 national truck-trip shares (baseline).",
-        fontsize=8.5, color=_INK_MUTED, ha="left",
+        fontsize=_FS_SOURCE, color=_INK_MUTED, ha="left",
     )
-    fig.tight_layout(rect=(0, 0, 1, 0.94))
+    fig.tight_layout(rect=(0, 0, 1, 0.93))
     return fig, axes
 
 
@@ -912,7 +928,7 @@ def plot_multihazard_cost_panels(
 
     plt.rcParams["font.family"] = _FONT_FAMILY
     fig, (ax_a, ax_b) = plt.subplots(
-        1, 2, figsize=(13.5, 0.9 * len(labels) + 2.4), facecolor=_SURFACE
+        1, 2, figsize=(14.5, 0.95 * len(labels) + 2.9), facecolor=_SURFACE
     )
     y = np.arange(len(labels))
     bar_h = 0.34
@@ -937,41 +953,50 @@ def plot_multihazard_cost_panels(
         for yi, v_usd in zip(y + bar_h / 2 + 0.03, solid_vals):
             ax.annotate(
                 format_cost(v_usd, variant=resolved_variant), (max(v_usd / divisor, 0.0), yi),
-                xytext=(4, 0), textcoords="offset points", ha="left", va="center",
-                fontsize=8.5, color=_INK_SECONDARY,
+                xytext=(5, 0), textcoords="offset points", ha="left", va="center",
+                fontsize=_FS_DATA_LABEL, color=_INK_SECONDARY,
             )
         for yi, v_usd in zip(y - bar_h / 2 - 0.03, hatched_vals):
             ax.annotate(
                 format_cost(v_usd, variant=resolved_variant), (max(v_usd / divisor, 0.0), yi),
-                xytext=(4, 0), textcoords="offset points", ha="left", va="center",
-                fontsize=8.5, color=_INK_SECONDARY,
+                xytext=(5, 0), textcoords="offset points", ha="left", va="center",
+                fontsize=_FS_DATA_LABEL, color=_INK_SECONDARY,
             )
         ax.set_yticks(y)
-        ax.set_yticklabels(labels, fontsize=10)
+        ax.set_yticklabels(labels, fontsize=_FS_TICK)
         ax.invert_yaxis()
         ax.set_ylim(len(labels) - 1 + 0.6, -0.6)
         max_val = float(max(solid_vals.max(), hatched_vals.max(), 0.0) / divisor) or 1.0
         ax.set_xlim(0, max_val * 1.4)
-        ax.set_xlabel(unit_label, fontsize=9.5)
-        ax.set_title(panel_title, fontsize=12.5, color=_INK_PRIMARY, loc="left")
+        ax.set_xlabel(unit_label, fontsize=_FS_AXIS_LABEL)
+        ax.tick_params(axis="x", labelsize=_FS_TICK)
+        ax.set_title(panel_title, fontsize=_FS_SUBTITLE + 1, color=_INK_PRIMARY, loc="left", pad=32)
         _style_axis(ax, horizontal=True, show_gridlines=False)
         legend_handles = [
             Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6, label=solid_label),
             Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6,
                   hatch="////", alpha=0.55, label=hatched_label),
         ]
-        ax.legend(handles=legend_handles, loc="lower center", bbox_to_anchor=(0.5, 1.14),
-                  ncol=2, fontsize=9, frameon=False)
+        ax.legend(handles=legend_handles, loc="lower center", bbox_to_anchor=(0.5, 1.1),
+                  ncol=2, fontsize=_FS_LEGEND, frameon=False)
 
     _paired_barh(ax_a, direct, indirect_total, "Direct", "Indirect (freight + passenger)", "Direct vs. Indirect Cost")
     _paired_barh(ax_b, freight, passenger, "Freight", "Passenger", "Indirect Cost by Mode")
 
-    fig.suptitle("Multi-Hazard Direct and Indirect Cost", fontsize=15.5, color=_INK_PRIMARY, x=0.02, ha="left", y=1.06)
+    fig.suptitle(
+        "Multi-Hazard Direct and Indirect Cost", fontsize=_FS_TITLE, color=_INK_PRIMARY,
+        x=0.02, ha="left", y=1.1, fontweight="bold",
+    )
+    fig.text(
+        0.02, 1.045,
+        "Direct repair cost compared with indirect cost from rerouting around damage, by hazard.",
+        fontsize=_FS_SUBTITLE, color=_INK_SECONDARY, ha="left", va="bottom", transform=fig.transFigure,
+    )
 
     notes = [source_note]
     for label, reason in exclude_hazards.items():
         notes.append(f"{label} excluded: {reason}")
-    fig.text(0.02, -0.015, "\n".join(notes), fontsize=8.5, color=_INK_MUTED, ha="left", va="top")
+    fig.text(0.02, -0.02, "\n".join(notes), fontsize=_FS_SOURCE, color=_INK_MUTED, ha="left", va="top")
     fig.tight_layout()
     return fig, (ax_a, ax_b)
 
@@ -1032,7 +1057,7 @@ def plot_ranked_cost_by_asset_type(
     unit_label = {"usd": "USD", "kusd": "USD (thousands)", "musd": "USD (millions)", "busd": "USD (billions)"}[unit]
 
     plt.rcParams["font.family"] = _FONT_FAMILY
-    fig, ax = plt.subplots(1, 1, figsize=(9, 0.7 * len(labels) + 2.2), facecolor=_SURFACE)
+    fig, ax = plt.subplots(1, 1, figsize=(10, 0.75 * len(labels) + 2.7), facecolor=_SURFACE)
     y = np.arange(len(labels))
     bar_h = 0.34
 
@@ -1045,24 +1070,27 @@ def plot_ranked_cost_by_asset_type(
             ax.barh(yi + bar_h / 2, rv / divisor, bar_h, color=color,
                      edgecolor=_INK_PRIMARY, linewidth=0.6, hatch="////", alpha=0.55, zorder=2)
             ax.annotate(format_cost(bv, variant=resolved_variant), (max(bv / divisor, 0.0), yi - bar_h / 2),
-                        xytext=(4, 0), textcoords="offset points", ha="left", va="center",
-                        fontsize=8.5, color=_INK_SECONDARY)
+                        xytext=(5, 0), textcoords="offset points", ha="left", va="center",
+                        fontsize=_FS_DATA_LABEL, color=_INK_SECONDARY)
             ax.annotate(format_cost(rv, variant=resolved_variant), (max(rv / divisor, 0.0), yi + bar_h / 2),
-                        xytext=(4, 0), textcoords="offset points", ha="left", va="center",
-                        fontsize=8.5, color=_INK_SECONDARY)
+                        xytext=(5, 0), textcoords="offset points", ha="left", va="center",
+                        fontsize=_FS_DATA_LABEL, color=_INK_SECONDARY)
         else:
             ax.barh(yi, dtotal / divisor, bar_h * 2 + 0.06, color=color,
                      edgecolor=_INK_PRIMARY, linewidth=0.6, alpha=0.55, zorder=2)
             ax.annotate(
                 f"{format_cost(dtotal, variant=resolved_variant)} (asset-type split pending)",
                 (max(dtotal / divisor, 0.0), yi),
-                xytext=(4, 0), textcoords="offset points", ha="left", va="center",
-                fontsize=8, color=_INK_MUTED, style="italic",
+                xytext=(5, 0), textcoords="offset points", ha="left", va="center",
+                fontsize=_FS_DATA_LABEL, color=_INK_MUTED, style="italic",
             )
     ax.set_yticks(y)
-    ax.set_yticklabels(labels, fontsize=10)
-    ax.set_xlabel(unit_label, fontsize=9.5)
-    ax.set_title("Direct Damage by Asset Type, Ranked", fontsize=12.5, color=_INK_PRIMARY, loc="left")
+    ax.set_yticklabels(labels, fontsize=_FS_TICK)
+    ax.set_xlabel(unit_label, fontsize=_FS_AXIS_LABEL)
+    ax.tick_params(axis="x", labelsize=_FS_TICK)
+    # No axes-level title here -- a single-panel chart doesn't need one
+    # alongside the figure title+subtitle below (unlike the two-panel
+    # charts, where each subplot needs its own title to tell them apart).
     max_val = float(pd.concat([direct, pd.Series(bridge_vals), pd.Series(road_vals)]).max() / divisor or 1.0)
     ax.set_xlim(0, max_val * 1.55)
     _style_axis(ax, horizontal=True, show_gridlines=False)
@@ -1071,13 +1099,21 @@ def plot_ranked_cost_by_asset_type(
         Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6, label="Bridge"),
         Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6, hatch="////", alpha=0.55, label="Road"),
     ]
-    ax.legend(handles=legend_handles, loc="lower right", fontsize=9, frameon=False)
+    ax.legend(handles=legend_handles, loc="lower right", fontsize=_FS_LEGEND, frameon=False)
 
-    fig.suptitle("Multi-Hazard Direct Damage by Asset Type", fontsize=14.5, color=_INK_PRIMARY, x=0.02, ha="left", y=1.03)
+    fig.suptitle(
+        "Multi-Hazard Direct Damage by Asset Type", fontsize=_FS_TITLE, color=_INK_PRIMARY,
+        x=0.02, ha="left", y=1.12, fontweight="bold",
+    )
+    fig.text(
+        0.02, 1.04,
+        "Which hazards' direct damage falls on bridges versus ordinary roads, ranked by total.",
+        fontsize=_FS_SUBTITLE, color=_INK_SECONDARY, ha="left", va="bottom", transform=fig.transFigure,
+    )
     notes = [source_note]
     for label, reason in exclude_hazards.items():
         notes.append(f"{label} excluded: {reason}")
-    fig.text(0.02, -0.02, "\n".join(notes), fontsize=8.5, color=_INK_MUTED, ha="left", va="top")
+    fig.text(0.02, -0.03, "\n".join(notes), fontsize=_FS_SOURCE, color=_INK_MUTED, ha="left", va="top")
     fig.tight_layout()
     return fig, ax
 
