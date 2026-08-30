@@ -27,9 +27,22 @@
 # needed -- only the raw inputs Script 1 builds from scratch.
 #SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=32
-#SBATCH --mem=180G
-#SBATCH --output=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu32_%j.out
-#SBATCH --error=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu32_%j.err
+#SBATCH --mem=225G
+# 225G, not the original 180G: the first attempt (job 20240487) was
+# OOM-killed at 00:04:17 inside the LCP worker pool itself (BrokenPipeError
+# from a worker getting killed mid-send) -- SLURM's cgroup --mem caps the
+# WHOLE job (main process + all N worker processes combined), and the
+# per-worker RSS this causes isn't visible in the "RSS checkpoint" log line
+# (that only reports the main/parent process's own RSS, which stayed a
+# modest ~25GB on both cpu16 and cpu64's still-healthy runs at this same
+# phase -- the crash is in the pool workers' aggregate, not the parent).
+# cpu64 (MORE workers than 32, but 220G budget) was still healthy at the
+# same elapsed time, which is why this is bumped to comfortably exceed
+# that proven-safe level rather than assuming a strict per-core formula --
+# the actual memory floor for this workload isn't understood well enough
+# yet to compute it precisely.
+#SBATCH --output=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu32_v2_%j.out
+#SBATCH --error=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu32_v2_%j.err
 
 module purge
 module load anaconda/2024.02-py311
@@ -42,13 +55,13 @@ export NIRD_CONFIG_PATH=$HOME/multimodal_hazard_project/config_anvil.json
 export RESIFLOW_MAX_FLOW_ITERATIONS=1
 export NIRD_MAX_FLOW_ITERATIONS=1
 
-export RESIFLOW_RESULTS_VARIANT=anvil_scale_test_cpu32
-export NIRD_RESULTS_VARIANT=anvil_scale_test_cpu32
-export NIRD_BASELINE_DB_PATH=/anvil/scratch/x-akothawala/multimodal_hazard_data/anvil_scale_test_cpu32.duckdb
+export RESIFLOW_RESULTS_VARIANT=anvil_scale_test_cpu32_v2
+export NIRD_RESULTS_VARIANT=anvil_scale_test_cpu32_v2
+export NIRD_BASELINE_DB_PATH=/anvil/scratch/x-akothawala/multimodal_hazard_data/anvil_scale_test_cpu32_v2.duckdb
 
 export NIRD_LCP_DEST_CHUNK_SIZE=1000
 export NIRD_FLOW_DB_BATCH_SIZE=50000
-export NIRD_DUCKDB_MEMORY_LIMIT=140GB
+export NIRD_DUCKDB_MEMORY_LIMIT=170GB
 export NIRD_LOG_RSS_CHECKPOINTS=1
 export NIRD_LCP_SORT_BY_DEST_COUNT=1
 export NIRD_PATH_REALIZATION_STRATEGY=streaming_arrays
@@ -57,5 +70,15 @@ export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
+# Hardcoded 20 32 as literal args, NOT $SLURM_CPUS_PER_TASK: confirmed via
+# job logs (grep "Pool construction") that on Anvil's shared partition, a
+# generous --mem request inflates the CPU allocation SLURM actually grants
+# (and $SLURM_CPUS_PER_TASK reports) well above --cpus-per-task -- the
+# original cpu16/32/64 attempts (jobs 20240471/20240487+20240693/20240488)
+# silently ran 65/122/119 workers instead of 16/32/64, which is why they
+# OOM'd (or looked mislabeled) despite generous memory bumps. Passing the
+# intended count as a literal here is what actually fixes the benchmark;
+# _v2 results-variant/log naming keeps this run separate from that invalid
+# first attempt.
 REPO=/anvil/scratch/x-akothawala/multimodal_hazard_data/code/ResiFlow
-python $REPO/scripts/1_network_flow_model_revision.py 20 $SLURM_CPUS_PER_TASK
+python $REPO/scripts/1_network_flow_model_revision.py 20 32

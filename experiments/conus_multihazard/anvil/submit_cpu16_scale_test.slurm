@@ -28,8 +28,8 @@
 #SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=16
 #SBATCH --mem=120G
-#SBATCH --output=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu16_%j.out
-#SBATCH --error=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu16_%j.err
+#SBATCH --output=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu16_v2_%j.out
+#SBATCH --error=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu16_v2_%j.err
 
 module purge
 module load anaconda/2024.02-py311
@@ -42,9 +42,9 @@ export NIRD_CONFIG_PATH=$HOME/multimodal_hazard_project/config_anvil.json
 export RESIFLOW_MAX_FLOW_ITERATIONS=1
 export NIRD_MAX_FLOW_ITERATIONS=1
 
-export RESIFLOW_RESULTS_VARIANT=anvil_scale_test_cpu16
-export NIRD_RESULTS_VARIANT=anvil_scale_test_cpu16
-export NIRD_BASELINE_DB_PATH=/anvil/scratch/x-akothawala/multimodal_hazard_data/anvil_scale_test_cpu16.duckdb
+export RESIFLOW_RESULTS_VARIANT=anvil_scale_test_cpu16_v2
+export NIRD_RESULTS_VARIANT=anvil_scale_test_cpu16_v2
+export NIRD_BASELINE_DB_PATH=/anvil/scratch/x-akothawala/multimodal_hazard_data/anvil_scale_test_cpu16_v2.duckdb
 
 export NIRD_LCP_DEST_CHUNK_SIZE=1000
 export NIRD_FLOW_DB_BATCH_SIZE=50000
@@ -57,5 +57,15 @@ export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
+# Hardcoded 20 16 as literal args, NOT $SLURM_CPUS_PER_TASK: confirmed via
+# job logs (grep "Pool construction") that on Anvil's shared partition, a
+# generous --mem request inflates the CPU allocation SLURM actually grants
+# (and $SLURM_CPUS_PER_TASK reports) well above --cpus-per-task -- the
+# original cpu16/32/64 attempts (jobs 20240471/20240487+20240693/20240488)
+# silently ran 65/122/119 workers instead of 16/32/64, which is why they
+# OOM'd (or looked mislabeled) despite generous memory bumps. Passing the
+# intended count as a literal here is what actually fixes the benchmark;
+# _v2 results-variant/log naming keeps this run separate from that invalid
+# first attempt.
 REPO=/anvil/scratch/x-akothawala/multimodal_hazard_data/code/ResiFlow
-python $REPO/scripts/1_network_flow_model_revision.py 20 $SLURM_CPUS_PER_TASK
+python $REPO/scripts/1_network_flow_model_revision.py 20 16

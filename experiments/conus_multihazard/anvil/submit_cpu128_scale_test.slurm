@@ -1,7 +1,11 @@
 #!/bin/bash
 #SBATCH --job-name=anvil_scale_cpu128
 #SBATCH --account=civ260045
-#SBATCH --partition=shared
+#SBATCH --partition=wholenode
+# wholenode, not shared -- shared caps how many cores a single job can take
+# per node (confirmed: sbatch refused this exact 128-core request on
+# `shared` with "CPU count per node can not be satisfied"); wholenode's
+# nodes (a[250-999]) are the ones meant for full-node exclusive jobs.
 # CPU-scaling benchmark (Pass A / Script 1), Anvil counterpart to Hopper's
 # experiments/pass_a_convergence/hopper/submit_cpu16.slurm -- same
 # methodology (1 flow-assignment iteration, num_of_chunk=20 held constant
@@ -27,9 +31,13 @@
 # needed -- only the raw inputs Script 1 builds from scratch.
 #SBATCH --time=04:00:00
 #SBATCH --cpus-per-task=128
-#SBATCH --mem=245G
-#SBATCH --output=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu128_%j.out
-#SBATCH --error=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu128_%j.err
+#SBATCH --mem=230G
+# 230G, not 245G: bisected the real allocatable ceiling on wholenode nodes
+# via `sbatch --test-only` -- 235G succeeds, 240G fails ("Requested node
+# configuration is not available"), so the node reserves ~22GB of its
+# 257400MB for OS/scheduler overhead. 230G leaves a small margin under that.
+#SBATCH --output=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu128_v2_%j.out
+#SBATCH --error=/home/x-akothawala/multimodal_hazard_project/logs_anvil_cpu128_v2_%j.err
 
 module purge
 module load anaconda/2024.02-py311
@@ -42,9 +50,9 @@ export NIRD_CONFIG_PATH=$HOME/multimodal_hazard_project/config_anvil.json
 export RESIFLOW_MAX_FLOW_ITERATIONS=1
 export NIRD_MAX_FLOW_ITERATIONS=1
 
-export RESIFLOW_RESULTS_VARIANT=anvil_scale_test_cpu128
-export NIRD_RESULTS_VARIANT=anvil_scale_test_cpu128
-export NIRD_BASELINE_DB_PATH=/anvil/scratch/x-akothawala/multimodal_hazard_data/anvil_scale_test_cpu128.duckdb
+export RESIFLOW_RESULTS_VARIANT=anvil_scale_test_cpu128_v2
+export NIRD_RESULTS_VARIANT=anvil_scale_test_cpu128_v2
+export NIRD_BASELINE_DB_PATH=/anvil/scratch/x-akothawala/multimodal_hazard_data/anvil_scale_test_cpu128_v2.duckdb
 
 export NIRD_LCP_DEST_CHUNK_SIZE=1000
 export NIRD_FLOW_DB_BATCH_SIZE=50000
@@ -57,5 +65,15 @@ export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
 
+# Hardcoded 20 128 as literal args, NOT $SLURM_CPUS_PER_TASK: confirmed via
+# job logs (grep "Pool construction") that on Anvil's shared partition, a
+# generous --mem request inflates the CPU allocation SLURM actually grants
+# (and $SLURM_CPUS_PER_TASK reports) well above --cpus-per-task -- the
+# original cpu16/32/64 attempts (jobs 20240471/20240487+20240693/20240488)
+# silently ran 65/122/119 workers instead of 16/32/64, which is why they
+# OOM'd (or looked mislabeled) despite generous memory bumps. 128 is already
+# the node's physical core count, so this tier wasn't actually affected --
+# hardcoded anyway for consistency with the other three. _v2 naming keeps
+# this run separate from that invalid first attempt.
 REPO=/anvil/scratch/x-akothawala/multimodal_hazard_data/code/ResiFlow
-python $REPO/scripts/1_network_flow_model_revision.py 20 $SLURM_CPUS_PER_TASK
+python $REPO/scripts/1_network_flow_model_revision.py 20 128
