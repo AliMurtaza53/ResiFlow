@@ -15,12 +15,14 @@ Branch: `feature/freight-passenger-shared-capacity` unless noted.
 
 | Item | Status | Where |
 |---|---|---|
-| Flood damage curves (`damage_ratio_road_flood.xlsx`, `damage_cost_road_flood.xlsx`) vs. Nandu's master spreadsheet | **Unconfirmed** — both files on Hopper are timestamped 2026-07-18, predating the HAZUS bridge work (Aug 20) and New Madrid (Aug 26-27). Cannot verify content (binary xlsx, no Python execution on Hopper read-only access). Needs direct confirmation: did Nandu's update ever land in these files? | `soge_clusters/damage_curves/`, `soge_clusters/asset_costs/` on Hopper |
+| Flood damage curves (`damage_ratio_road_flood.xlsx`, `damage_cost_road_flood.xlsx`) vs. Nandu's master spreadsheet | **Resolved (confirmed NOT applied), 2026-08-29** — see "Nandu's parameter audit" entry below. The underlying curve *values* are unchanged; only some unrelated constants (VOT/fuel/occupancy) from the same audit were adopted. | `soge_clusters/damage_curves/`, `soge_clusters/asset_costs/` on Hopper; `parameters/unified_parameters.json` |
 | Winter storm (601 Jonas, 602/603/604 Uri/Elliott/Snowmageddon) | Direct damage cost methodology confirmed wrong (flood-shim, ~150-1000x too high vs. real-world Jonas estimates). 602/603/604 additionally never completed a real full-CONUS run — only stale pre-bugfix data exists on disk (2026-08-24), two live attempts since have timed out (24h, then 48h) | `docs/VA_MULTIHAZARD_COMPARISON.md`, this file's "Winter storm direct-cost methodology" entry below |
 | New Madrid (403) asset-type split / freight industry mix | Not yet run — `compute_direct_damage_by_asset_type.py` / `compute_freight_industry_mix.py` never executed for scenario 403 | `results/finale_2026_08/build_finale_figures.py` |
 | Path-realization strategy A/B test (`duckdb_chunked_compact` vs `streaming_arrays`) for Script 4 | Submitted, pending result | `experiments/va_multihazard/hopper/nandu_v1/submit_earthquake_403_strategy_streaming_arrays.slurm` |
 | CPU-scaling benchmark for Script 4 | Written, held pending the strategy result above (no point scaling a strategy that may already be wrong) | `experiments/va_multihazard/hopper/nandu_v1/submit_earthquake_403_cpu{16,32,64,128}_benchmark.slurm` |
 | Passenger rerouting at national/CONUS scale | Never run — the freight/passenger shared-capacity fix (below) is verified on the toy network only | `scripts/4_rerouting_and_recovery_scenario_loop.py` |
+| Nandu's flood-cost tables (T22/T24) | Verified/sourced replacement data exists but is not wired in (`use_table_*` flags off) — see "Nandu's parameter audit" entry below | `parameters/unified_parameters.json`, Nandu's `parameter_diff_final.xlsx` |
+| Fig. 3-style flow validation (modeled vs. observed) | Not started. Our OD is inter-county only, missing intra-county trips, so a direct AADT match won't be exact. Real-count sources identified for when this is picked up: MWCOG annual traffic counts (DMV area) — [layer 0](https://gis.mwcog.org/wa/rest/services/RTDC/Traffic_Counts_Annual/MapServer/0/query?outFields=*&where=1%3D1), [layer 1](https://gis.mwcog.org/wa/rest/services/RTDC/Traffic_Counts_Annual/MapServer/1/query?outFields=*&where=1%3D1); TxDOT truck volume/percent — [feature service](https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/Truck%20Volume%20and%20Percent/FeatureServer/0/query?outFields=*&where=1%3D1); TxDOT historic+current AADT — [feature service](https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_AADT_Annuals_\(Public_View\)/FeatureServer/0/query?outFields=*&where=1%3D1) | (future work) |
 
 ---
 
@@ -88,6 +90,43 @@ methodological question for earthquake/landslide (no floodwater to recede).
 half-updated.
 
 ---
+
+### Nandu's parameter audit (`parameter_diff_final.xlsx`) was only partially applied (2026-08-17 merge, confirmed 2026-08-29)
+
+The intern's audit workbook (`OneDrive/Research/ASSIP_interns_Ali/Sensitivity Analysis
+Nandu/parameter_diff_final.xlsx`) is thorough and well-sourced (USDOT BCA, FHWA NHTS,
+EIA, FHWA HERS-ST, ATRI, NBI, van Ginkel et al. 2021) — it's a genuine parameter-by-
+parameter audit of every UK-NIRD-inherited constant against a real US-sourced
+candidate, with an explicit adoption status per row. Merged via `81bf836`
+(2026-08-17), which added the *infrastructure* to switch each constant over
+(`use_table_*` flags, `road_cost_scale`/`bridge_cost_scale` in
+`unified_parameters.json`) but left every one of those flags at its no-op default.
+Confirmed still all `false`/`1.0` today (2026-08-29), unchanged since the merge.
+
+**What was actually adopted:** VOT ($18.50-37.20/hr by vehicle class, USDOT VTTS),
+fuel price ($0.90-1.04/L), and vehicle occupancy (1.52, NHTS 2022) — these are live in
+`src/resiflow/constants.py` today and correctly sourced.
+
+**What was NOT adopted — the flood/road damage-cost tables specifically:** the
+audit's own `T24_asset_costs_US` sheet states outright: *"The UK-current workbook
+(damage_cost_road_flood.xlsx) is NOT in the git repo and its GBP/USD provenance is
+unresolved — extract and archive it... before replacement (**top audit priority**)."*
+This confirms directly what the file-timestamp evidence only suggested: the current
+flood damage-ratio/cost workbooks are UK-origin with unresolved currency/price-year
+provenance, exactly what the audit flagged as most urgent to fix, and it was never
+done. `T24`'s own replacement road-cost figures are marked `VERIFIED` (sourced to
+FHWA HERS-ST); `T22`'s damage-ratio-curve replacement (sourced to van Ginkel et al.
+2021) is a `TEMPLATE_REPLACE_VALUES` — worth checking whether it's actually populated
+with real numbers before flipping `use_table_damage_thresholds`, not just flipping
+the flag on a still-templated sheet.
+
+**Action, not yet taken:** decide whether to spend the (apparently modest —
+infrastructure already exists) effort to flip these flags and re-verify
+`damage_cost_road_flood.xlsx`/`damage_ratio_road_flood.xlsx` against `T24`/`T22`
+before any external report cites direct-damage costs as US-sourced. Currently they
+are not, for every hazard that goes through `calculate_damage()` (flood, and
+winter_storm's shim) — earthquake/landslide are unaffected (real HAZUS 6.1 costs,
+separate code path, see below).
 
 ## Methodology findings
 

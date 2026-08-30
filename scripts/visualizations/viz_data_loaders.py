@@ -353,8 +353,14 @@ def summarize_single_scenario(
     direct_damage_usd = _direct_damage_usd_from_cost_row(freight_row, damage_df)
     rerouting_freight = float(freight_row.get("rerouting_cost", 0.0))
     rerouting_passenger = float(passenger_row.get("rerouting_cost", 0.0))
+    isolation_cost_freight_usd = float(freight_row.get("isolation_cost", 0.0))
+    isolation_cost_passenger_usd = float(passenger_row.get("isolation_cost", 0.0))
+    isolation_cost_usd = isolation_cost_freight_usd + isolation_cost_passenger_usd
     combined_total = float(
-        freight_row.get("combined_total_cost", direct_damage_usd + rerouting_freight)
+        freight_row.get(
+            "combined_total_cost",
+            direct_damage_usd + rerouting_freight + isolation_cost_freight_usd,
+        )
     )
     isolation = _isolation_metrics(reroute_dir, scenario_id=recovery_scenario)
 
@@ -383,6 +389,9 @@ def summarize_single_scenario(
         "passenger_disrupted_flow_raw": float(passenger_row.get("total_disrupted_flow", 0.0)),
         "rerouting_cost_freight_usd": rerouting_freight,
         "rerouting_cost_passenger_usd": rerouting_passenger,
+        "isolation_cost_freight_usd": isolation_cost_freight_usd,
+        "isolation_cost_passenger_usd": isolation_cost_passenger_usd,
+        "isolation_cost_usd": isolation_cost_usd,
         "direct_damage_usd": direct_damage_usd,
         "combined_total_usd": combined_total,
         "passenger_flooded_edge_flow": flooded_flow_delta,
@@ -870,6 +879,13 @@ def _style_axis(ax, *, horizontal: bool = False, show_gridlines: bool = True) ->
     ax.yaxis.label.set_color(_INK_SECONDARY)
 
 
+_COST_CATEGORY_COLORS: dict[str, str] = {
+    "direct": "#1696D2",      # Urban cyan
+    "rerouting": "#EC008B",   # Urban magenta
+    "isolation": "#55B748",   # Urban green
+}
+
+
 def plot_multihazard_cost_panels(
     summary: pd.DataFrame,
     *,
@@ -877,29 +893,33 @@ def plot_multihazard_cost_panels(
     exclude_hazards: dict[str, str] | None = None,
     source_note: str = "Source: ResiFlow conus_nandu_v1 pipeline output.",
 ):
-    """Two-panel horizontal comparison: direct vs. indirect cost, and freight
-    vs. passenger indirect cost, both by hazard.
+    """Ranked, stacked horizontal comparison of direct, rerouting, and
+    isolation cost by hazard -- following Li, Pant et al. (2026), "Stress-
+    testing road network resilience using counterfactual flood events",
+    Transportation Research Part D 155, Fig. 4 (the same paper Script 4's
+    rerouting-cost formula already cites): one bar per hazard, ranked by
+    total cost descending, three stacked segments (direct / rerouting /
+    isolation) rather than paired bars -- this is the natural comparison
+    shape once isolation cost is included, since the three terms sum to a
+    single combined cost per hazard, not two independent quantities.
 
-    Follows the Urban Institute Data Visualization Style Guide
-    (urbaninstitute.github.io/graphics-styleguide): horizontal bars with
-    category labels read horizontally along the y-axis (never rotated),
-    value axes always start at zero -- no log scale. The guide treats a
-    zero baseline as non-negotiable for bar charts and log scales as
-    something "many readers will not understand"; a known-good number that
-    needs a log axis to stay visible next to a known-bad outlier is a sign
-    the outlier shouldn't be in the comparison at all (see
-    ``exclude_hazards``), not a reason to reach for a log axis.
+    Unlike Fig. 4, this has NO uncertainty bands -- each hazard here is one
+    deterministic day-0 run, not a Morris-sensitivity ensemble. Say so in
+    the subtitle rather than implying a false precision Fig. 4 doesn't
+    actually have here; add real bands only once a Morris/multi-run ensemble
+    exists for these hazards (see docs/PROJECT_LOG.md's Morris/SA items).
 
-    Each bar is directly labeled with its own value via ``format_cost``
-    (auto-scaled to K/M/B), not a single shared unit rounded to one decimal
-    -- a real $23K or $75K value reads as "$23.4K"/"$74.7K", not a
-    misleading "0.0" from being forced through a shared billions-scale unit.
+    Still follows the Urban Institute Data Visualization Style Guide
+    (urbaninstitute.github.io/graphics-styleguide): horizontal bars, category
+    labels read horizontally (never rotated), value axis starts at zero --
+    no log scale. A known-good number that needs a log axis to stay visible
+    next to a known-bad outlier is a sign the outlier shouldn't be in the
+    comparison at all (see ``exclude_hazards``), not a reason for a log axis.
 
     ``exclude_hazards``: ``{hazard_label: reason}`` -- omit these hazards'
-    bars entirely rather than plot a number known to be wrong (no axis
-    choice fixes a wrong number); each reason is listed in the source note
-    instead. Use for a hazard whose cost source is a known-bad placeholder,
-    e.g. winter storm's flood-shim direct cost at CONUS scale.
+    bars entirely rather than plot a number known to be wrong; each reason
+    is listed in the source note instead. Use for a hazard whose cost source
+    is a known-bad placeholder, e.g. winter storm's flood-shim direct cost.
     """
     import matplotlib.pyplot as plt
     import numpy as np
@@ -912,93 +932,88 @@ def plot_multihazard_cost_panels(
         str(summary["variant"].iloc[0]) if "variant" in summary.columns else ""
     )
     exclude_hazards = exclude_hazards or {}
-    df = summary[~summary["hazard_label"].isin(exclude_hazards)].reset_index(drop=True)
+    df = summary[~summary["hazard_label"].isin(exclude_hazards)].copy()
     if df.empty:
         raise ValueError("All hazards were excluded -- nothing left to plot")
 
+    df["_direct"] = pd.to_numeric(df["direct_damage_usd"], errors="coerce").fillna(0.0)
+    df["_rerouting"] = (
+        pd.to_numeric(df["rerouting_cost_freight_usd"], errors="coerce").fillna(0.0)
+        + pd.to_numeric(df.get("rerouting_cost_passenger_usd", 0.0), errors="coerce").fillna(0.0)
+    )
+    df["_isolation"] = pd.to_numeric(df.get("isolation_cost_usd", 0.0), errors="coerce").fillna(0.0)
+    df["_total"] = df["_direct"] + df["_rerouting"] + df["_isolation"]
+
+    # Ranked by total cost descending, largest at top (matches Fig. 4).
+    df = df.sort_values("_total", ascending=True).reset_index(drop=True)
+
     labels = df["hazard_label"].astype(str).tolist()
-    colors = [
-        _hazard_color(row.get("hazard_type", ""), row.get("hazard_subtype", ""))
-        for _, row in df.iterrows()
-    ]
-    direct = pd.to_numeric(df["direct_damage_usd"], errors="coerce").fillna(0.0)
-    freight = pd.to_numeric(df["rerouting_cost_freight_usd"], errors="coerce").fillna(0.0)
-    passenger = pd.to_numeric(df["rerouting_cost_passenger_usd"], errors="coerce").fillna(0.0)
-    indirect_total = freight + passenger
+    unit = resolve_cost_display_unit(float(df["_total"].max()), variant=resolved_variant)
+    divisor = {"usd": 1.0, "kusd": 1e3, "musd": 1e6, "busd": 1e9}[unit]
+    unit_label = {
+        "usd": "USD", "kusd": "USD (thousands)", "musd": "USD (millions)", "busd": "USD (billions)",
+    }[unit]
 
     plt.rcParams["font.family"] = _FONT_FAMILY
-    fig, (ax_a, ax_b) = plt.subplots(
-        1, 2, figsize=(14.5, 0.95 * len(labels) + 2.9), facecolor=_SURFACE
-    )
+    fig, ax = plt.subplots(figsize=(11.5, 0.62 * len(labels) + 2.6), facecolor=_SURFACE)
     y = np.arange(len(labels))
-    bar_h = 0.34
+    bar_h = 0.58
 
-    def _paired_barh(ax, solid_vals, hatched_vals, solid_label, hatched_label, panel_title):
-        max_abs = float(pd.concat([solid_vals, hatched_vals]).abs().max() or 0.0)
-        unit = resolve_cost_display_unit(max_abs, variant=resolved_variant)
-        divisor = {"usd": 1.0, "kusd": 1e3, "musd": 1e6, "busd": 1e9}[unit]
-        unit_label = {
-            "usd": "USD", "kusd": "USD (thousands)", "musd": "USD (millions)", "busd": "USD (billions)",
-        }[unit]
-
+    left = np.zeros(len(labels))
+    for key, category_label in (("_direct", "Direct"), ("_rerouting", "Rerouting"), ("_isolation", "Isolation")):
+        vals = (df[key] / divisor).to_numpy()
         ax.barh(
-            y + bar_h / 2 + 0.03, solid_vals / divisor, bar_h,
-            color=colors, edgecolor=_INK_PRIMARY, linewidth=0.6, zorder=2,
+            y, vals, bar_h, left=left,
+            color=_COST_CATEGORY_COLORS[key.strip("_")], edgecolor=_SURFACE, linewidth=0.6,
+            zorder=2, label=category_label,
         )
-        ax.barh(
-            y - bar_h / 2 - 0.03, hatched_vals / divisor, bar_h,
-            color=colors, edgecolor=_INK_PRIMARY, linewidth=0.6,
-            hatch="////", alpha=0.55, zorder=2,
-        )
-        for yi, v_usd in zip(y + bar_h / 2 + 0.03, solid_vals):
-            ax.annotate(
-                format_cost(v_usd, variant=resolved_variant), (max(v_usd / divisor, 0.0), yi),
-                xytext=(5, 0), textcoords="offset points", ha="left", va="center",
-                fontsize=_FS_DATA_LABEL, color=_INK_SECONDARY,
-            )
-        for yi, v_usd in zip(y - bar_h / 2 - 0.03, hatched_vals):
-            ax.annotate(
-                format_cost(v_usd, variant=resolved_variant), (max(v_usd / divisor, 0.0), yi),
-                xytext=(5, 0), textcoords="offset points", ha="left", va="center",
-                fontsize=_FS_DATA_LABEL, color=_INK_SECONDARY,
-            )
-        ax.set_yticks(y)
-        ax.set_yticklabels(labels, fontsize=_FS_TICK)
-        ax.invert_yaxis()
-        ax.set_ylim(len(labels) - 1 + 0.6, -0.6)
-        max_val = float(max(solid_vals.max(), hatched_vals.max(), 0.0) / divisor) or 1.0
-        ax.set_xlim(0, max_val * 1.4)
-        ax.set_xlabel(unit_label, fontsize=_FS_AXIS_LABEL)
-        ax.tick_params(axis="x", labelsize=_FS_TICK)
-        ax.set_title(panel_title, fontsize=_FS_SUBTITLE + 1, color=_INK_PRIMARY, loc="left", pad=32)
-        _style_axis(ax, horizontal=True, show_gridlines=False)
-        legend_handles = [
-            Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6, label=solid_label),
-            Patch(facecolor=_INK_MUTED, edgecolor=_INK_PRIMARY, linewidth=0.6,
-                  hatch="////", alpha=0.55, label=hatched_label),
-        ]
-        ax.legend(handles=legend_handles, loc="lower center", bbox_to_anchor=(0.5, 1.1),
-                  ncol=2, fontsize=_FS_LEGEND, frameon=False)
+        left = left + vals
 
-    _paired_barh(ax_a, direct, indirect_total, "Direct", "Indirect (freight + passenger)", "Direct vs. Indirect Cost")
-    _paired_barh(ax_b, freight, passenger, "Freight", "Passenger", "Indirect Cost by Mode")
+    for yi, total_usd in zip(y, df["_total"]):
+        ax.annotate(
+            format_cost(float(total_usd), variant=resolved_variant),
+            (total_usd / divisor, yi),
+            xytext=(6, 0), textcoords="offset points", ha="left", va="center",
+            fontsize=_FS_DATA_LABEL, color=_INK_PRIMARY, fontweight="bold",
+        )
+
+    ax.set_yticks(y)
+    ax.set_yticklabels(labels, fontsize=_FS_TICK)
+    ax.set_ylim(-0.6, len(labels) - 1 + 0.6)
+    ax.set_xlim(0, float(left.max() or 1.0) * 1.18)
+    ax.set_xlabel(unit_label, fontsize=_FS_AXIS_LABEL)
+    ax.tick_params(axis="x", labelsize=_FS_TICK)
+    _style_axis(ax, horizontal=True, show_gridlines=False)
+
+    legend_handles = [
+        Patch(facecolor=color, edgecolor=_SURFACE, linewidth=0.6, label=label)
+        for label, color in (
+            ("Direct", _COST_CATEGORY_COLORS["direct"]),
+            ("Rerouting", _COST_CATEGORY_COLORS["rerouting"]),
+            ("Isolation", _COST_CATEGORY_COLORS["isolation"]),
+        )
+    ]
+    ax.legend(
+        handles=legend_handles, loc="lower right", bbox_to_anchor=(1.0, 1.02),
+        ncol=3, fontsize=_FS_LEGEND, frameon=False,
+    )
 
     fig.suptitle(
-        "Multi-Hazard Direct and Indirect Cost", fontsize=_FS_TITLE, color=_INK_PRIMARY,
-        x=0.02, ha="left", y=1.1, fontweight="bold",
+        "Multi-Hazard Direct, Rerouting, and Isolation Cost", fontsize=_FS_TITLE,
+        color=_INK_PRIMARY, x=0.02, ha="left", y=1.1, fontweight="bold",
     )
     fig.text(
-        0.02, 1.045,
-        "Direct repair cost compared with indirect cost from rerouting around damage, by hazard.",
+        0.02, 1.03,
+        "Ranked by total cost. No uncertainty bands -- each bar is one deterministic run, not an ensemble.",
         fontsize=_FS_SUBTITLE, color=_INK_SECONDARY, ha="left", va="bottom", transform=fig.transFigure,
     )
 
     notes = [source_note]
     for label, reason in exclude_hazards.items():
         notes.append(f"{label} excluded: {reason}")
-    fig.text(0.02, -0.02, "\n".join(notes), fontsize=_FS_SOURCE, color=_INK_MUTED, ha="left", va="top")
+    fig.text(0.02, -0.04, "\n".join(notes), fontsize=_FS_SOURCE, color=_INK_MUTED, ha="left", va="top")
     fig.tight_layout()
-    return fig, (ax_a, ax_b)
+    return fig, ax
 
 
 def plot_ranked_cost_by_asset_type(
