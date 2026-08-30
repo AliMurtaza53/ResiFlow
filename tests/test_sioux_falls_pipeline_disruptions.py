@@ -148,7 +148,10 @@ def test_sioux_falls_pipeline_scripts_reroute_bridge_bottleneck(tmp_path):
 
     freight_post = _edge_flows(freight_post_path)
     passenger_post = _edge_flows(passenger_post_path)
-    assert _flow_sum_on_edges(passenger_post, spec.flooded_edge_ids) < 0.0
+    # acc_flow fix (2026-08-29): a fully-closed edge carries zero physical
+    # flow, not a negative "flow removed" placeholder -- see the acc_flow
+    # seeding comment in scripts/4_rerouting_and_recovery_scenario_loop.py.
+    assert _flow_sum_on_edges(passenger_post, spec.flooded_edge_ids) == pytest.approx(0.0)
 
     passenger_alternate_gain = _flow_sum_on_edges(
         passenger_post,

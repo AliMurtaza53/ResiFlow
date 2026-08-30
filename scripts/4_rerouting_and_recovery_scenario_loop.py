@@ -1212,9 +1212,26 @@ def main(
             road_links["acc_capacity"] = (
                 road_links["acc_capacity"] + road_links["disrupted_flow"]
             )
-            road_links["acc_flow"] = (
-                road_links["current_flow"] - road_links["disrupted_flow"]
-            )
+            # Seed acc_flow with background flow only (current_flow) -- NOT
+            # current_flow - disrupted_flow. network_flow_model() accumulates
+            # onto this seed additively (road_links["acc_flow"] +=
+            # road_links["flow"] in road_revised.py), which is correct for
+            # Pass A's own multi-iteration convergence (building up a running
+            # total from 0) but wrong here: current_flow is always 0 in this
+            # recovery loop (Script 4 tracks only the incremental disrupted/
+            # rerouted flow, not Pass A's absolute totals), so subtracting
+            # disrupted_flow left a bare negative seed. An edge the new route
+            # doesn't use ended up permanently negative in the written output
+            # (never receiving an offsetting += ). Worse, an edge on BOTH the
+            # old and new route (a shared downstream segment) netted to a
+            # falsely-plausible 0 -- its real rerouted flow was silently
+            # cancelled by the erroneous negative seed, not just an obviously-
+            # wrong negative number. Confirmed via
+            # scripts/diagnostics/validate_rerouting_physics.py's
+            # acc_flow_not_updated_by_solver finding, and reproduced on the
+            # untouched (pre-this-fix) default freight-only path -- not
+            # specific to the freight/passenger combined-capacity fix.
+            road_links["acc_flow"] = road_links["current_flow"]
 
             logging.info("Updating road speed limits...")
             func.update_edge_speed(road_links, inplace=True)

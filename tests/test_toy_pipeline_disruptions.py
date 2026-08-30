@@ -123,10 +123,34 @@ def _assert_pipeline_outputs(tmp_path, env, spec) -> None:
         f"flows={passenger_post.to_dict('records')}"
     )
 
+    # acc_flow fix (2026-08-29): a fully-closed edge carries zero physical
+    # flow, not a negative number representing "flow removed." Before the
+    # fix, road_links["acc_flow"] was seeded as current_flow - disrupted_flow
+    # and never revisited for edges excluded from the disrupted-network solve
+    # (closed edges have acc_capacity=0, so they're filtered out of
+    # valid_road_links entirely) -- leaving the flooded edge stuck at
+    # -disrupted_flow in the written output. See the acc_flow seeding
+    # comment in scripts/4_rerouting_and_recovery_scenario_loop.py.
     flooded_freight = _flow_on_edge(freight_post, spec.flooded_edge_id)
     flooded_passenger = _flow_on_edge(passenger_post, spec.flooded_edge_id)
-    assert flooded_freight == pytest.approx(-spec.expected_disrupted_flow_freight)
-    assert flooded_passenger == pytest.approx(-spec.expected_disrupted_flow_passenger)
+    assert flooded_freight == pytest.approx(0.0)
+    assert flooded_passenger == pytest.approx(0.0)
+
+    if spec.shared_reroute_edge is not None:
+        # A shared downstream segment (on both the old and new route) is the
+        # case that most needed this fix: before it, the erroneous negative
+        # seed exactly cancelled the solver's real assigned flow, silently
+        # reporting 0.0 flow on this edge instead of its true rerouted total.
+        shared_freight = _flow_on_edge(freight_post, spec.shared_reroute_edge)
+        shared_passenger = _flow_on_edge(passenger_post, spec.shared_reroute_edge)
+        assert shared_freight == pytest.approx(spec.expected_reroute_flow_freight), (
+            f"shared edge {spec.shared_reroute_edge} should carry the same rerouted "
+            f"flow as {spec.reroute_gain_edge}; flows={freight_post.to_dict('records')}"
+        )
+        assert shared_passenger == pytest.approx(spec.expected_reroute_flow_passenger), (
+            f"shared edge {spec.shared_reroute_edge} should carry the same rerouted "
+            f"flow as {spec.reroute_gain_edge}; flows={passenger_post.to_dict('records')}"
+        )
 
     # Shared-capacity invariant (2026-08-29 fix): freight and passenger now
     # compete for one physical capacity pool per edge, so their post-reroute

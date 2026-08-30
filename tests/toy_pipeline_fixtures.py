@@ -49,6 +49,7 @@ class ToyNetworkSpec:
     flow_cap_plph: int = 1
     hazard_interior_fraction: tuple[float, float] | None = None
     hazard_resolution_m: float = 200.0
+    shared_reroute_edge: str | None = None
 
 
 def _edge_row(
@@ -154,6 +155,12 @@ def network_spec(name: str) -> ToyNetworkSpec:
             passenger_flow=13.0,
             hazard_interior_fraction=(0.35, 0.65),
             hazard_resolution_m=50.0,
+            # e_34 carries both the original path (n1-e_12-n2-e_23-n3... wait,
+            # n1->n2->n3->n4 via e_12/e_23/e_34) and the new rerouted path
+            # (n1->n3->n4 via e_13/e_34) -- a shared downstream segment,
+            # exactly the acc_flow-bug case (see test_toy_pipeline_
+            # disruptions.py's shared_reroute_edge check).
+            shared_reroute_edge="e_34",
         )
     raise ValueError(f"Unknown toy network: {name}")
 
