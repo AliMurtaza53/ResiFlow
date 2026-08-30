@@ -46,15 +46,15 @@ Usage::
 
     # Real event (zip of .flt/.hdr pairs, ln(g) units):
     python scripts/prepare_shakemap_pga.py \\
-        --zip inputs/va_multihazard_raw/earthquake/mineral_shakemap/M5_8_ShakeMap_raster.zip \\
+        --zip inputs/multihazard_raw/earthquake/mineral_shakemap/M5_8_ShakeMap_raster.zip \\
         --layer pga_mean --units ln_g \\
-        --output inputs/va_multihazard_raw/earthquake/mineral_shakemap/pga_g.tif
+        --output inputs/multihazard_raw/earthquake/mineral_shakemap/pga_g.tif
 
     # Scenario event (already-extracted dir of .fit/.hdr pairs, percent-g units):
     python scripts/prepare_shakemap_pga.py \\
-        --dir inputs/va_multihazard_raw/earthquake/new_madrid_scenario/raster \\
+        --dir inputs/multihazard_raw/earthquake/new_madrid_scenario/raster \\
         --layer pga --units pct_g \\
-        --output inputs/va_multihazard_raw/earthquake/new_madrid_scenario/pga_g.tif
+        --output inputs/multihazard_raw/earthquake/new_madrid_scenario/pga_g.tif
 """
 
 from __future__ import annotations

@@ -3,14 +3,17 @@
 Extends what normalize_hazard_crs.py does (CRS reprojection only) with the
 resolution + extent reconciliation needed to make hazards genuinely
 "comparable": every output raster shares the same pixel grid (same origin,
-resolution, width/height), derived from a --reference raster (default: the
-existing VA toy flood raster, whose grid the rest of this project already
-uses). See docs/VA_MULTIHAZARD_COMPARISON.md for the full ingestion story.
+resolution, width/height), derived from either an explicit --reference
+raster or --own-bounds (the input's own extent). There is no implicit
+default grid -- earlier versions of this script silently fell back to a
+small VA-sized reference raster when neither flag was passed, which quietly
+clipped any hazard raster run without --own-bounds down to that bbox. See
+docs/CONUS_MULTIHAZARD_METHODOLOGY.md for the full ingestion story.
 
 Usage:
     python scripts/align_hazard_rasters.py \
-        --input inputs/va_multihazard_raw/flood/va_dcr_depth_01pct/Depth_01pct_va141_approx100m_clean.tif \
-        --output inputs/va_multihazard_aligned/flood_surface/event_1.tif \
+        --input inputs/multihazard_raw/flood/va_dcr_depth_01pct/Depth_01pct_va141_approx100m_clean.tif \
+        --output inputs/multihazard_aligned/flood_surface/event_1.tif \
         --unit-scale 0.3048   # feet -> meters
 """
 
@@ -32,15 +35,6 @@ from rasterio.coords import BoundingBox
 from rasterio.warp import Resampling, reproject, transform_bounds
 
 from resiflow.geo_runtime import CONUS_TARGET_CRS, canonical_crs, rasterio_env
-from resiflow.utils import load_config
-
-
-def _default_reference() -> Path:
-    try:
-        base_path = Path(load_config()["paths"]["soge_clusters"])
-    except Exception:
-        base_path = REPO_ROOT
-    return base_path / "inputs" / "test_141node_50m" / "va_hazard_class50_141node_base.tif"
 
 
 def reference_grid(reference_path: Path) -> dict:
@@ -57,11 +51,12 @@ def grid_from_source_bounds(input_path: Path, resolution: float) -> dict:
     """Derive a target grid directly from --input's own bounds, at
     ``resolution`` metres in the project's standard CRS.
 
-    For a REGIONAL (non-VA) hazard raster -- use this instead of the default
-    VA reference. Aligning a wide-footprint event (e.g. a multi-state
-    earthquake scenario) against the default VA-sized reference grid would
-    silently clip it down to just the VA bounding box, discarding the whole
-    point of using a bigger event. This is exactly what
+    Use this for a hazard raster whose footprint is larger than whatever
+    --reference raster is otherwise available -- aligning a wide-footprint
+    event (e.g. a multi-state earthquake scenario) against a smaller
+    reference grid would silently clip it down to that reference's own
+    bounding box, discarding the whole point of using a bigger event. This
+    is exactly what
     scripts/prepare_harvey_depths.py already had to do by hand for the
     Houston/Harris County Harvey case study (its own bounds -> EPSG:9311 at
     a chosen resolution) -- generalized here so future regional hazards
@@ -165,24 +160,26 @@ def main() -> None:
         "--reference",
         type=Path,
         default=None,
-        help="Raster whose CRS/resolution/bounds define the common grid "
-        "(default: the toy VA flood raster under config.json's soge_clusters path)",
+        help="Raster whose CRS/resolution/bounds define the common grid. "
+        "Required unless --own-bounds is passed instead -- there is no "
+        "implicit default reference raster.",
     )
     parser.add_argument(
         "--own-bounds",
         action="store_true",
-        help="Derive the target grid from --input's own bounds instead of a VA "
-        "reference raster -- use for a REGIONAL (non-VA) hazard whose footprint "
-        "would otherwise get silently clipped to the small VA reference grid. "
-        "Mutually exclusive with --reference. Requires --resolution.",
+        help="Derive the target grid from --input's own bounds instead of a "
+        "--reference raster -- use for a hazard whose footprint is larger "
+        "than any available reference grid, so it isn't silently clipped "
+        "down to that grid's own bounds. Mutually exclusive with "
+        "--reference. Requires --resolution.",
     )
     parser.add_argument(
         "--resolution",
         type=float,
         default=None,
-        help="Target resolution in metres, only used with --own-bounds (VA's "
-        "convention is 50m -- match it for cross-region comparability unless "
-        "there's a specific reason not to).",
+        help="Target resolution in metres, only used with --own-bounds "
+        "(match whatever resolution your other aligned hazards use, for "
+        "cross-event comparability, unless there's a specific reason not to).",
     )
     parser.add_argument(
         "--unit-scale",
@@ -220,10 +217,14 @@ def main() -> None:
             grid["bounds"],
         )
     else:
-        reference = args.reference or _default_reference()
-        args.reference = reference
-        if not reference.exists():
-            raise SystemExit(f"Reference raster not found: {reference}")
+        if args.reference is None:
+            raise SystemExit(
+                "Pass --reference <raster> (to align onto an existing grid) or "
+                "--own-bounds --resolution <metres> (to derive the grid from "
+                "--input itself) -- there is no implicit default grid."
+            )
+        if not args.reference.exists():
+            raise SystemExit(f"Reference raster not found: {args.reference}")
         grid = reference_grid(args.reference)
         logging.info(
             "Target grid from %s: crs=%s, resolution=%sm, bounds=%s",

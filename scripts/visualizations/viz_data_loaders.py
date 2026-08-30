@@ -624,7 +624,7 @@ def _hazard_color(hazard_type: str, hazard_subtype: str = "") -> str:
 # sctg_summary.py against faf5_od_matrix_by_sctg.pq). Used only as the
 # fallback default in plot_freight_industry_breakdown() -- a national average
 # proxy for whichever hazards load_freight_industry_mix() doesn't have a real
-# per-hazard mix for yet (see docs/VA_MULTIHAZARD_COMPARISON.md, "Resolved:
+# per-hazard mix for yet (see docs/CONUS_MULTIHAZARD_METHODOLOGY.md, "Resolved:
 # freight-by-industry breakdown"). Real shares come from
 # scripts/compute_freight_industry_mix.py, which joins Script 4's disrupted
 # freight OD pairs against faf5_od_matrix_by_sctg.pq on the shared

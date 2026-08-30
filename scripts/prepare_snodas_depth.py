@@ -31,7 +31,7 @@ prepare_shakemap_pga.py's own docstring for that history):
    fragility/winter_storm_categorical.py's compute_damage_levels_vectorized
    already expects, and matches the "meters->mm" conversion already
    documented for this project's existing single SNODAS day (2016-01-23) in
-   parameters/hazards.va_real.example.json.
+   parameters/hazards.conus_multihazard.example.json.
 
 3. NODATA: -9999 (from the header's "No data value" field). Also masks
    32767 (int16's maximum representable value) as a second, undocumented
@@ -66,7 +66,7 @@ Usage::
 
     python scripts/prepare_snodas_depth.py \\
         --tar inputs_raw/winter_storm/SNODAS_20210217.tar \\
-        --output inputs/va_multihazard_raw/winter_storm/uri_20210217/depth_mm.tif
+        --output inputs/multihazard_raw/winter_storm/uri_20210217/depth_mm.tif
 """
 
 from __future__ import annotations

@@ -3,7 +3,7 @@
 Living record of significant findings, fixes, and open questions that don't belong
 in a single commit message or a single doc. Append newest entries at the top of each
 section. For hazard *data sourcing* specifics (raster sources, resolutions, unit
-conversions), see `docs/VA_MULTIHAZARD_COMPARISON.md` instead — that's the source of
+conversions), see `docs/CONUS_MULTIHAZARD_METHODOLOGY.md` instead — that's the source of
 truth for what feeds the pipeline; this file is the source of truth for what's been
 found wrong, fixed, or left open in the code and methodology around it.
 
@@ -16,10 +16,10 @@ Branch: `feature/freight-passenger-shared-capacity` unless noted.
 | Item | Status | Where |
 |---|---|---|
 | Flood damage curves (`damage_ratio_road_flood.xlsx`, `damage_cost_road_flood.xlsx`) vs. Nandu's master spreadsheet | **Resolved (confirmed NOT applied), 2026-08-29** — see "Nandu's parameter audit" entry below. The underlying curve *values* are unchanged; only some unrelated constants (VOT/fuel/occupancy) from the same audit were adopted. | `soge_clusters/damage_curves/`, `soge_clusters/asset_costs/` on Hopper; `parameters/unified_parameters.json` |
-| Winter storm (601 Jonas, 602/603/604 Uri/Elliott/Snowmageddon) | Direct damage cost methodology confirmed wrong (flood-shim, ~150-1000x too high vs. real-world Jonas estimates). 602/603/604 additionally never completed a real full-CONUS run — only stale pre-bugfix data exists on disk (2026-08-24), two live attempts since have timed out (24h, then 48h) | `docs/VA_MULTIHAZARD_COMPARISON.md`, this file's "Winter storm direct-cost methodology" entry below |
+| Winter storm (601 Jonas, 602/603/604 Uri/Elliott/Snowmageddon) | Direct damage cost methodology confirmed wrong (flood-shim, ~150-1000x too high vs. real-world Jonas estimates). 602/603/604 additionally never completed a real full-CONUS run — only stale pre-bugfix data exists on disk (2026-08-24), two live attempts since have timed out (24h, then 48h) | `docs/CONUS_MULTIHAZARD_METHODOLOGY.md`, this file's "Winter storm direct-cost methodology" entry below |
 | New Madrid (403) asset-type split / freight industry mix | Not yet run — `compute_direct_damage_by_asset_type.py` / `compute_freight_industry_mix.py` never executed for scenario 403 | `results/finale_2026_08/build_finale_figures.py` |
-| CPU-scaling benchmark for Script 4 | Written, updated to `streaming_arrays` (the confirmed-faster strategy, see below) but not yet run | `experiments/va_multihazard/hopper/nandu_v1/submit_earthquake_403_cpu{16,32,64,128}_benchmark.slurm` |
-| Winter storm 602/603/604 resubmission with `streaming_arrays` | SLURM scripts updated, not yet resubmitted | `experiments/va_multihazard/hopper/nandu_v1/submit_winter_storm_60{2,3,4}.slurm` |
+| CPU-scaling benchmark for Script 4 | Written, updated to `streaming_arrays` (the confirmed-faster strategy, see below) but not yet run | `experiments/conus_multihazard/hopper/nandu_v1/submit_earthquake_403_cpu{16,32,64,128}_benchmark.slurm` |
+| Winter storm 602/603/604 resubmission with `streaming_arrays` | SLURM scripts updated, not yet resubmitted | `experiments/conus_multihazard/hopper/nandu_v1/submit_winter_storm_60{2,3,4}.slurm` |
 | Passenger rerouting at national/CONUS scale | Never run — the freight/passenger shared-capacity fix (below) is verified on the toy network only | `scripts/4_rerouting_and_recovery_scenario_loop.py` |
 | Nandu's flood-cost tables (T22/T24) | Verified/sourced replacement data exists but is not wired in (`use_table_*` flags off) — see "Nandu's parameter audit" entry below | `parameters/unified_parameters.json`, Nandu's `parameter_diff_final.xlsx` |
 | Fig. 3-style flow validation (modeled vs. observed) | Not started. Our OD is inter-county only, missing intra-county trips, so a direct AADT match won't be exact. Real-count sources identified for when this is picked up: MWCOG annual traffic counts (DMV area) — [layer 0](https://gis.mwcog.org/wa/rest/services/RTDC/Traffic_Counts_Annual/MapServer/0/query?outFields=*&where=1%3D1), [layer 1](https://gis.mwcog.org/wa/rest/services/RTDC/Traffic_Counts_Annual/MapServer/1/query?outFields=*&where=1%3D1); TxDOT truck volume/percent — [feature service](https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/Truck%20Volume%20and%20Percent/FeatureServer/0/query?outFields=*&where=1%3D1); TxDOT historic+current AADT — [feature service](https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_AADT_Annuals_\(Public_View\)/FeatureServer/0/query?outFields=*&where=1%3D1) | (future work) |
@@ -84,7 +84,7 @@ recovery) key off it for every hazard type, which is a live, unresolved
 methodological question for earthquake/landslide (no floodwater to recede).
 
 **Pending, not yet done:** update the `duckdb_chunked_compact` references in
-`experiments/va_multihazard/hopper/nandu_v1/*.slurm` once the strategy A/B test
+`experiments/conus_multihazard/hopper/nandu_v1/*.slurm` once the strategy A/B test
 (above) resolves — every current SLURM script still hard-codes it, and if
 `streaming_arrays` wins, those comments/configs need to change together, not be left
 half-updated.
@@ -201,7 +201,7 @@ for full detail. Summary, because these are easy to lose track of across branche
    (`rerouting_cost`, `isolation_cost`, `direct_damage_total`) matched to 10
    significant figures, differing only by floating-point noise from a different
    execution order — zero correctness cost. All production and benchmark SLURM
-   scripts in `experiments/va_multihazard/hopper/nandu_v1/` switched to
+   scripts in `experiments/conus_multihazard/hopper/nandu_v1/` switched to
    `streaming_arrays` accordingly (2026-08-30). Already-completed hazards (301, 304,
    401, 403, 501, 601) don't need re-running for this — their numbers are
    unaffected, this only changes how fast a *future* run would go. Winter storm

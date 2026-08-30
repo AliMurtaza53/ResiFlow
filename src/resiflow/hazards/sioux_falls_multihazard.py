@@ -16,7 +16,7 @@ class SiouxFallsMultihazardSource:
     """Read event rasters from inputs/<multihazard_dir>/<subtype>/event_<key>.tif.
 
     ``multihazard_dir`` defaults to the synthetic testbed tree but is a class
-    attribute specifically so real-data sources (see hazards/real_va.py) can
+    attribute specifically so real-data sources (see hazards/real_events.py) can
     subclass this with a different root instead of duplicating the directory
     scan / event-file-map logic.
     """

@@ -348,7 +348,7 @@ def run_disruption(
     if resolved_type == "earthquake":
         from resiflow.disruption.earthquake import intersections_with_earthquake
         from resiflow.disruption.pipeline_intensity import run_intensity_disruption
-        from resiflow.hazards.real_va import resolve_real_source
+        from resiflow.hazards.real_events import resolve_real_source
         from resiflow.hazards.sioux_falls_multihazard import EarthquakeHazardSource
 
         if base_path is None:
@@ -378,7 +378,7 @@ def run_disruption(
     if resolved_type == "landslide":
         from resiflow.disruption.landslide import intersections_with_landslide
         from resiflow.disruption.pipeline_intensity import run_intensity_disruption
-        from resiflow.hazards.real_va import resolve_real_source
+        from resiflow.hazards.real_events import resolve_real_source
         from resiflow.hazards.sioux_falls_multihazard import LandslideHazardSource
 
         if base_path is None:
@@ -402,7 +402,7 @@ def run_disruption(
 
     if resolved_type == "winter_storm":
         from resiflow.disruption.pipeline_winter_storm import run_winter_storm_disruption
-        from resiflow.hazards.real_va import resolve_real_source
+        from resiflow.hazards.real_events import resolve_real_source
 
         if base_path is None:
             from resiflow.utils import load_config
@@ -452,7 +452,7 @@ def run_disruption(
     if hazard_source is None:
         import os as _os
 
-        from resiflow.hazards.real_va import resolve_real_source
+        from resiflow.hazards.real_events import resolve_real_source
 
         flood_subtype = (
             scenario.hazard_subtype

@@ -12,9 +12,9 @@ config.json
 .env
 .env.local
 
-# Large local hazard downloads (see inputs/va_multihazard_raw/README.md)
-inputs/va_multihazard_raw/
-inputs/va_multihazard_aligned/
+# Large local hazard downloads (see inputs/multihazard_raw/README.md)
+inputs/multihazard_raw/
+inputs/multihazard_aligned/
 
 # Run outputs
 # NOTE: results/ (not results) so the finale_2026_08 exception below can
