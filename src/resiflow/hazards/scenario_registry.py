@@ -66,7 +66,7 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(302, "flood", hazard_subtype="flood_river", closure_threshold=30, label="flood_river"),
     HazardScenario(303, "flood", hazard_subtype="flood_coastal", closure_threshold=30, label="flood_coastal"),
     # Real Hurricane Harvey depths, Houston/Harris County TX -- NOT a VA
-    # scenario (zero bbox overlap, see docs/VA_MULTIHAZARD_COMPARISON.md,
+    # scenario (zero bbox overlap, see docs/CONUS_MULTIHAZARD_METHODOLOGY.md,
     # "Harvey" section). A separate case study reusing the same CONUS
     # network/pipeline, not a VA flood_subtype.
     HazardScenario(
@@ -76,15 +76,15 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     # Real NSHM 2023 (probabilistic, 475yr RP) contour-rasterized PGA, the
     # earthquake default before 2026-08-03. Kept reachable under its own
     # scenario_param now that 401's default resolves to the real 2011
-    # Mineral, VA ShakeMap PGA instead (see hazards/real_va.py,
-    # RealEarthquakeShakeMapSource, and docs/VA_MULTIHAZARD_COMPARISON.md).
+    # Mineral, VA ShakeMap PGA instead (see hazards/real_events.py,
+    # RealEarthquakeShakeMapSource, and docs/CONUS_MULTIHAZARD_METHODOLOGY.md).
     HazardScenario(
         402, "earthquake", hazard_subtype="earthquake_nshm", closure_threshold=25, label="earthquake_nshm"
     ),
     # USGS Earthquake Scenarios M7.5 New Madrid central fault (BSSC2014) --
     # a genuinely regional/sub-national earthquake footprint (8 states),
     # unlike Mineral's single-state reach. See
-    # hazards/real_va.py's RealEarthquakeNewMadridScenarioSource.
+    # hazards/real_events.py's RealEarthquakeNewMadridScenarioSource.
     HazardScenario(
         403,
         "earthquake",
@@ -96,7 +96,7 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(601, "winter_storm", closure_threshold=100, label="winter_storm"),
     # Additional real SNODAS days for winter-storm severity/regional
     # diversity beyond the single 2016-01-23 (Jonas) default -- see
-    # hazards/real_va.py's RealWinterStormUri/Elliott/SnowmageddonSource.
+    # hazards/real_events.py's RealWinterStormUri/Elliott/SnowmageddonSource.
     HazardScenario(
         602, "winter_storm", hazard_subtype="winter_storm_uri", closure_threshold=100, label="winter_storm_uri"
     ),

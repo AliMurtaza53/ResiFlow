@@ -3,7 +3,7 @@
 
 Replaces the current unconditional ``road_bridge = 'no'`` stub in
 faf5_network.py's ``DEFAULTS`` with a real, sourced attribute -- see
-parameter_diff_final.xlsx item 36 and docs/VA_MULTIHAZARD_COMPARISON.md for
+parameter_diff_final.xlsx item 36 and docs/CONUS_MULTIHAZARD_METHODOLOGY.md for
 the diagnosis: FAF5's own schema carries no bridge/structure field at all
 (confirmed by reading its documented schema in faf5_network.py's own
 docstring), so every link in every hazard run this project has produced so

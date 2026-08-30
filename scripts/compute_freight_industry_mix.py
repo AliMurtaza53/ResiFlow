@@ -109,7 +109,7 @@ def resolve_disrupted_freight_candidates(
     Mirrors main()'s candidate-source resolution (lines ~577-652) and initial
     damaged_edges derivation (~653-692) exactly, EXCEPT the "event_candidates"
     (Pass B) branch -- the current orchestrator no longer produces those
-    artifacts (Pass B was eliminated, docs/VA_MULTIHAZARD_COMPARISON.md), so
+    artifacts (Pass B was eliminated, docs/CONUS_MULTIHAZARD_METHODOLOGY.md), so
     that branch is intentionally omitted rather than dead code copied for its
     own sake. If a legacy event_disrupted_candidates directory is ever found
     again this will fall through to the odpfc/path_index branches below it,

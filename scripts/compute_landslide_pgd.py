@@ -20,9 +20,9 @@ different numbering.
 Example::
 
     python scripts/compute_landslide_pgd.py \
-        --susceptibility inputs/va_multihazard_aligned/landslide_susceptibility/event_1.tif \
-        --pga inputs/va_multihazard_aligned/earthquake/event_1.tif \
-        --output inputs/va_multihazard_aligned/landslide/event_1.tif \
+        --susceptibility inputs/multihazard_aligned/landslide_susceptibility/event_1.tif \
+        --pga inputs/multihazard_aligned/earthquake/event_1.tif \
+        --output inputs/multihazard_aligned/landslide/event_1.tif \
         --magnitude 5.8
 """
 

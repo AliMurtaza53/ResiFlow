@@ -43,7 +43,7 @@ changes to load_odpfc_source are needed, since it only cares that
 <baseline>/odpfc_edge_index/part_*.pq exists and has (od_id, e_id) columns,
 not how it's internally sorted.
 
-Usage (on a compute node -- see experiments/va_multihazard/hopper/
+Usage (on a compute node -- see experiments/conus_multihazard/hopper/
 submit_sort_edge_index.slurm)::
 
     python scripts/sort_odpfc_edge_index.py \

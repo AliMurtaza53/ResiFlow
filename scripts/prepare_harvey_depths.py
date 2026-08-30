@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Downsample+reproject the real Hurricane Harvey flood-depth grid for a new,
 Houston/Harris-County flood case study (NOT a VA source -- see
-docs/VA_MULTIHAZARD_COMPARISON.md, "Harvey" section).
+docs/CONUS_MULTIHAZARD_METHODOLOGY.md, "Harvey" section).
 
 Source: Harvey_Depths_3m_Final.gdb.zip, a 39GB-zipped / ~84GB-uncompressed
 Esri File Geodatabase raster (150074x140878 px at ~3m/px, EPSG:4269), bounds
@@ -37,7 +37,7 @@ between a handful of nearby ones and could alias.
 This script does the reproject+resample to the final target grid itself (via
 streaming reproject(), not a full-array read), so unlike the other real-data
 hazards its output should be written DIRECTLY to the
-inputs/va_multihazard_aligned/<hazard_subtype>/event_1.tif convention --
+inputs/multihazard_aligned/<hazard_subtype>/event_1.tif convention --
 running it through align_hazard_rasters.py afterwards would just resample a
 second time for no benefit, and that script's align_raster() does a full
 src.read() first, which is exactly the bottleneck this script exists to
@@ -47,7 +47,7 @@ Usage::
 
     python scripts/prepare_harvey_depths.py \
         --input /scratch/.../inputs_raw/Harvey_Depths_3m_Final.gdb \
-        --output /scratch/.../inputs/va_multihazard_aligned/flood_harvey_houston/event_1.tif \
+        --output /scratch/.../inputs/multihazard_aligned/flood_harvey_houston/event_1.tif \
         --resolution 50
 """
 
