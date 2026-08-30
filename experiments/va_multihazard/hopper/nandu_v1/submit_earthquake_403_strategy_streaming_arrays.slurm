@@ -1,10 +1,19 @@
 #!/bin/bash
 #SBATCH --job-name=nandu_eq403_strat_streaming
 #SBATCH --partition=bigmem
+# RESULT (2026-08-30, job 9495350): CONFIRMED FASTER. streaming_arrays
+# completed in 9h37m35s vs. the duckdb_chunked_compact baseline's 12h24m32s
+# (job 9471507) -- a 22.4% reduction, same 8 CPUs. Dollar totals match to
+# 10 significant figures (rerouting_cost, isolation_cost, direct_damage_total
+# all identical except floating-point noise from a different execution
+# order) -- confirmed zero correctness cost. Every other Script 4 SLURM
+# script in this directory has since been switched to streaming_arrays;
+# this file is kept as the A/B record, not meant to be resubmitted as-is.
+#
 # Path-realization STRATEGY A/B test, not a CPU-scaling test -- same 8 CPUs,
 # same everything else as the original production run, only
 # NIRD_PATH_REALIZATION_STRATEGY changed from duckdb_chunked_compact
-# (current production default, every Script 4 job to date) to
+# (production default at the time, every Script 4 job through 2026-08-29) to
 # streaming_arrays.
 #
 # WHY: notes/perf_findings/GOAL8_FULL_QUEUE_RESULTS.md (branch

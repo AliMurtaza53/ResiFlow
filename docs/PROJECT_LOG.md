@@ -18,8 +18,8 @@ Branch: `feature/freight-passenger-shared-capacity` unless noted.
 | Flood damage curves (`damage_ratio_road_flood.xlsx`, `damage_cost_road_flood.xlsx`) vs. Nandu's master spreadsheet | **Resolved (confirmed NOT applied), 2026-08-29** — see "Nandu's parameter audit" entry below. The underlying curve *values* are unchanged; only some unrelated constants (VOT/fuel/occupancy) from the same audit were adopted. | `soge_clusters/damage_curves/`, `soge_clusters/asset_costs/` on Hopper; `parameters/unified_parameters.json` |
 | Winter storm (601 Jonas, 602/603/604 Uri/Elliott/Snowmageddon) | Direct damage cost methodology confirmed wrong (flood-shim, ~150-1000x too high vs. real-world Jonas estimates). 602/603/604 additionally never completed a real full-CONUS run — only stale pre-bugfix data exists on disk (2026-08-24), two live attempts since have timed out (24h, then 48h) | `docs/VA_MULTIHAZARD_COMPARISON.md`, this file's "Winter storm direct-cost methodology" entry below |
 | New Madrid (403) asset-type split / freight industry mix | Not yet run — `compute_direct_damage_by_asset_type.py` / `compute_freight_industry_mix.py` never executed for scenario 403 | `results/finale_2026_08/build_finale_figures.py` |
-| Path-realization strategy A/B test (`duckdb_chunked_compact` vs `streaming_arrays`) for Script 4 | Submitted, pending result | `experiments/va_multihazard/hopper/nandu_v1/submit_earthquake_403_strategy_streaming_arrays.slurm` |
-| CPU-scaling benchmark for Script 4 | Written, held pending the strategy result above (no point scaling a strategy that may already be wrong) | `experiments/va_multihazard/hopper/nandu_v1/submit_earthquake_403_cpu{16,32,64,128}_benchmark.slurm` |
+| CPU-scaling benchmark for Script 4 | Written, updated to `streaming_arrays` (the confirmed-faster strategy, see below) but not yet run | `experiments/va_multihazard/hopper/nandu_v1/submit_earthquake_403_cpu{16,32,64,128}_benchmark.slurm` |
+| Winter storm 602/603/604 resubmission with `streaming_arrays` | SLURM scripts updated, not yet resubmitted | `experiments/va_multihazard/hopper/nandu_v1/submit_winter_storm_60{2,3,4}.slurm` |
 | Passenger rerouting at national/CONUS scale | Never run — the freight/passenger shared-capacity fix (below) is verified on the toy network only | `scripts/4_rerouting_and_recovery_scenario_loop.py` |
 | Nandu's flood-cost tables (T22/T24) | Verified/sourced replacement data exists but is not wired in (`use_table_*` flags off) — see "Nandu's parameter audit" entry below | `parameters/unified_parameters.json`, Nandu's `parameter_diff_final.xlsx` |
 | Fig. 3-style flow validation (modeled vs. observed) | Not started. Our OD is inter-county only, missing intra-county trips, so a direct AADT match won't be exact. Real-count sources identified for when this is picked up: MWCOG annual traffic counts (DMV area) — [layer 0](https://gis.mwcog.org/wa/rest/services/RTDC/Traffic_Counts_Annual/MapServer/0/query?outFields=*&where=1%3D1), [layer 1](https://gis.mwcog.org/wa/rest/services/RTDC/Traffic_Counts_Annual/MapServer/1/query?outFields=*&where=1%3D1); TxDOT truck volume/percent — [feature service](https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/Truck%20Volume%20and%20Percent/FeatureServer/0/query?outFields=*&where=1%3D1); TxDOT historic+current AADT — [feature service](https://services.arcgis.com/KTcxiTD9dsQw4r7Z/arcgis/rest/services/TxDOT_AADT_Annuals_\(Public_View\)/FeatureServer/0/query?outFields=*&where=1%3D1) | (future work) |
@@ -188,14 +188,27 @@ for full detail. Summary, because these are easy to lose track of across branche
    connections plus vectorizing two Python-loop hot spots (`cap_by_eid` lookup,
    event-edge matching) — 3-4x end-to-end speedup on a 200k-OD profiling scenario,
    byte-identical output confirmed before/after.
-3. **`duckdb_chunked_compact` — the strategy every current Script 4 SLURM job
-   hard-codes — was explicitly benchmarked against the fix above and abandoned as a
-   production candidate**: slower overall, and scales *negatively* with CPU count
-   (1052s→1909s going 1→4 CPUs). That finding was never carried into Script 4's
-   config, which still uses it today. Untested at Script-4/CONUS-recovery-loop scale
-   specifically (the benchmark was on Script 1's Pass A) — hence the A/B test in
-   "Open items" above, which should resolve before any CPU-scaling conclusions are
-   drawn.
+3. **`duckdb_chunked_compact` — the strategy every Script 4 SLURM job used through
+   2026-08-29 — was explicitly benchmarked against `streaming_arrays` on Script 1's
+   Pass A and abandoned as a production candidate there** (slower overall, scales
+   *negatively* with CPU count, 1052s→1909s going 1→4 CPUs). That finding was never
+   carried into Script 4's config until now.
+
+   **Confirmed at Script-4/CONUS-recovery-loop scale, 2026-08-30** (job 9495350 vs.
+   the existing 9471507 baseline, both earthquake/403, both 8 CPUs, only the
+   strategy changed): `streaming_arrays` completed in **9h37m35s** vs.
+   `duckdb_chunked_compact`'s **12h24m32s** — a **22.4% reduction**. Dollar totals
+   (`rerouting_cost`, `isolation_cost`, `direct_damage_total`) matched to 10
+   significant figures, differing only by floating-point noise from a different
+   execution order — zero correctness cost. All production and benchmark SLURM
+   scripts in `experiments/va_multihazard/hopper/nandu_v1/` switched to
+   `streaming_arrays` accordingly (2026-08-30). Already-completed hazards (301, 304,
+   401, 403, 501, 601) don't need re-running for this — their numbers are
+   unaffected, this only changes how fast a *future* run would go. Winter storm
+   602/603/604 (never yet completed, two prior timeouts at 24h/48h) are the
+   highest-value candidates to resubmit with this change; the CPU-scaling benchmark
+   should also be re-run with the corrected strategy before drawing any core-count
+   conclusions.
 4. Run-to-run wall-clock variance up to 80% was observed and investigated — traced to
    disk I/O contention from ~105GB of accumulated experiment output on the same node
    during a benchmarking session (self-inflicted, not scheduler randomness), not to

@@ -17,6 +17,13 @@
 # regular users don't have (confirmed: `scontrol update ... TimeLimit=`
 # returned "Access/permission denied"), so the budget has to be sized
 # generously up front rather than extended live. bigmem allows up to 7 days.
+# --path-realization strategy switched duckdb_chunked_compact -> streaming_arrays
+# (2026-08-30): A/B tested on earthquake/403 at identical CPU count, confirmed
+# 22.4% faster (12h24m -> 9h37m) with dollar totals matching to 10 significant
+# figures -- see submit_earthquake_403_strategy_streaming_arrays.slurm and
+# docs/PROJECT_LOG.md. Kept the 96h budget as a safety margin rather than
+# cutting it, since Uri's candidate count (9.2M vs. New Madrid's 1.75M) means
+# the speedup alone may not be enough to guarantee completion.
 #SBATCH --time=96:00:00
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=900G
@@ -33,7 +40,7 @@ export NIRD_RESULTS_VARIANT=conus_nandu_v1
 export RESIFLOW_RESULTS_VARIANT=conus_nandu_v1
 export NIRD_DUCKDB_MEMORY_LIMIT=800GB
 export NIRD_DUCKDB_TEMP_DIRECTORY=/scratch/akothaw/multimodal_hazard_data/duckdb_tmp_va_multihazard_nandu
-export NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact
+export NIRD_PATH_REALIZATION_STRATEGY=streaming_arrays
 export NIRD_LCP_DEST_CHUNK_SIZE=1000
 export NIRD_FLOW_DB_BATCH_SIZE=50000
 export NIRD_LCP_SORT_BY_DEST_COUNT=1
