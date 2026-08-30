@@ -281,20 +281,28 @@ def calculate_damage(
     """
     Calculate damage fractions and costs for disrupted road links based on flood depth.
 
-    CONFIRMED SHIM for non-flood hazards (2026-08-20): this function is
-    flood-only by construction -- hardcoded flood_types=["surface","river"],
+    Flood-only by construction -- hardcoded flood_types=["surface","river"],
     no hazard_type parameter, reads/prices via damage_ratio_road_flood.xlsx
-    and damage_cost_road_flood.xlsx exclusively. For earthquake/landslide/
-    winter_storm, disruption/build.py's build_{earthquake,landslide,
-    winter_storm}_link_disruption() functions repackage each hazard's own
-    intensity (PGA in g, PGD in mm, ice/snow in mm) into a column literally
-    named flood_depth_max via an arbitrary unit-matching multiplier (e.g.
-    PGA * 0.5), which flows into this function's flood_depth_surface/river
-    columns and gets priced with FLOOD repair costs. There is no
-    earthquake/landslide/winter_storm-specific damage-ratio or unit-cost
-    table anywhere in this repo -- do not trust direct_damage_total for
-    those hazards until real hazard-specific tables replace this (see
-    disruption/build.py's per-hazard SHIM comments for what's needed).
+    and damage_cost_road_flood.xlsx exclusively.
+
+    STATUS CORRECTED 2026-08-29 (the prior version of this comment, dated
+    2026-08-20, described a real gap that a6b6f0b then fixed for two of the
+    three hazards named below and is now stale/misleading for those two):
+    scripts/3_damage_analysis.py's main() only calls this function for
+    hazard_type == "flood". Earthquake and landslide route around it
+    entirely, through hazards/hazus_bridge.py's compute_row_direct_damage_
+    musd() (real FEMA HAZUS 6.1 Ch.7 fragility/cost) -- their
+    direct_damage_total IS trustworthy at the scope hazus_bridge.py itself
+    documents (earthquake: bridges only, ground-shaking only; landslide:
+    HAZUS's ground-failure/PGD fragility for both bridges and roads).
+    winter_storm has no such branch and still falls through to this
+    function -- disruption/build.py's build_winter_storm_link_disruption()
+    repackages ice/snow depth (mm) into a column literally named
+    flood_depth_max via an arbitrary unit-matching multiplier, which this
+    function then prices with FLOOD repair costs. There is no HAZUS module
+    or other domain-appropriate cost table for winter storm anywhere in this
+    repo -- do not trust direct_damage_total for that hazard (see
+    disruption/build.py's build_winter_storm_link_disruption() comment).
 
     Parameters
     ----------

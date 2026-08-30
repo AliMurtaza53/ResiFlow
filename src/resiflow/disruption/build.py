@@ -185,21 +185,24 @@ def build_earthquake_link_disruption(
         scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
-    # SHIM, NOT A REAL COST MODEL -- confirmed 2026-08-20 while investigating
-    # whether direct damage costs use hazard-appropriate methodology (they
-    # don't). PGA(g) * 0.5 is repackaged into a column literally named
-    # flood_depth_max purely so it numerically resembles a plausible flood
-    # depth in metres -- downstream, calculate_damage() (scripts/
-    # 3_damage_analysis.py) evaluates this against damage_ratio_road_flood.xlsx
-    # and prices it with damage_cost_road_flood.xlsx, i.e. every earthquake_401
-    # run's direct_damage_total_usd is FLOOD repair costs applied to a fake
-    # "flood depth" derived from PGA, not any earthquake-specific damage
-    # function. calculate_damage() itself hardcodes flood_types=["surface",
-    # "river"] with no hazard_type branching at all -- there is currently no
-    # earthquake-specific damage-ratio/cost table anywhere in this repo.
-    # Do not trust direct_damage_total for this hazard until a real
-    # PGA-to-damage-ratio/cost table (e.g. from FEMA HAZUS's Earthquake
-    # Technical Manual, Ch. 7) replaces this.
+    # NOT a cost shim anymore (comment corrected 2026-08-29 -- the prior
+    # version of this comment, dated 2026-08-20, described a real gap that
+    # a6b6f0b then fixed and is now stale/misleading). Direct damage cost for
+    # earthquake is priced by scripts/3_damage_analysis.py's hazard_type
+    # branch, which routes to hazards/hazus_bridge.py's
+    # compute_row_direct_damage_musd() (real FEMA HAZUS 6.1 Ch.7 bridge
+    # fragility/cost, Sa(1.0s)-based) -- calculate_damage()'s flood-curve
+    # path is only reached for hazard_type == "flood" now.
+    #
+    # flood_depth_max is still set here (PGA(g) * 0.5, an arbitrary
+    # unit-matching multiplier, not a real depth-equivalent conversion) and
+    # is still LIVE, not vestigial: Script 4's residual-floodwater speed
+    # gates (day-2/day-3 recovery, "apply speed constraint to roads with
+    # flooddepth (2-6) metres") key off this same column for every hazard
+    # type, earthquake included. Whether a residual-floodwater-style speed
+    # constraint should apply to earthquake-damaged roads at all -- there's
+    # no floodwater to recede -- is an open methodological question, not
+    # resolved by this comment; flagging so it isn't mistaken for dead code.
     out["flood_depth_max"] = out["intensity_primary"] * 0.5
     return out
 
@@ -231,13 +234,18 @@ def build_landslide_link_disruption(
         scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
-    # SHIM, NOT A REAL COST MODEL -- see build_earthquake_link_disruption's
-    # comment above for the full explanation; same mechanism here (PGD mm /
-    # 1000 repackaged as a fake "flood depth" in metres, then priced with
-    # FLOOD's damage_ratio/cost tables via calculate_damage()). Do not trust
-    # direct_damage_total for landslide until a real PGD-to-damage-ratio/cost
-    # table (HAZUS's ground-failure section, same source already used for
-    # the PGD computation itself) replaces this.
+    # NOT a cost shim anymore (see build_earthquake_link_disruption's comment
+    # above -- same correction applies). Landslide direct damage is also
+    # priced via hazards/hazus_bridge.py's compute_row_direct_damage_musd()
+    # (hazard_type == "landslide" branch, HAZUS's ground-failure/PGD
+    # fragility for both bridges and ordinary roads -- a defensible proxy
+    # since PGD is genuinely the shared mechanism, not a landslide-bespoke
+    # curve, since HAZUS has no separate landslide module).
+    #
+    # flood_depth_max (PGD mm / 1000, an arbitrary unit-matching conversion)
+    # is still LIVE, not vestigial -- see the same note in
+    # build_earthquake_link_disruption re: Script 4's residual-floodwater
+    # speed gates keying off this column for every hazard type.
     out["flood_depth_max"] = out["landslide_max_mm"] / 1000.0
     return out
 
@@ -274,13 +282,25 @@ def build_winter_storm_link_disruption(
         scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
-    # SHIM, NOT A REAL COST MODEL -- see build_earthquake_link_disruption's
-    # comment above for the full explanation; same mechanism here (ice/snow
-    # mm / 1000 repackaged as a fake "flood depth" in metres, then priced
-    # with FLOOD's damage_ratio/cost tables via calculate_damage()). No
-    # HAZUS reference exists for this hazard (winter storm isn't one of
-    # HAZUS's four modules) -- a real cost table here would need a different
-    # source, e.g. state DOT snow/ice removal cost data.
+    # SHIM, NOT A REAL COST MODEL -- unlike earthquake/landslide (see
+    # build_earthquake_link_disruption's comment above), this one is still
+    # accurate: scripts/3_damage_analysis.py's hazard_type branch only
+    # special-cases earthquake/landslide, so winter_storm still falls through
+    # to calculate_damage()'s flood-curve path -- ice/snow mm / 1000
+    # repackaged as a fake "flood depth" in metres, then priced with FLOOD's
+    # damage_ratio/cost tables. No HAZUS reference exists for this hazard
+    # (winter storm isn't one of HAZUS's four modules) -- a real cost table
+    # here would need a different source, e.g. state DOT snow/ice removal
+    # cost data. Confirmed independently wrong by ~150-1000x against
+    # real-world Winter Storm Jonas damage estimates (see
+    # results/finale_2026_08/build_finale_figures.py's WINTER_STORM_EXCLUSION).
+    #
+    # flood_depth_max is also read by Script 4's residual-floodwater speed
+    # gates (day-2/day-3 recovery) -- unlike earthquake/landslide, a
+    # residual-snow-on-the-road-receding-over-days analogy is at least
+    # plausible for this hazard, though the gate thresholds (2m/6m) were
+    # tuned for actual floodwater, not snow depth, and haven't been
+    # re-validated for this use.
     out["flood_depth_max"] = out["winter_storm_max_mm"] / 1000.0
     return out
 
