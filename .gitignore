@@ -16,6 +16,12 @@ config.json
 inputs/multihazard_raw/
 inputs/multihazard_aligned/
 
+# Copyrighted published papers -- kept locally for reference (see
+# docs/reference/README.md) but not redistributable via a public repo,
+# unlike the government-published documents also under docs/reference/.
+docs/reference/pant_hazardpaper_trd_new.pdf
+docs/reference/SupplementaryInfo_pant_trdpaper.pdf
+
 # Run outputs
 results/
 logs/

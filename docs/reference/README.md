@@ -16,3 +16,13 @@
 
 - **`phase0_flood_summary.csv`** — pinned Sioux Falls toy-network baseline
   used by `tests/test_phase0_summary_parity.py` for regression testing.
+
+- **`pant_hazardpaper_trd_new.pdf`** and **`SupplementaryInfo_pant_trdpaper.pdf`**
+  — Pant et al., the TRD paper this project's Script 4 rerouting/recovery
+  methodology is already built against (Fig. 3 validation and Fig. 4
+  ranked-stacked-cost comparison are the visual targets referenced
+  elsewhere in this project's docs). Copied here 2026-08-31 from
+  `ResiFlow_HPC_Memo/` for convenient access alongside the rest of the
+  codebase. **Gitignored, not committed** — unlike the NBI guide above,
+  this is a copyrighted published journal article, not a government
+  publication; find your own copy locally if this file isn't present.
