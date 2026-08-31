@@ -1369,23 +1369,23 @@ def realize_paths_streaming(
     ]
 
     # Single streaming Arrow read instead of one LIMIT/OFFSET query per
-    # chunk. NOTE on what this does and doesn't explain: a real CONUS-scale
-    # run (Anvil, 2026-08-30) showed per-chunk time climbing from 169.6s
-    # (chunk 1) to 224.9s (chunk 18) despite constant row count per chunk --
-    # but a local isolated test (2M synthetic rows, same path-column shape)
-    # found DuckDB's LIMIT/OFFSET does NOT slow down with growing offset
-    # (flat ~0.17s regardless of position), so that climb is NOT explained
-    # by OFFSET re-scanning the way it looked at first. What the same local
-    # test DID confirm: 20 separate LIMIT/OFFSET queries (~0.17s each,
-    # ~3.4s total) cost meaningfully more than one streaming read of the
-    # same data (~0.66s total) purely from repeated query-planning/
-    # execution overhead -- a real but modest win, not a fix for the
-    # observed climb. The dominant real-world cost remains unexplained;
-    # see docs/PROJECT_LOG.md for the fuller writeup and what was ruled out
-    # (see also: np.add.at batching and a flatten+bincount rewrite of the
-    # per-row .sum()/.tolist() calls below were both tried and reverted --
-    # neither beat the existing per-row loop in local testing at realistic
-    # CONUS path lengths, so the loop below is unchanged from before).
+    # chunk. CONFIRMED FIX (Anvil, 2026-08-30, job 20243490 vs. baseline job
+    # 20240812 -- both cpu16, identical config, only this change differs):
+    # pass 1 dropped from 3637s (60.6min, climbing 169.6s->224.9s per chunk
+    # as OFFSET grew) to 359.4s (6.0min, flat) -- a ~10x speedup on this
+    # phase alone, taking total Pass A wall time from 5049.9s to 1336.4s
+    # (3.8x overall). A small (2M-row, in-memory) local synthetic test run
+    # before this real validation wrongly suggested LIMIT/OFFSET cost was
+    # flat regardless of position and that this change would be a minor,
+    # not dominant, improvement -- it wasn't representative of a real
+    # on-disk table at true ~9.68M-row CONUS scale. Lesson: a real-scale
+    # test beats a smaller synthetic one for this kind of question; see
+    # docs/PROJECT_LOG.md for the corrected writeup and full before/after
+    # numbers (see also: np.add.at batching and a flatten+bincount rewrite
+    # of the per-row .sum()/.tolist() calls below were also tried and
+    # reverted -- neither beat the existing per-row loop in local testing,
+    # and with pass 1 now at 6 minutes total, that loop is no longer the
+    # place to look for further gains anyway).
     pass1_reader = conn.execute(
         f"SELECT od_id, origin, destination, path, flow FROM {temp_flow_table}"
     ).to_arrow_reader(chunk_size)

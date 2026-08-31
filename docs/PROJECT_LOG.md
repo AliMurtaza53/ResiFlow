@@ -28,7 +28,21 @@ Branch: `feature/freight-passenger-shared-capacity` unless noted.
 
 ## Code fixes
 
-### Investigated: `realize_paths_streaming()` per-chunk slowdown at CONUS scale — one real fix landed, two hypotheses disproven, root cause still open (2026-08-30)
+### Fixed: `realize_paths_streaming()` per-chunk slowdown at CONUS scale — 10x on the affected phase, 3.8x overall (2026-08-30, corrected same day)
+
+**CORRECTION (same day, later run):** this entry originally concluded the
+`LIMIT/OFFSET` fix below was real but minor and that the dominant cost
+remained unexplained, based on a small (2M-row, in-memory) local synthetic
+test that showed flat OFFSET timing. A real-scale validation run (job
+20243490, py-spy-profiled, vs. baseline job 20240812 -- both cpu16, identical
+config, only this code change differs) proved that conclusion wrong: pass 1
+dropped from **3637s (60.6min) to 359.4s (6.0min) -- a ~10x speedup on this
+phase**, taking total Pass A wall time from 5049.9s to **1336.4s (3.8x
+overall)**. The small in-memory test simply wasn't representative of a real
+on-disk table at true ~9.68M-row scale. Lesson kept for next time: validate
+at real scale before writing off a fix as minor. The `np.add.at`/vectorization
+findings below are unaffected by this correction (independently tested, and
+with pass 1 now at 6 minutes total, no longer worth chasing further anyway).
 
 Triggered by the Anvil CPU-scaling benchmark (see "Performance findings" below):
 Pass A's total wall time was flat across 16-65 worker counts (~83-85 min every
@@ -49,13 +63,15 @@ before touching production code -- both failed to hold up:
    time regardless of offset (~0.17s from offset=0 to offset=1.9M) --
    contradicts the pattern of DuckDB literally re-scanning skipped rows.
    What *did* hold up: 20 separate `LIMIT/OFFSET` queries cost more in total
-   (~3.4s) than one streaming read of the same data via
-   `to_arrow_reader()` (~0.66s) -- real, from avoiding repeated
-   query-planning/execution overhead, but a small fraction of the observed
-   150-224s/chunk. **Landed**: both passes switched to a single
-   `to_arrow_reader()` stream. Correctness re-confirmed (188 tests, same
-   pinned golden values -- the toy fixture explicitly runs this code path via
-   `NIRD_PATH_REALIZATION_STRATEGY=streaming_arrays`).
+   (~3.4s) than one streaming read of the same data via `to_arrow_reader()`
+   (~0.66s) at 2M-row/in-memory scale. **This looked like a small, secondary
+   win at the time -- it was not.** Validated at real scale (see the
+   correction above): this exact change is what took pass 1 from 60.6min to
+   6.0min. The 2M-row in-memory local test's "flat OFFSET cost" finding does
+   not hold at true ~9.68M-row on-disk scale. **Landed**: both passes
+   switched to a single `to_arrow_reader()` stream. Correctness re-confirmed
+   (188 tests, same pinned golden values -- the toy fixture explicitly runs
+   this code path via `NIRD_PATH_REALIZATION_STRATEGY=streaming_arrays`).
 
 2. **`np.add.at` called once per OD row** (up to ~484k times/chunk) looked
    like the per-call-overhead antipattern numpy's own docs warn about.
@@ -77,15 +93,16 @@ edges, not the 5-60 initially assumed for the first (misleading) micro-benchmark
 Re-profiling at a corrected, realistic path-length distribution (lognormal,
 median ~500 edges) is what surfaced the `.sum()`/`.tolist()` finding above.
 
-**Net result**: one small, real, verified improvement landed (branch
-`perf/streaming-arrays-offset-and-vectorize-fix`); the dominant real-world
-cost (the bulk of that 60.6 minutes) is still unexplained by anything
-reproducible in local testing -- best remaining candidates are Anvil-specific
-(shared-partition filesystem/memory contention, or DuckDB's actual behavior
-under the very large `NIRD_DUCKDB_MEMORY_LIMIT` settings at true 9.68M-row
-scale, neither of which a local test can replicate). Next step if this is
-worth pursuing further: attach a real sampling profiler (e.g. py-spy) to a
-live Anvil run rather than continuing to guess-and-check locally.
+**Net result**: the dominant real-world cost IS the `LIMIT/OFFSET` pagination
+pattern, confirmed via a real-scale before/after (job 20240812 vs. 20243490,
+branch `perf/streaming-arrays-offset-and-vectorize-fix`) -- ~10x on the
+affected phase, 3.8x on total Pass A wall time (5049.9s -> 1336.4s). A
+py-spy profile of the fixed run was also captured (native + Python frames,
+speedscope format,
+`~/multimodal_hazard_project/pyspy_cpu16_streaming.speedscope.json` on
+Anvil) in case a secondary hotspot is worth a look now that pass 1 only
+takes 6 minutes, but the primary question this investigation set out to
+answer is resolved.
 
 ### Fixed: `acc_flow` silently under-reporting flow on shared reroute segments (2026-08-29)
 
