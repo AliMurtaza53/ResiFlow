@@ -251,6 +251,49 @@ the raw per-run CSVs, not anything already reported.
 
 ## Performance findings
 
+### LCP-dispatch phase: gc_collect_main is the top hotspot, still unresolved from finding #1 below (2026-08-30)
+
+With `realize_paths_streaming()` fixed (see "Code fixes" above), LCP dispatch is
+now ~52% of total Pass A wall time (696s of 1336s) and the largest remaining
+phase — CPU-scaling across it was already found weak/non-monotonic (Anvil:
+16=740s, 32=757s, 64=701s) but never explained, since the first py-spy profile
+(job 20243490) only attached *after* this phase completed. A second, full-run
+profile (job 20244142, `--native`, attached at process launch) found
+`gc_collect_main` as the single largest self-time hotspot — ahead of every
+DuckDB and numpy frame — with `sched_yield` and CPython's `pickle` module
+(imap_unordered IPC deserialization) close behind. This is finding #1 below,
+still live: multiprocessing pool/pickle/IPC overhead dominating over actual
+per-task work.
+
+**Caveat on this profile's absolute timing:** this run was itself unusually
+slow (58% through LCP dispatch at 34:43 elapsed vs. ~11.6min unprofiled) —
+`--native` py-spy sampling a busy 16-process pool at 100Hz has real overhead
+that scales with process/thread count, unlike the earlier streaming-phase
+profile (single-process, comparable timing with/without profiling). Treat the
+*relative* hotspot ranking as informative, not the absolute wall-clock.
+
+**Tested, opt-in, not yet validated:** `NIRD_LCP_GC_DISABLE=1` (new flag,
+`road_revised.py`) disables the cyclic GC for just the LCP-dispatch section,
+re-enabling + forcing a full collection immediately after — the standard fix
+for allocation-heavy short-lived-object workloads. Real risk, not just
+theoretical: multiprocessing/pickle machinery can create reference cycles
+(e.g. exception+traceback objects), so this needs an actual RSS-trend check
+against the baseline before it's trusted for anything long-running, not just
+a timing comparison. Validation run in progress
+(`submit_cpu16_gc_disable_test.slurm`).
+
+**Separately confirmed correctness bug, do not use:** `NIRD_OD_ID_AT_INSERT=1`
+was recommended by an earlier investigation (`notes/perf_findings/
+GOAL3_FIX_AND_BENCHMARK.md`, 2026-07-12) as a wall-clock win (~1188s removed
+from the od_id-assignment phase) and was never actually deployed to any
+current script. Tested at real scale (job 20244160) alongside the
+`realize_paths_streaming` fix: it does remove the phase (0.00s, confirmed),
+but `Pass A convergence: assigned_fraction` dropped from 0.731 (baseline,
+identical inputs) to 0.047 — only 4.7% of demand got assigned instead of
+73.1%. The historical validation only checked timing, never checked whether
+results matched. This flag silently breaks flow assignment and must not be
+deployed; root cause not yet investigated.
+
 See `notes/perf_findings/` on branches `perf/numcpu-regression-diagnosis` (2026-07-10)
 and `perf/lcp-dest-chunked-dispatch` (2026-07-13, merged into this branch's history)
 for full detail. Summary, because these are easy to lose track of across branches:

@@ -3311,6 +3311,27 @@ def network_flow_model(
                 _log_rss(f"iter{iter_flag}_lcp_progress_{i}_of_{total}")
 
         # batch-processing
+        # Opt-in (NIRD_LCP_GC_DISABLE): a full-run py-spy profile (Anvil,
+        # 2026-08-30, cpu16) found gc_collect_main as the single largest
+        # self-time hotspot during LCP dispatch -- bigger than any DuckDB or
+        # numpy frame -- with sched_yield and the pickle module (IPC
+        # deserialization of imap_unordered results) close behind. This
+        # matches an earlier, still-unresolved finding (docs/PROJECT_LOG.md
+        # "Performance findings" #1): multiprocessing pool/pickle/IPC
+        # overhead dominating over actual per-task work, which is also the
+        # likely explanation for LCP dispatch's weak, non-monotonic
+        # CPU-scaling (16=740s, 32=757s, 64=701s on Anvil). Disabling the
+        # cyclic GC for just this phase is the standard fix for
+        # allocation-heavy short-lived-object workloads -- but multi-
+        # processing/pickle machinery CAN create reference cycles (e.g.
+        # exception+traceback objects), so this is opt-in, not default,
+        # until validated: re-enable + force a full collection immediately
+        # after, and watch RSS (the existing _log_rss checkpoints below)
+        # for growth beyond what's already observed with GC enabled before
+        # trusting this for anything long-running.
+        lcp_gc_disable = _env_flag("NIRD_LCP_GC_DISABLE")
+        if lcp_gc_disable:
+            gc.disable()
         lcp_pool_st = time.time()
 
         # imap_unordered default chunksize is 1 (one IPC round-trip per
@@ -3393,6 +3414,9 @@ def network_flow_model(
                     _log_lcp_progress(i, len(args))
 
         lcp_pool_sec = time.time() - lcp_pool_st
+        if lcp_gc_disable:
+            gc.enable()
+            gc.collect()
         logging.info(f"The least-cost path flow allocation time: {lcp_pool_sec}.")
         _log_rss(f"iter{iter_flag}_lcp_pool_done")
 
