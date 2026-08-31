@@ -1312,6 +1312,7 @@ def realize_paths_streaming(
         return
 
     chunk_size = max(1, int(chunk_size))
+    total_chunks = -(-total_rows // chunk_size)  # ceil division
     logging.info(
         "Streaming path realization over %s OD path rows in chunks of %s rows.",
         total_rows,
@@ -1367,19 +1368,34 @@ def realize_paths_streaming(
         "length_mile",
     ]
 
-    for start in tqdm(
-        range(0, total_rows, chunk_size),
+    # Single streaming Arrow read instead of one LIMIT/OFFSET query per
+    # chunk. NOTE on what this does and doesn't explain: a real CONUS-scale
+    # run (Anvil, 2026-08-30) showed per-chunk time climbing from 169.6s
+    # (chunk 1) to 224.9s (chunk 18) despite constant row count per chunk --
+    # but a local isolated test (2M synthetic rows, same path-column shape)
+    # found DuckDB's LIMIT/OFFSET does NOT slow down with growing offset
+    # (flat ~0.17s regardless of position), so that climb is NOT explained
+    # by OFFSET re-scanning the way it looked at first. What the same local
+    # test DID confirm: 20 separate LIMIT/OFFSET queries (~0.17s each,
+    # ~3.4s total) cost meaningfully more than one streaming read of the
+    # same data (~0.66s total) purely from repeated query-planning/
+    # execution overhead -- a real but modest win, not a fix for the
+    # observed climb. The dominant real-world cost remains unexplained;
+    # see docs/PROJECT_LOG.md for the fuller writeup and what was ruled out
+    # (see also: np.add.at batching and a flatten+bincount rewrite of the
+    # per-row .sum()/.tolist() calls below were both tried and reverted --
+    # neither beat the existing per-row loop in local testing at realistic
+    # CONUS path lengths, so the loop below is unchanged from before).
+    pass1_reader = conn.execute(
+        f"SELECT od_id, origin, destination, path, flow FROM {temp_flow_table}"
+    ).to_arrow_reader(chunk_size)
+    for batch in tqdm(
+        pass1_reader,
         desc="Streaming realization pass 1:",
         unit="chunk",
+        total=total_chunks,
     ):
-        chunk = conn.execute(
-            f"""
-            SELECT od_id, origin, destination, path, flow
-            FROM {temp_flow_table}
-            LIMIT {chunk_size}
-            OFFSET {start}
-            """
-        ).fetchdf()
+        chunk = batch.to_pandas()
         if chunk.empty:
             continue
 
@@ -1516,19 +1532,16 @@ def realize_paths_streaming(
     cost_fare_total = 0.0
     assigned_flow_total = 0.0
     pass2_start = time.time()
-    for start in tqdm(
-        range(0, total_rows, chunk_size),
+    pass2_reader = conn.execute(
+        f"SELECT od_id, origin, destination, path, flow FROM {temp_flow_table}"
+    ).to_arrow_reader(chunk_size)
+    for batch in tqdm(
+        pass2_reader,
         desc="Streaming realization pass 2:",
         unit="chunk",
+        total=total_chunks,
     ):
-        chunk = conn.execute(
-            f"""
-            SELECT od_id, origin, destination, path, flow
-            FROM {temp_flow_table}
-            LIMIT {chunk_size}
-            OFFSET {start}
-            """
-        ).fetchdf()
+        chunk = batch.to_pandas()
         if chunk.empty:
             continue
 

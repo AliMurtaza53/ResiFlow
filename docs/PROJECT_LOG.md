@@ -28,6 +28,65 @@ Branch: `feature/freight-passenger-shared-capacity` unless noted.
 
 ## Code fixes
 
+### Investigated: `realize_paths_streaming()` per-chunk slowdown at CONUS scale — one real fix landed, two hypotheses disproven, root cause still open (2026-08-30)
+
+Triggered by the Anvil CPU-scaling benchmark (see "Performance findings" below):
+Pass A's total wall time was flat across 16-65 worker counts (~83-85 min every
+time), meaning whatever dominates isn't the parallelized LCP-dispatch phase --
+it's the serial, single-connection `realize_paths_streaming()` step
+(`road_revised.py`, used by the `streaming_arrays` path-realization strategy).
+A completed run's own per-chunk timing showed pass 1 climbing from 169.6s
+(chunk 1) to 224.9s (chunk 18) across 20 chunks of identical row count --
+60.6 of the ~83 total minutes.
+
+Two hypotheses looked plausible from reading the code and were tested locally
+before touching production code -- both failed to hold up:
+
+1. **`LIMIT/OFFSET`-per-chunk pagination** (both realization passes re-query
+   the same table with a growing `OFFSET` each iteration) looked like the
+   classic O(n²) pagination antipattern. Tested directly: a 2M-row synthetic
+   DuckDB table (same path-column shape) showed **flat** `LIMIT/OFFSET` query
+   time regardless of offset (~0.17s from offset=0 to offset=1.9M) --
+   contradicts the pattern of DuckDB literally re-scanning skipped rows.
+   What *did* hold up: 20 separate `LIMIT/OFFSET` queries cost more in total
+   (~3.4s) than one streaming read of the same data via
+   `to_arrow_reader()` (~0.66s) -- real, from avoiding repeated
+   query-planning/execution overhead, but a small fraction of the observed
+   150-224s/chunk. **Landed**: both passes switched to a single
+   `to_arrow_reader()` stream. Correctness re-confirmed (188 tests, same
+   pinned golden values -- the toy fixture explicitly runs this code path via
+   `NIRD_PATH_REALIZATION_STRATEGY=streaming_arrays`).
+
+2. **`np.add.at` called once per OD row** (up to ~484k times/chunk) looked
+   like the per-call-overhead antipattern numpy's own docs warn about.
+   Tested directly at the real per-chunk row count (483,915): batching to
+   one `np.add.at` call per chunk was **slower**, not faster (0.8x). Profiling
+   the full per-row loop body (at a *corrected*, realistic path-length
+   assumption -- see below) showed `np.add.at` is only ~9.5% of the loop's
+   cost anyway; the four per-row `.sum()` calls (fuel/time/toll/length) plus
+   `.tolist()` dominate at ~88%. A further attempt to vectorize *those* (flatten
+   the chunk's paths once, grouped `np.bincount` sums, `np.split` to
+   reconstruct per-row lists -- numerically verified identical to the
+   original) was *also* slower (0.7x), not faster. **Reverted both attempts**;
+   the original per-row loop is unchanged.
+
+Notable correction made mid-investigation: the network's `length` field
+(`faf5_road_links.gpq`) is in **feet**, not miles (median ~472ft ≈ 0.09mi/edge)
+-- a real CONUS trip can plausibly span hundreds to tens of thousands of
+edges, not the 5-60 initially assumed for the first (misleading) micro-benchmark.
+Re-profiling at a corrected, realistic path-length distribution (lognormal,
+median ~500 edges) is what surfaced the `.sum()`/`.tolist()` finding above.
+
+**Net result**: one small, real, verified improvement landed (branch
+`perf/streaming-arrays-offset-and-vectorize-fix`); the dominant real-world
+cost (the bulk of that 60.6 minutes) is still unexplained by anything
+reproducible in local testing -- best remaining candidates are Anvil-specific
+(shared-partition filesystem/memory contention, or DuckDB's actual behavior
+under the very large `NIRD_DUCKDB_MEMORY_LIMIT` settings at true 9.68M-row
+scale, neither of which a local test can replicate). Next step if this is
+worth pursuing further: attach a real sampling profiler (e.g. py-spy) to a
+live Anvil run rather than continuing to guess-and-check locally.
+
 ### Fixed: `acc_flow` silently under-reporting flow on shared reroute segments (2026-08-29)
 
 `network_flow_model()` accumulates additively (`road_links["acc_flow"] +=
