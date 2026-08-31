@@ -1369,24 +1369,29 @@ def realize_paths_streaming(
     ]
 
     # Single streaming Arrow read instead of one LIMIT/OFFSET query per
-    # chunk. CONFIRMED FIX (Anvil, 2026-08-30, job 20243490 vs. baseline job
-    # 20240812 -- both cpu16, identical config, only this change differs):
-    # pass 1 dropped from 3637s (60.6min, climbing 169.6s->224.9s per chunk
-    # as OFFSET grew) to 359.4s (6.0min, flat) -- a ~10x speedup on this
-    # phase alone, taking total Pass A wall time from 5049.9s to 1336.4s
-    # (3.8x overall). A small (2M-row, in-memory) local synthetic test run
-    # before this real validation wrongly suggested LIMIT/OFFSET cost was
-    # flat regardless of position and that this change would be a minor,
-    # not dominant, improvement -- it wasn't representative of a real
-    # on-disk table at true ~9.68M-row CONUS scale. Lesson: a real-scale
-    # test beats a smaller synthetic one for this kind of question; see
-    # docs/PROJECT_LOG.md for the corrected writeup and full before/after
-    # numbers (see also: np.add.at batching and a flatten+bincount rewrite
-    # of the per-row .sum()/.tolist() calls below were also tried and
-    # reverted -- neither beat the existing per-row loop in local testing,
-    # and with pass 1 now at 6 minutes total, that loop is no longer the
-    # place to look for further gains anyway).
-    pass1_reader = conn.execute(
+    # chunk -- CORRECTNESS-CRITICAL: this MUST use its own cursor
+    # (conn.cursor()), not `conn` directly. `to_arrow_reader()`'s
+    # RecordBatchReader is tied to the connection/cursor that produced it;
+    # any OTHER conn.execute() call on the SAME connection while the reader
+    # is still being iterated (e.g. _append_or_create_table()'s writes,
+    # below, in the same loop body) silently truncates it to just its FIRST
+    # batch, with no error. Confirmed by direct local repro (duckdb
+    # :memory:, 1000 rows/10 batches -> exactly 1 batch/100 rows consumed
+    # once a nested execute() ran on the shared connection; switching the
+    # read to conn.cursor() fixed it, 10/10 batches).
+    #
+    # This bug shipped once already: an earlier version of this fix used
+    # `conn` directly and looked like a huge win (Anvil job 20243490:
+    # 60.6min -> "6.0min", written up in docs/PROJECT_LOG.md as a confirmed
+    # ~10x/3.8x speedup) -- it wasn't a speedup, it was silently processing
+    # ~1/20 of the rows (assigned_fraction crashed from the correct 0.731 to
+    # 0.047 on identical inputs, caught by cross-checking convergence
+    # numbers, not by the timing or the existing test suite, which is
+    # toy-scale/single-chunk and never exercises this multi-chunk path).
+    # That version was live on Hopper's production branch before this was
+    # caught. See docs/PROJECT_LOG.md for the full incident writeup.
+    read_cursor = conn.cursor()
+    pass1_reader = read_cursor.execute(
         f"SELECT od_id, origin, destination, path, flow FROM {temp_flow_table}"
     ).to_arrow_reader(chunk_size)
     for batch in tqdm(
@@ -1532,7 +1537,10 @@ def realize_paths_streaming(
     cost_fare_total = 0.0
     assigned_flow_total = 0.0
     pass2_start = time.time()
-    pass2_reader = conn.execute(
+    # Own cursor, same reason as pass 1's read_cursor above -- required, not
+    # optional (see that comment for the truncation bug this avoids).
+    read_cursor = conn.cursor()
+    pass2_reader = read_cursor.execute(
         f"SELECT od_id, origin, destination, path, flow FROM {temp_flow_table}"
     ).to_arrow_reader(chunk_size)
     for batch in tqdm(
@@ -3311,6 +3319,27 @@ def network_flow_model(
                 _log_rss(f"iter{iter_flag}_lcp_progress_{i}_of_{total}")
 
         # batch-processing
+        # Opt-in (NIRD_LCP_GC_DISABLE): a full-run py-spy profile (Anvil,
+        # 2026-08-30, cpu16) found gc_collect_main as the single largest
+        # self-time hotspot during LCP dispatch -- bigger than any DuckDB or
+        # numpy frame -- with sched_yield and the pickle module (IPC
+        # deserialization of imap_unordered results) close behind. This
+        # matches an earlier, still-unresolved finding (docs/PROJECT_LOG.md
+        # "Performance findings" #1): multiprocessing pool/pickle/IPC
+        # overhead dominating over actual per-task work, which is also the
+        # likely explanation for LCP dispatch's weak, non-monotonic
+        # CPU-scaling (16=740s, 32=757s, 64=701s on Anvil). Disabling the
+        # cyclic GC for just this phase is the standard fix for
+        # allocation-heavy short-lived-object workloads -- but multi-
+        # processing/pickle machinery CAN create reference cycles (e.g.
+        # exception+traceback objects), so this is opt-in, not default,
+        # until validated: re-enable + force a full collection immediately
+        # after, and watch RSS (the existing _log_rss checkpoints below)
+        # for growth beyond what's already observed with GC enabled before
+        # trusting this for anything long-running.
+        lcp_gc_disable = _env_flag("NIRD_LCP_GC_DISABLE")
+        if lcp_gc_disable:
+            gc.disable()
         lcp_pool_st = time.time()
 
         # imap_unordered default chunksize is 1 (one IPC round-trip per
@@ -3393,6 +3422,9 @@ def network_flow_model(
                     _log_lcp_progress(i, len(args))
 
         lcp_pool_sec = time.time() - lcp_pool_st
+        if lcp_gc_disable:
+            gc.enable()
+            gc.collect()
         logging.info(f"The least-cost path flow allocation time: {lcp_pool_sec}.")
         _log_rss(f"iter{iter_flag}_lcp_pool_done")
 
