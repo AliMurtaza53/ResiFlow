@@ -318,17 +318,21 @@ against the baseline before it's trusted for anything long-running, not just
 a timing comparison. Validation run in progress
 (`submit_cpu16_gc_disable_test.slurm`).
 
-**Separately confirmed correctness bug, do not use:** `NIRD_OD_ID_AT_INSERT=1`
-was recommended by an earlier investigation (`notes/perf_findings/
-GOAL3_FIX_AND_BENCHMARK.md`, 2026-07-12) as a wall-clock win (~1188s removed
-from the od_id-assignment phase) and was never actually deployed to any
-current script. Tested at real scale (job 20244160) alongside the
-`realize_paths_streaming` fix: it does remove the phase (0.00s, confirmed),
-but `Pass A convergence: assigned_fraction` dropped from 0.731 (baseline,
-identical inputs) to 0.047 — only 4.7% of demand got assigned instead of
-73.1%. The historical validation only checked timing, never checked whether
-results matched. This flag silently breaks flow assignment and must not be
-deployed; root cause not yet investigated.
+**RETRACTED — verdict below was contaminated, re-test in progress:**
+`NIRD_OD_ID_AT_INSERT=1` was originally recommended by an earlier
+investigation (`notes/perf_findings/GOAL3_FIX_AND_BENCHMARK.md`,
+2026-07-12) as a wall-clock win (~1188s removed from the od_id-assignment
+phase). Tested at real scale (job 20244160) and found `assigned_fraction`
+crashed to 0.047 from the correct 0.731 -- **but that test ran on top of
+the realize_paths_streaming cursor-truncation bug described above, which
+independently produces that exact same `assigned_fraction≈0.047` signature
+with this flag entirely unset** (confirmed: jobs 20243490, 20244142,
+20244529, and 20240810 all show the identical broken value with
+`NIRD_OD_ID_AT_INSERT` never set). The low `assigned_fraction` in job
+20244160 cannot be attributed to this flag with the streaming bug active
+at the same time -- re-testing now against the actually-fixed code
+(job 20245089) before drawing any conclusion. Do not treat this flag as
+confirmed-broken OR confirmed-safe until that lands.
 
 See `notes/perf_findings/` on branches `perf/numcpu-regression-diagnosis` (2026-07-10)
 and `perf/lcp-dest-chunked-dispatch` (2026-07-13, merged into this branch's history)
