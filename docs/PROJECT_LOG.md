@@ -28,7 +28,43 @@ Branch: `feature/freight-passenger-shared-capacity` unless noted.
 
 ## Code fixes
 
-### Fixed: `realize_paths_streaming()` per-chunk slowdown at CONUS scale — 10x on the affected phase, 3.8x overall (2026-08-30, corrected same day)
+### Fixed: `realize_paths_streaming()` silently processed ~1/20 of rows via a nested-cursor bug (2026-08-30, second correction, supersedes the "10x speedup" entry below)
+
+**The "10x speedup / 3.8x overall" entry immediately below is WRONG.** It
+was not a speedup -- it was silent data loss. Root cause: `to_arrow_reader()`
+returns a `RecordBatchReader` tied to the specific cursor that produced it;
+any OTHER `conn.execute()` call on the SAME connection while that reader is
+still being iterated (here, `_append_or_create_table()`'s writes inside the
+same loop body) silently truncates it to just its first batch, no error
+raised. Confirmed by direct local repro: a 1000-row/10-batch DuckDB stream
+dropped to exactly 1 batch/100 rows once a nested `execute()` ran on the
+shared connection; switching the read to its own `conn.cursor()` fixed it
+(10/10 batches). Caught by cross-checking `Pass A convergence:
+assigned_fraction` across runs -- every job that used the "fixed" code
+showed `assigned_fraction=0.047` instead of the correct `0.731` on
+identical inputs, including job 20243490, the exact run the "10x speedup"
+entry below was based on. **Never caught by wall-clock timing or by the
+full test suite** (188 tests, all toy-scale, small enough to fit in a
+single chunk -- the bug only manifests across multiple chunks). Added
+`tests/test_realize_paths_streaming_chunking.py`, a direct regression test
+asserting the result is identical across chunk_size=1/2/3/1000, to close
+that coverage gap.
+
+**This broken version was live on Hopper's production branch
+(`perf/hopper-realize-paths-streaming-fix`) and running against real winter
+storm 602/603/604 jobs** before being caught -- those jobs were still in
+Script 2/3 (not yet at Script 4's rerouting solve, which shares this code
+path) when the fix for this was deployed, so no bad results were produced,
+but this was close. Fix: both streaming-realization passes now use
+`conn.cursor()` for their reads instead of `conn` directly.
+
+**Process lesson:** a real-scale timing validation is not a correctness
+validation. Always cross-check an actual output metric (here,
+`assigned_fraction` or a cost total), not just wall-clock, before trusting
+a "confirmed" fix at scale -- especially one that changes how data is read
+from a shared connection/cursor.
+
+### Fixed: `realize_paths_streaming()` per-chunk slowdown at CONUS scale — 10x on the affected phase, 3.8x overall (2026-08-30, corrected same day) — SUPERSEDED, SEE ABOVE
 
 **CORRECTION (same day, later run):** this entry originally concluded the
 `LIMIT/OFFSET` fix below was real but minor and that the dominant cost
