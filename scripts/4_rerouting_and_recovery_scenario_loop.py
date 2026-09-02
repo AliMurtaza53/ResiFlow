@@ -678,6 +678,50 @@ def load_event_damage_from_script3(
     return damage_by_edge, direct_damage_total
 
 
+RESUME_SKIP_COMPLETED_DAYS = os.environ.get(
+    "RESIFLOW_RESUME_SKIP_COMPLETED_DAYS",
+    os.environ.get("NIRD_RESUME_SKIP_COMPLETED_DAYS", "0"),
+).strip().lower() in {"1", "true", "yes"}
+
+
+def load_completed_day_cost_row(out_path: Path, out_mode: str, scenario_id, event_day) -> dict | None:
+    """Reconstruct one day's final-aggregate cost row from its per-day artifacts.
+
+    Used by the resume path (``RESIFLOW_RESUME_SKIP_COMPLETED_DAYS=1``) to
+    skip re-running a recovery day that already completed before a prior
+    invocation was killed (e.g. a SLURM time-limit kill) and is now being
+    resubmitted. Each day already writes ``rerouting_cost_{out_mode}_s
+    {scenario}_day{day}.csv`` and ``trip_isolations_{out_mode}_s{scenario}_
+    day{day}.csv`` to disk as it completes (see the day loop below), but two
+    fields (``isolation_flow``, ``isolation_cost_usd``) are only ever added
+    to the IN-MEMORY row after the per-day cost CSV is written, so they're
+    absent from that CSV -- recompute them here from the isolations file
+    (``sum(Car21)`` / ``sum(isolation_cost_usd)``) so a resumed run's final
+    ``cost_matrix_*_by_scenario.csv`` matches what an uninterrupted run would
+    have produced. Days are independent of each other (each resets from the
+    same fixed pre-event capacity, scaled only by that day's own recovery
+    rate), so skipping a completed day changes nothing about correctness.
+    """
+    cost_csv = out_path / f"rerouting_cost_{out_mode}_s{scenario_id}_day{event_day}.csv"
+    iso_csv = out_path / f"trip_isolations_{out_mode}_s{scenario_id}_day{event_day}.csv"
+    if not cost_csv.exists() or not iso_csv.exists():
+        return None
+    cost_df = pd.read_csv(cost_csv)
+    if cost_df.empty:
+        return None
+    row = cost_df.iloc[-1].to_dict()
+    iso_df = pd.read_csv(iso_csv)
+    row["isolation_flow"] = float(
+        pd.to_numeric(iso_df.get("Car21", pd.Series(dtype=float)), errors="coerce").fillna(0.0).sum()
+    )
+    row["isolation_cost_usd"] = float(
+        pd.to_numeric(iso_df.get("isolation_cost_usd", pd.Series(dtype=float)), errors="coerce")
+        .fillna(0.0)
+        .sum()
+    )
+    return row
+
+
 def main(
     depth_key,
     flood_key,
@@ -1001,6 +1045,23 @@ def main(
 
         # Load link recovery scenarios (both capacity and speed)
         for day_idx, (scenario_id, event_day) in enumerate(zip(scenarios, conditions)):
+            if RESUME_SKIP_COMPLETED_DAYS:
+                completed_rows = {
+                    m: load_completed_day_cost_row(out_path, m, scenario_id, event_day)
+                    for m in output_modes
+                }
+                if all(row is not None for row in completed_rows.values()):
+                    logging.info(
+                        "Resume: scenario=%s day=%s already completed for mode(s)=%s -- "
+                        "reusing saved results instead of recomputing.",
+                        scenario_id,
+                        event_day,
+                        list(output_modes),
+                    )
+                    for out_mode, row in completed_rows.items():
+                        cost_rows_by_output[out_mode].append(row)
+                    continue
+
             logging.info(f"Rerouting Analysis on Scenario-{scenario_id} of recovery...")
             logging.info(f"Updating edge capacities on D-{event_day} of recovery...")
             road_links["acc_capacity"] = road_links["current_capacity"]
