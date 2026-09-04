@@ -17,7 +17,15 @@ inputs/va_multihazard_raw/
 inputs/va_multihazard_aligned/
 
 # Run outputs
-results/
+# NOTE: results/ (not results) so the finale_2026_08 exception below can
+# actually take effect -- git will not descend into a directory excluded via
+# a trailing-slash pattern to apply file-level re-includes, even with `!`.
+results/*
+# Exception: track the finale figure-generation scripts themselves (not their
+# PNG/CSV outputs) -- these are paper-reproducibility code, not run output.
+!results/finale_2026_08/
+results/finale_2026_08/*
+!results/finale_2026_08/*.py
 logs/
 experiments/perf_numcpu/runs/
 experiments/pass_a_convergence/runs/
