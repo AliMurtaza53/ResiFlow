@@ -1332,23 +1332,57 @@ def subset_links_for_map(
     max_edges: int | None = None,
     min_flow: float = 0.0,
 ) -> gpd.GeoDataFrame:
-    """Keep high-flow links only so CONUS maps stay within notebook memory limits."""
+    """Keep high-flow (or, absent a flow column, damaged) links so CONUS maps
+    stay within safe rendering limits.
+
+    Bug fixed 2026-09-03: the no-flow-column fallback used to take
+    ``links_gdf.iloc[:limit]`` -- a blind positional slice. Parquet row order
+    has no relationship to where damage occurred, so at CONUS scale (~484k
+    rows, typically only 100s-10,000s damaged for most hazards) that slice
+    could silently contain ZERO damaged links while still reporting a full
+    60,000-edge map -- confirmed reproducing exactly this (n=0 damaged
+    reported) against a real flood scenario with 124 genuinely damaged links,
+    which is what plot_multihazard_damage_maps calls this with (no flow
+    column requested there by design). Now, when no flow column is present,
+    every damaged link (``damage_level_max`` not in {None, "no"}) is always
+    kept first, and only the remaining budget is filled with undamaged links
+    for context -- so damage is never silently dropped to fit the cap.
+    """
     limit = DEFAULT_MAX_MAP_EDGES if max_edges is None else max_edges
     if limit <= 0 or len(links_gdf) <= limit:
         return links_gdf
 
     flow_candidates = [flow_col, "flow", "current_flow", "acc_flow"]
     col = next((c for c in flow_candidates if c in links_gdf.columns), None)
-    if col is None:
-        return links_gdf.iloc[:limit].copy()
+    if col is not None:
+        flows = pd.to_numeric(links_gdf[col], errors="coerce").fillna(0.0)
+        active = links_gdf.loc[flows > min_flow].copy()
+        if len(active) <= limit:
+            return active
+        return active.assign(_viz_flow=flows.loc[active.index]).nlargest(limit, "_viz_flow").drop(
+            columns="_viz_flow"
+        )
 
-    flows = pd.to_numeric(links_gdf[col], errors="coerce").fillna(0.0)
-    active = links_gdf.loc[flows > min_flow].copy()
-    if len(active) <= limit:
-        return active
-    return active.assign(_viz_flow=flows.loc[active.index]).nlargest(limit, "_viz_flow").drop(
-        columns="_viz_flow"
-    )
+    if "damage_level_max" in links_gdf.columns:
+        levels = links_gdf["damage_level_max"].astype(str).str.lower()
+        no_damage_labels = {"no", "nan", "none"}
+        damaged = links_gdf.loc[~levels.isin(no_damage_labels)]
+        undamaged = links_gdf.loc[levels.isin(no_damage_labels)]
+        if len(damaged) >= limit:
+            return damaged.iloc[:limit].copy()
+        remaining = limit - len(damaged)
+        # Random, not positional, sample: parquet row order tends to cluster
+        # geographically (e.g. by state), so an .iloc[:remaining] slice for
+        # context previously produced a map that only showed one corner of
+        # the country instead of a recognizable CONUS outline.
+        context = (
+            undamaged.sample(n=remaining, random_state=0)
+            if len(undamaged) > remaining
+            else undamaged
+        ).copy()
+        return pd.concat([damaged, context]) if not damaged.empty else context
+
+    return links_gdf.iloc[:limit].copy()
 
 
 _DAMAGE_LEVEL_ORDINAL: dict[str, int] = {"no": 0, "minor": 1, "moderate": 2, "extensive": 3, "severe": 4}
@@ -1422,7 +1456,15 @@ def plot_multihazard_damage_maps(
         damaged = gdf.loc[ordinal > 0]
 
         if not undamaged.empty:
-            undamaged.plot(ax=ax, color=_GRIDLINE, linewidth=0.35, zorder=1)
+            # _GRIDLINE (#ececec) is tuned to be recessive against a bar
+            # chart's white surface, not to read as a CONUS outline: at
+            # full-country zoom with 0.35pt lines, it's only visible where
+            # roads happen to overlap densely (confirmed -- most of the
+            # country vanished in an early render, leaving what looked like
+            # a Gulf Coast fragment). This map draws the network itself as
+            # the basemap, so its context layer needs its own, more visible
+            # (but still muted relative to the damage colormap) gray.
+            undamaged.plot(ax=ax, color="#c7c7c7", linewidth=0.5, zorder=1)
         if not damaged.empty:
             damaged.plot(
                 ax=ax, color=cmap(norm(ordinal.loc[damaged.index])),
