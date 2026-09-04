@@ -1,0 +1,9 @@
+{
+  "lcp_pool_sec": 1048.477283000946,
+  "od_id_assign_sec": 0.0,
+  "streaming_pass1_sec": 244.84,
+  "streaming_pass2_sec": 1197.63,
+  "total_simulation_sec": 2532.6523225307465,
+  "origins_done": 3143,
+  "origins_total": 3143
+}

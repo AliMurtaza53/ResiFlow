@@ -161,6 +161,10 @@ def main(
         f"total={total_flow:,.3f}, self_pair_flow={self_pair_flow:,.3f}, "
         f"duplicate_pairs={duplicate_pair_count:,}"
     )
+    # Intrazonal (origin==destination) rows are excluded inside
+    # network_flow_model() itself (road_revised.py), not here -- script 4
+    # calls that function directly with its own OD data and needs the same
+    # fix, so it lives in the one shared place both callers go through.
 
     # initialise road links
     logging.info("Generate road links")

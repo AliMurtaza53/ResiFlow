@@ -1,0 +1,7 @@
+{
+  "paths": {
+    "soge_clusters": "/scratch/akothaw/multimodal_hazard_data/soge_clusters",
+    "base_path": "/scratch/akothaw/multimodal_hazard_data/soge_clusters",
+    "output_path": "/scratch/akothaw/multimodal_hazard_data/results"
+  }
+}

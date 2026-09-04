@@ -1,0 +1,38 @@
+{
+  "_comment": "Real VA multi-hazard comparison. Deploy a copy of this file to <soge_clusters parent>/hazards.json on Hopper (sibling of soge_clusters, matching config_hopper.json/lodes_data layout), or point RESIFLOW_HAZARDS_MANIFEST at it directly. Rasters must already be aligned via scripts/align_hazard_rasters.py under inputs/va_multihazard_aligned/<hazard_subtype>/event_1.tif. Landslide's event_1.tif is NOT a raw aligned raster -- it's the output of scripts/compute_landslide_pgd.py (HAZUS PGD from susceptibility + PGA), see that script and src/resiflow/hazards/landslide_pgd.py.",
+  "events": [
+    {
+      "hazard_type": "flood",
+      "hazard_subtype": "flood_surface",
+      "event_id": "1",
+      "scenario_param": 301,
+      "closure_threshold": 30,
+      "source": "raster",
+      "_note": "VA DCR 1% annual chance (100yr) depth grid, feet->meters, aligned to EPSG:9311 @ 50m."
+    },
+    {
+      "hazard_type": "earthquake",
+      "event_id": "1",
+      "scenario_param": 401,
+      "closure_threshold": 25,
+      "source": "raster",
+      "_note": "USGS 2023 NSHM PGA, 10% probability of exceedance in 50yr (~475yr tier). Contour-rasterized workaround -- official gridded output was unavailable (ScienceBase 404). closure_threshold=25 is the existing placeholder (g x100?) -- see fragility/earthquake_categorical.py's own _MAJOR_PGA/_MINOR_PGA thresholds (0.10-0.45g), which are what actually classify damage; this scenario-level closure_threshold is a secondary, coarser cutoff and should be reconciled against those before trusting results."
+    },
+    {
+      "hazard_type": "winter_storm",
+      "event_id": "1",
+      "scenario_param": 601,
+      "closure_threshold": 100,
+      "source": "raster",
+      "_note": "NOAA SNODAS snow depth, 2016-01-23 (Winter Storm Jonas peak day), meters->mm, aligned to EPSG:9311 @ 50m. closure_threshold=100mm is the testbed placeholder -- sanity-check against this event's actual aligned value range before trusting results."
+    },
+    {
+      "hazard_type": "landslide",
+      "event_id": "1",
+      "scenario_param": 501,
+      "closure_threshold": 100,
+      "source": "raster",
+      "_note": "HAZUS Newmark PGD (mm), computed by scripts/compute_landslide_pgd.py from USGS n10 CONUS susceptibility (clipped/aligned, equal-width-binned from its native 0-81 count into HAZUS None/I-X via --susceptibility-max-count 81) + the same NSHM PGA raster used for the earthquake event, at scenario magnitude M=5.8 (2011 Mineral, VA earthquake -- the largest recorded Central Virginia Seismic Zone event, used as the real historical analog since the PGA raster itself is a hazard-curve value with no associated magnitude). Computed range: ~0.1-107mm nonzero (21% of cells), which falls within fragility/landslide_categorical.py's _MAJOR_MM/_MINOR_MM (25-300/15-200mm) thresholds -- a good sign the scale is compatible. closure_threshold=100mm is still the testbed placeholder; reconcile against the categorical thresholds before trusting results, same caveat as earthquake's closure_threshold."
+    }
+  ]
+}

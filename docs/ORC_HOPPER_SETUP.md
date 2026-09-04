@@ -94,10 +94,16 @@ cd ResiFlow
 # [tool.setuptools.packages.find] where = ["src"]). Without this step you
 # will get ModuleNotFoundError: No module named 'resiflow'.
 pip install -e . --no-deps   # --no-deps: the conda-forge installs above already cover the binary-heavy deps
-pip install nismod-snail psutil openpyxl   # remaining pyproject.toml deps not pulled in above
+pip install nismod-snail psutil openpyxl snkit tqdm   # remaining pyproject.toml deps not pulled in above
 
-# Sanity check before running anything real:
-python -c "import resiflow, igraph, duckdb, geopandas, rasterio, psutil; print('ok')"
+# Sanity check before running anything real -- import every core dependency,
+# not just a handful (snkit and tqdm were both missing from this list for a
+# while: `pip install -e .` prints a "requires X, which is not installed"
+# warning for exactly this reason, but it's easy to scroll past. A rebuild on
+# 2026-08-02 hit this for real: the environment "sanity-checked" clean
+# because `import resiflow` alone doesn't transitively import every module,
+# then failed 25 seconds into a real SLURM job on `import snkit`).
+python -c "import resiflow, igraph, duckdb, geopandas, rasterio, psutil, snkit, tqdm; print('ok')"
 ```
 
 `psutil` matters specifically because `NIRD_LOG_RSS_CHECKPOINTS=1` silently
@@ -192,10 +198,18 @@ python /scratch/$USER/multimodal_hazard_data/code/ResiFlow/scripts/1_network_flo
 (~9.68M rows). A real test at `--cpus-per-task=4` needed ~44.5 minutes just
 for LCP dispatch + od_id assignment + edge aggregation, before the
 remaining per-iteration steps (edge speed updates, `remain_od`
-recomputation, cleanup). **Request at least 1.5 hours** for a single-
-iteration scaling test at this scale; a real multi-iteration convergence
-run needs proportionally more (`normal`'s 7-day cap is the real ceiling to
-plan against).
+recomputation, cleanup).
+
+**1.5 hours isn't enough either once `full_odpfc` output is involved.**
+A `--cpus-per-task=8` run with `NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact`
+got `CANCELLED DUE TO TIME LIMIT` at `--time=01:30:00` with **no OOM** --
+pool dispatch (~18min) + od_id assignment (~4min) + chunked pass 1
+(~45-50min) + pass 2 (~8min) already consumed the entire budget before the
+`full_odpfc` `INSERT` (writing all 9.68M rows to `odpfc`) got any time at
+all. **Request at least 4 hours** for a single-iteration run at this scale
+with `full_odpfc` output enabled; a real multi-iteration convergence run
+needs proportionally more (`normal`'s 7-day cap is the real ceiling to plan
+against).
 
 ### How to set `NIRD_DUCKDB_MEMORY_LIMIT`
 
@@ -210,12 +224,169 @@ during the `itter_path` aggregation phase (not the LCP dispatch phase).
 At `--mem=64G` with the full ~9.68M-row OD:
 - `--cpus-per-task=4`: 24GB caused no issue, but 32GB gives more margin (observed Python RSS peaked ~23.7GB pre-`itter_path`)
 - `--cpus-per-task=8`: 24GB **failed** (OOM at 22.3/22.3GB used); 40GB resolved it
+  at the time, but a later `--mem=128G` / `NIRD_DUCKDB_MEMORY_LIMIT=90GB` run
+  at the same OD scale OOM'd again (`83.8/83.8 GiB used`) despite ~16GB of the
+  node sitting unused -- see "The bigger lever" below. Treat the 40GB figure
+  as strategy-dependent, not a durable ceiling.
 
 Rule of thumb: budget `--mem` total, subtract observed/expected Python-side
 RSS (check `NIRD_LOG_RSS_CHECKPOINTS` output), and give DuckDB most of the
 rest, scaling upward with core count.
 
-## 7. Submitting and monitoring
+### The bigger lever: `NIRD_PATH_REALIZATION_STRATEGY`
+
+Raising `NIRD_DUCKDB_MEMORY_LIMIT` is not sufficient by itself at
+`--cpus-per-task=8` and full OD scale. The reason: `itter_path`'s **default**
+strategy (`legacy_compact_sql`) runs the path-explode `CROSS JOIN
+UNNEST(t.path)` join that turns OD paths into per-edge flows as **one
+unchunked DuckDB query over the entire OD table**. `NIRD_LCP_DEST_CHUNK_SIZE`
+does not touch this -- that env var only chunks the earlier LCP dispatch
+phase. At 8 threads, DuckDB runs that single giant join with 8 parallel
+hash/sort buffers that must stay pinned (non-spillable) for the join's
+duration, so the *whole table's* working set has to fit at once, not a
+fraction of it.
+
+Set `NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact` to route through
+the alternate code path in `itter_path` that actually respects chunking: it
+runs the same join in `num_of_chunk` (the script's first CLI arg) row batches
+via `WHERE t.rn BETWEEN ...`, so DuckDB only needs to hold one chunk's join
+working set pinned at a time. **This is the fix that matters** -- treat
+`NIRD_DUCKDB_MEMORY_LIMIT` as a safety margin on top of it, not the primary
+lever.
+
+Other strategies available in the same env var: `pandas_chunked` (most
+memory-conservative, offloads the explode/groupby to pandas in chunks, likely
+slower) and the default `legacy_compact_sql` (fine at smaller OD scale or
+lower core counts where the single-query working set fits in the configured
+`NIRD_DUCKDB_MEMORY_LIMIT`).
+
+## 7. Optimization experiments (cpu8 baseline)
+
+Once the cpu4/cpu8/cpu16 scaling tests confirmed cpu8 (128G, `duckdb_chunked_compact`,
+100GB DuckDB limit) as the preferred config, profiling job **9000424** (2026-07-21,
+83.5min total) pointed at two concrete, testable inefficiencies rather than open-ended
+tuning. Five one-factor-at-a-time experiments isolate each lever against that baseline;
+none of them are convergence runs (`MAX_FLOW_ITERATIONS=1`, same as the scaling tests).
+
+| # | Script | Variable under test | Baseline value | New value | **Result (2026-07-23)** |
+|---|---|---|---|---|---|
+| 1 | `submit_cpu8_opt_fuse.slurm` | `NIRD_DUCKDB_CHUNKED_FUSE_PASS1` | unset (off) | `1` | **OOM** (job 9049762, 93.1GiB) -- rejected, see below |
+| 2 | `submit_cpu8_opt_chunk10.slurm` | `num_of_chunk` (CLI arg) | `20` | `10` | **OOM** (job 9049758, 93.1GiB) -- confirms 20 is near the safe floor |
+| 3 | `submit_cpu8_opt_chunk40.slurm` | `num_of_chunk` (CLI arg) | `20` | `40` | Completed, pass1 **57.8min** vs 43.9min baseline (+32%, slower) -- rejected |
+| 4 | `submit_cpu8_opt_lcpchunk1000.slurm` | `NIRD_LCP_DEST_CHUNK_SIZE` | `300` | `1000` | Completed, LCP dispatch **13.86min** vs 17.93min baseline (**-22.7%**) -- **adopted as new default** |
+| 5 | `submit_cpu8_opt_lcpchunk0.slurm` | `NIRD_LCP_DEST_CHUNK_SIZE` | `300` | `0` (disabled) | **OS OOM-killed** (job 9049760, RSS 121+GB mid-dispatch) -- confirms 0 is unsafe at this OD scale |
+
+**#1 -- pass-1 query fusion.** The `duckdb_chunked_compact` path ran two independent
+`CROSS JOIN UNNEST(t.path)` queries per chunk (`edge_total_parts` and `od_results_iter`),
+each re-exploding and re-joining the same rows. `NIRD_DUCKDB_CHUNKED_FUSE_PASS1=1`
+materializes the join once into a `chunk_exploded` temp table and feeds both aggregates
+from it. Gated behind an env var (default off) specifically so the original two-query
+path stays available for direct A/B comparison -- see `itter_path` in
+`src/resiflow/road_revised.py` for both branches side by side.
+
+**#2/#3 -- itter_path chunk count.** `num_of_chunk` (the script's first CLI arg) trades
+per-query planning/compilation overhead (more chunks = more queries = more overhead)
+against peak per-chunk memory (fewer, larger chunks = bigger transient join). 10 and 40
+bracket the baseline's 20 in both directions.
+
+**#4/#5 -- LCP destination chunking.** `NIRD_LCP_DEST_CHUNK_SIZE=300` (a Goal 15 fix for
+memory safety at high OD scale) causes igraph's `get_shortest_paths` to rebuild each
+origin's full Dijkstra tree once per chunked task rather than once per origin --
+baseline log line `Chunked LCP dispatch: 3143 origin-tasks split into 34374 tasks`
+means each origin's tree was rebuilt ~11x. The LCP phase runs *before* `itter_path`, and
+baseline RSS at that point was only ~24GB against a 128G allocation -- there's headroom
+to test relaxing this. `1000` cuts rebuilds to ~4x/origin; `0` disables chunking
+entirely (~1x/origin, the theoretical best case) but is the higher memory-risk bookend --
+treat #5 as informational even if it doesn't complete cleanly; if `iter1_lcp_pool_done`
+RSS spikes, that tells us the real ceiling is somewhere between 300 and 1000, not 0.
+
+**Total: 5 new jobs**, each independently comparable to the existing cpu8 baseline
+(job 9000424) rather than to each other -- this is a one-factor-at-a-time design,
+not a full factorial, to keep cluster time proportionate. After results come in,
+combine whichever levers actually helped into one follow-up run rather than assuming
+they stack additively.
+
+**Correctness check, not just speed:** #1 changes the SQL that produces `temp_flow_matrix`
+(same output schema, different query plan) -- diff its `odpfc.pq` / `edge_flows.gpq`
+against the baseline run's output before trusting the timing win. #2-#5 don't change any
+query logic, only chunk sizing, so their outputs should match the baseline exactly.
+
+### Results and what they mean
+
+**#1 fusion -- rejected, and why the hypothesis was wrong.** The idea was "don't
+explode+join the same rows twice." That's true for *CPU* work, but wrong for *memory*:
+DuckDB's original two-query version pipelines each `CROSS JOIN UNNEST -> JOIN -> GROUP BY`
+as a single streaming operation -- peak memory is bounded by the aggregate's hash table,
+not by the exploded row count, since the exploded intermediate is never fully
+materialized. Forcing `CREATE TABLE chunk_exploded AS SELECT ...` breaks that pipelining
+and requires holding the *entire* exploded chunk in memory so it can be scanned twice
+afterward. At this data scale that materialization costs more than the redundant
+computation it was meant to avoid. `NIRD_DUCKDB_CHUNKED_FUSE_PASS1` stays default-off
+permanently -- do not re-enable without first testing at a much smaller OD scale.
+
+**#2/#3 chunk count -- 20 confirmed as the local optimum.** 10 is too few (chunks too
+large, OOMs); 40 is too many (per-query planning/compilation overhead dominates, 32%
+slower than baseline). No change made.
+
+**#4/#5 LCP destination chunking -- 1000 adopted, 0 rejected.** 1000 is a clean,
+mechanism-backed win: task count dropped from 34374 to 12497 (closely tracking the
+1000/300 batch-size ratio), LCP dispatch time dropped 22.7%, and the memory cost was
+negligible (25.71GB vs baseline's ~24GB) because that phase runs *before* `itter_path`
+with lots of headroom. This result is trustworthy in isolation because the LCP phase
+completes entirely before pass 1 starts, so nothing else in the run can confound it.
+0 (fully disabled) was OOM-killed by the kernel at ~41% through dispatch (RSS 121+GB) --
+confirms the real ceiling sits between 1000 and unbounded, not worth probing further
+without a smaller OD scale or more memory headroom. **`NIRD_LCP_DEST_CHUNK_SIZE=1000`
+is now the default in `submit_cpu4/8/16.slurm` and `submit_cpu8_convergence.slurm`.**
+
+**A caution about trusting single-run deltas on this cluster:** the lcpchunk1000 run's
+*total* time (92min) looked worse than baseline (83.5min) even though its LCP phase was
+genuinely faster -- its pass 1 alone took 53.4min vs the baseline's 43.9min, despite pass 1
+being architecturally unaffected by LCP chunk size. That's almost certainly shared
+`/scratch` I/O contention with other users' jobs, not a real effect -- run-to-run noise on
+this cluster looks to be on the order of 15-20%. Isolated, mechanism-backed phase timings
+(like the LCP-phase number here) are more trustworthy than total-runtime deltas from a
+single run; treat differences smaller than ~20% between single runs as inconclusive
+without a repeat run.
+
+## 8. Sync and verify before every submission
+
+Edits made locally (code fixes, SLURM script changes) only exist in the local
+working copy until pushed -- Hopper has its own separate clone under
+`/scratch/$USER/multimodal_hazard_data/code/ResiFlow`. **Every time a file
+changes, this sync has to happen before the next `sbatch`, or the job runs
+against stale code/config with no warning.**
+
+1. **Locally:** commit and push the change to the branch Hopper tracks
+   (`perf/lcp-dest-chunked-dispatch`, or wherever the fixes have landed --
+   see the branch caveat at the top of this doc).
+   ```bash
+   git add -A
+   git commit -m "..."
+   git push
+   ```
+2. **On Hopper:** `cd` into the cloned repo and pull.
+   ```bash
+   cd /scratch/$USER/multimodal_hazard_data/code/ResiFlow
+   git pull
+   git log -1 --stat        # confirm the expected commit/fix is actually present
+   ```
+3. **Verify the SLURM script itself**, separately from the code -- it's easy
+   to edit `submit_cpu8.slurm` locally, forget to re-sync it (or sync the repo
+   but not notice the script still has stale env vars), and burn another
+   partial-hour job on a config you didn't mean to run.
+   ```bash
+   git status              # nothing unexpected modified/stale after the pull
+   git diff HEAD~1 -- experiments/pass_a_convergence/hopper/submit_cpu8.slurm
+   cat experiments/pass_a_convergence/hopper/submit_cpu8.slurm   # eyeball the actual env vars that will run
+   ```
+   If the script lives outside git (hand-edited directly on Hopper), skip the
+   `git diff` and just `cat` it before every `sbatch` -- there's no other way
+   to confirm what's about to run.
+
+Only once both checks pass, move to submission below.
+
+## 9. Submitting and monitoring
 
 ```bash
 sbatch submit_test.slurm
@@ -245,7 +416,7 @@ opposite of what was observed on a hybrid P-core/E-core workstation CPU
 properly for this workload, since the LCP dispatch phase is embarrassingly
 parallel per-origin.
 
-## 8. Known issues and fixes
+## 10. Known issues and fixes
 
 | Symptom | Cause | Fix |
 |---|---|---|
@@ -254,4 +425,51 @@ parallel per-origin.
 | `sbatch: error: invalid partition specified: debug` | No `debug` partition exists on this cluster | Use `--partition=normal` |
 | `slurmstepd: error: ... CANCELLED ... DUE TO TIME LIMIT` | `--time` too short for the OD scale being run | See "how much `--time` to request" above |
 | `_duckdb.OutOfMemoryException: failed to pin block ...` | `NIRD_DUCKDB_MEMORY_LIMIT` too low relative to `--mem` and core count | See "how to set `NIRD_DUCKDB_MEMORY_LIMIT`" above |
+| Same OOM persists even after raising `NIRD_DUCKDB_MEMORY_LIMIT` close to `--mem`, with node memory still unused | Default `itter_path` strategy runs the path-explode join unchunked over the whole OD table | Set `NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact` -- see "The bigger lever" above |
 | Env vars like `NIRD_LCP_DEST_CHUNK_SIZE` seem to have no effect | Cloned `main` instead of the branch with the fix | Check you're on `perf/lcp-dest-chunked-dispatch` (or wherever it's been merged to) |
+
+## 11. Data correctness: intrazonal OD rows were being counted as isolated
+
+**Not a performance issue -- a modeling-correctness one, found while investigating a
+real convergence run's numbers (2026-07, job 9052646/9062837).** The convergence
+log reports `assigned_fraction`/`remain_fraction` based on how much of `remain_od`'s
+`Car21` demand has been removed from the pool each iteration, for ANY reason --
+successfully routed, *or* permanently written off as isolated (no feasible path).
+On that run, only 4.4% of total demand was ever actually routed after 10 iterations,
+yet `assigned_fraction` read 57.14%, because **52.23% of total demand (77.8M of
+148.9M) was intrazonal** -- OD rows where `origin_node == destination_node`, one per
+origin (3,143 rows), a completely normal feature of any zone-level OD matrix (LODES
+and FAF5 both have a "stayed in the same zone" diagonal). A same-node pair has no
+edges to traverse, so `get_shortest_paths` correctly returns an empty path for it --
+but the isolation check (`len(path) == 0`) can't distinguish "trivially already
+there" from "genuinely unreachable," so both landed in the same
+isolated/`Non_allocated_flow` bucket. The actual network-connectivity gap, once
+intrazonal rows are excluded, is ~0.15% -- consistent with the raw network graph
+being 99.6%+ one connected component (verified locally against
+`faf5_road_links.gpq`/`faf5_road_nodes.gpq`; this and the OD-coverage cross-check
+were done entirely locally, no Hopper compute needed for the diagnosis).
+
+**Fix:** `network_flow_model()` now excludes intrazonal rows from `remain_od` before
+`total_remain`/`initial_sumod` are computed (`src/resiflow/road_revised.py`, top of
+the function), so both script 1 and script 4 -- which both call this function
+directly -- get the fix without needing to filter at each call site. Controlled by
+`RESIFLOW_EXCLUDE_INTRAZONAL_OD` / `NIRD_EXCLUDE_INTRAZONAL_OD`, default `1`; set to
+`0` to restore the old behavior (routing them and having them misclassified as
+isolated) if ever needed for direct before/after comparison.
+
+**Validated locally** (no Hopper needed) with a 200K-row sample of the real
+freight+passenger OD data: the log line `Excluding 64 intrazonal ... carrying
+1523550.568 total flow` matched the sample's own `self_pair_flow=1,523,550.568`
+exactly, and the corrected `total_remain` (1,203,916.42) equals
+`total - self_pair_flow` (2,727,466.99 - 1,523,550.57) exactly. Genuine isolation
+in that sample dropped to ~1.0%, in line with the ~0.15% figure from the full OD
+coverage check.
+
+**If re-deriving old convergence numbers:** any `assigned_fraction`/`remain_fraction`
+logged before this fix (including the entire cpu4/8/16 scaling comparison and the
+5 optimization experiments earlier in this project's history) used the inflated
+~149M denominator and are not directly comparable to runs after this fix -- the
+*timing and memory* conclusions from that work still hold (those were about wall-
+clock and RSS, not demand accounting), but any "% assigned" figures from before this
+fix should be treated as measuring "% resolved (routed or written off)," not "%
+successfully routed."

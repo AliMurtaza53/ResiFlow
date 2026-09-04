@@ -65,7 +65,22 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(301, "flood", hazard_subtype="flood_surface", closure_threshold=30, label="flood_surface"),
     HazardScenario(302, "flood", hazard_subtype="flood_river", closure_threshold=30, label="flood_river"),
     HazardScenario(303, "flood", hazard_subtype="flood_coastal", closure_threshold=30, label="flood_coastal"),
+    # Real Hurricane Harvey depths, Houston/Harris County TX -- NOT a VA
+    # scenario (zero bbox overlap, see docs/VA_MULTIHAZARD_COMPARISON.md,
+    # "Harvey" section). A separate case study reusing the same CONUS
+    # network/pipeline, not a VA flood_subtype.
+    HazardScenario(
+        304, "flood", hazard_subtype="flood_harvey_houston", closure_threshold=30, label="flood_harvey_houston"
+    ),
     HazardScenario(401, "earthquake", closure_threshold=25, label="earthquake"),
+    # Real NSHM 2023 (probabilistic, 475yr RP) contour-rasterized PGA, the
+    # earthquake default before 2026-08-03. Kept reachable under its own
+    # scenario_param now that 401's default resolves to the real 2011
+    # Mineral, VA ShakeMap PGA instead (see hazards/real_va.py,
+    # RealEarthquakeShakeMapSource, and docs/VA_MULTIHAZARD_COMPARISON.md).
+    HazardScenario(
+        402, "earthquake", hazard_subtype="earthquake_nshm", closure_threshold=25, label="earthquake_nshm"
+    ),
     HazardScenario(501, "landslide", closure_threshold=100, label="landslide"),
     HazardScenario(601, "winter_storm", closure_threshold=100, label="winter_storm"),
     HazardScenario(701, "snow", closure_threshold=150, label="snow"),

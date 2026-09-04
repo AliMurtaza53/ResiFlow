@@ -24,6 +24,7 @@ from tqdm import tqdm
 from collections import defaultdict
 
 import resiflow.road_revised as func
+import resiflow.constants as cons
 from resiflow.combined_od import resolve_passenger_od_path
 from resiflow.demand import (
     load_assignment_demand,
@@ -73,16 +74,143 @@ def odpfc_source_exists(path: Path) -> bool:
     return False
 
 
-def load_odpfc_source(path: Path) -> pd.DataFrame:
-    """Load OD path output from a single Parquet file or odpfc_parts directory."""
+def load_odpfc_source(path: Path, damaged_edges: set[str]) -> pd.DataFrame:
+    """Load only the OD rows whose realized path crosses a damaged edge.
+
+    An unfiltered load (previously ``pd.read_parquet``/unfiltered
+    ``read_parquet(...).fetchdf()``) works fine against a small toy baseline
+    but OOMs immediately against a CONUS-scale baseline's odpfc (hundreds of
+    GB) -- this baseline is typically the Pass A convergence run itself
+    (``base_scenario/<results_variant>/odpfc.pq``), read here as Script 4's
+    fallback when no Pass-B-specific event_candidates output exists.
+
+    Root-cause history (2026-07-31/08-01, confirmed on Hopper): CROSS JOIN
+    UNNEST(path) has to touch every edge of every one of the baseline's
+    ~9.68M paths to find matches, regardless of how many edges you're
+    matching against -- a hazard with 95 damaged edges ran 6+ hours without
+    finishing on a from-scratch explode. Doing that explode once PER HAZARD
+    EVENT (up to 4x for this project) was the real, avoidable cost -- see
+    scripts/build_odpfc_edge_index.py, which does the explode exactly once
+    into a persistent (e_id, od_id) index. If that index exists, use it (a
+    cheap filtered lookup, no UNNEST at query time); otherwise fall back to
+    the direct explode (fine for a small toy baseline, slow at CONUS scale).
+
+    Second root-cause round (2026-08-03/04, confirmed on Hopper): even with
+    the index, a hazard whose damaged-edge set is a large fraction of the
+    network (winter_storm/601: 11,556 of 483K CONUS edges, 2.4%) can still
+    OOM -- diagnosed by timing the two stages of this function separately.
+    Stage 1 (this function's ``hit_od_ids`` build, just distinct od_id
+    matches) completed in ~20 min at 8 CPU/140GB with no issue. The old
+    Stage 2 (``SELECT o.* ... SEMI JOIN`` -> ``fetchdf()``) is what died: it
+    pulled all 16.67M matched ROWS (not OD pairs) into one pandas
+    DataFrame, each with a ``path`` list column -- ``od_id`` is assigned
+    fresh per Pass-A iteration (``road_revised.py``'s
+    ``next_od_id_base + ROW_NUMBER()``), so the same (origin, destination)
+    pair recurs once per iteration it got rerouted through, and the
+    overlay_assignment_flows() caller was already deduping down to one row
+    per (origin_node, destination_node) anyway -- just AFTER paying the full
+    materialization cost.
+
+    First attempt at a fix (2026-08-04) did that same dedup in SQL, but
+    against ``o.*`` directly (``QUALIFY ROW_NUMBER() OVER (PARTITION BY
+    origin_node, destination_node ORDER BY od_id) = 1``) -- confirmed on
+    Hopper (2026-08-05) that this STILL OOMs (120.7/121GiB used), because
+    the window function has to buffer/sort every matched row, ``path``
+    array included, to rank it -- reducing the final result size doesn't
+    reduce the peak memory needed to compute it. Fixed by ranking on a
+    NARROW projection first (just ``od_id``, ``origin_node``,
+    ``destination_node`` -- Parquet's columnar layout means this never
+    touches ``path`` at all, same narrow footprint as Stage 1, which was
+    already proven tractable at this row count), then joining back to fetch
+    full rows only for the winning (much smaller) od_id set.
+    """
+    conn = duckdb.connect()
+    duckdb_memory_limit = os.environ.get("NIRD_DUCKDB_MEMORY_LIMIT", "24GB")
+    conn.execute(f"PRAGMA memory_limit='{duckdb_memory_limit}'")
+    conn.execute("PRAGMA preserve_insertion_order=false")
+    duckdb_temp_dir = os.environ.get("NIRD_DUCKDB_TEMP_DIRECTORY")
+    if duckdb_temp_dir:
+        conn.execute(f"PRAGMA temp_directory='{duckdb_temp_dir}'")
+    damaged_df = pd.DataFrame({"e_id": sorted(str(e) for e in damaged_edges)})
+    conn.register("damaged_edges", damaged_df)
     if path.is_dir():
         pattern = (path / "*.pq").as_posix().replace("'", "''")
-        logging.info("Loading partitioned odpfc parts from %s", path)
-        return duckdb.connect().execute(
-            f"SELECT * FROM read_parquet('{pattern}')"
-        ).fetchdf()
-    logging.info("Loading single odpfc parquet from %s", path)
-    return pd.read_parquet(path)
+        source_sql = f"read_parquet('{pattern}')"
+        logging.info("Loading filtered odpfc parts from %s", path)
+    else:
+        single_path = path.as_posix().replace("'", "''")
+        source_sql = f"read_parquet('{single_path}')"
+        logging.info("Loading filtered single odpfc parquet from %s", path)
+
+    index_dir = path.parent / "odpfc_edge_index"
+    if index_dir.is_dir() and any(index_dir.glob("part_*.pq")):
+        index_pattern = (index_dir / "part_*.pq").as_posix().replace("'", "''")
+        logging.info("Using prebuilt edge/od_id index at %s", index_dir)
+        conn.execute(
+            f"""
+            CREATE TEMP TABLE hit_od_ids AS
+            SELECT DISTINCT idx.od_id
+            FROM read_parquet('{index_pattern}') idx
+            JOIN damaged_edges d ON d.e_id = idx.e_id
+            """
+        )
+    else:
+        logging.warning(
+            "No prebuilt edge/od_id index at %s -- falling back to a direct "
+            "UNNEST explode, which is slow at CONUS scale (confirmed 6h+ for "
+            "a 95-damaged-edge hazard). Run scripts/build_odpfc_edge_index.py "
+            "once against this baseline to avoid repeating this per hazard event.",
+            index_dir,
+        )
+        conn.execute(
+            f"""
+            CREATE TEMP TABLE hit_od_ids AS
+            SELECT DISTINCT o.od_id
+            FROM {source_sql} o
+            CROSS JOIN UNNEST(o.path) AS u(e_id)
+            JOIN damaged_edges d ON d.e_id = u.e_id
+            """
+        )
+    # Narrow-then-widen: rank on just (od_id, origin_node, destination_node) --
+    # NOT `o.*` -- so the window function never has to buffer every matched
+    # row's `path` array to do the ranking. Confirmed on Hopper (2026-08-05)
+    # that doing the QUALIFY/ROW_NUMBER dedup against `o.*` directly still
+    # OOMs (120.7/121GiB used) even though the FINAL result is small, because
+    # DuckDB has to materialize/sort the full-width intermediate (path arrays
+    # included) to rank it before QUALIFY can discard the losers. Parquet's
+    # columnar layout means a query that only ever references od_id/
+    # origin_node/destination_node never touches the path column's data at
+    # all, so this ranking pass has the same narrow footprint as Stage 1
+    # (hit_od_ids), which already proved tractable at this row count.
+    conn.execute(
+        f"""
+        CREATE TEMP TABLE winning_od_ids AS
+        SELECT od_id FROM (
+            SELECT
+                o.od_id,
+                ROW_NUMBER() OVER (
+                    PARTITION BY o.origin_node, o.destination_node ORDER BY o.od_id
+                ) AS rn
+            FROM {source_sql} o
+            JOIN hit_od_ids h ON h.od_id = o.od_id
+        ) ranked
+        WHERE rn = 1
+        """
+    )
+    result = conn.execute(
+        f"""
+        SELECT o.*
+        FROM {source_sql} o
+        JOIN winning_od_ids w ON w.od_id = o.od_id
+        """
+    ).fetchdf()
+    conn.unregister("damaged_edges")
+    conn.close()
+    logging.info(
+        "Filtered odpfc source produced %s candidate rows (of a much larger baseline).",
+        len(result),
+    )
+    return result
 
 
 def overlay_assignment_flows(
@@ -639,7 +767,7 @@ def main(
         if "od_id" not in disrupted_candidates.columns:
             disrupted_candidates["od_id"] = disrupted_candidates.index
     else:
-        disrupted_candidates = load_odpfc_source(Path(candidate_source_path))
+        disrupted_candidates = load_odpfc_source(Path(candidate_source_path), flooded_edges)
         if "path" in disrupted_candidates.columns:
             if VECTORIZE_PATH_PARSING:
                 disrupted_candidates["path"] = to_edge_id_list_vectorized(
@@ -811,6 +939,8 @@ def main(
 
             # create Duckdb to store mid-outputs
             conn = duckdb.connect(db_path)
+            # mirrors road_revised.network_flow_model's PRAGMA threads fix
+            conn.execute(f"PRAGMA threads={max(1, int(num_of_cpu))}")
             conn.execute("DROP TABLE IF EXISTS od_results")  # reset table
             conn.execute("DROP TABLE IF EXISTS edge_flows")  # reset table
             first = True
@@ -979,6 +1109,22 @@ def main(
                 vehicle_type="car",
             )
 
+            # Trip isolations from the post-disruption (damaged) network -- read here
+            # (rather than at write-out time below) so isolated_flow_total is available
+            # for the SC (isolation cost) term before cost_rows is built.
+            if isolation_path.exists():
+                isolation_df = pd.read_parquet(isolation_path)
+                if "flow" in isolation_df.columns:
+                    isolation_df = isolation_df.rename(columns={"flow": "Car21"})
+            else:
+                isolation_df = pd.DataFrame(columns=["origin_node", "destination_node", "Car21"])
+
+            isolation_df = isolation_df[
+                (isolation_df.origin_node != isolation_df.destination_node)
+                & (isolation_df.Car21 > 0)
+            ].reset_index(drop=True)
+            isolated_flow_total = float(isolation_df["Car21"].sum())
+
             # Rerouting baseline: by default, pre-event cost is recomputed on the
             # same loaded-speed undisrupted network as post (apples-to-apples).
             # The legacy path used free-flow Pass A per-flow costs for pre while
@@ -1038,7 +1184,13 @@ def main(
                     )
                 )
 
-            # estimate rerouting cost matrix
+            # estimate rerouting cost matrix (RC, Eq. 7 of the source stress-testing
+            # framework -- Li et al., "Stress-testing road network resilience using
+            # counterfactual flood events", TRD 2026). RC is deliberately computed
+            # only over routed (non-isolated) flow, post minus pre -- it is NOT
+            # expected to also account for isolated flow, and can be small/negative
+            # in principle. Isolation is priced separately as SC below (Eq. 8-9) and
+            # only combined with RC in combined_total_cost, never inside RC itself.
             rer_time = post_time - pre_time
             rer_operate = post_operate - pre_operate
             rer_toll = post_toll - pre_toll
@@ -1051,6 +1203,23 @@ def main(
             )
             logging.info(
                 f"The rerouting cost for scenario {scenario_id}: $ million {rerouting_cost / 1e6}"
+            )
+
+            # isolation cost (SC, Eq. 8-9): omega is a per-unit-flow-per-day economic
+            # loss for flow that cannot be routed at all on the post-disruption
+            # network. The paper anchors omega on labour-productivity loss for
+            # passenger commuters (GBP/hr x 7hr workday); for freight, a stranded
+            # vehicle isn't a commuter losing wages, it's cargo/hauling capacity
+            # lost for the day, so we use the existing sourced VOT_USD_PER_HOUR
+            # value-of-time constant for the relevant vehicle type x 24h/day.
+            vot_key = "ogv" if mode_name == "freight" else "car"
+            omega_usd_per_flow_per_day = cons.VOT_USD_PER_HOUR[vot_key] * 24
+            isolation_cost = isolated_flow_total * omega_usd_per_flow_per_day
+            logging.info(
+                f"Isolated flow (post-disruption, unroutable): {isolated_flow_total}"
+            )
+            logging.info(
+                f"The isolation cost for scenario {scenario_id}: $ million {isolation_cost / 1e6}"
             )
 
             logging.info("Saving results to disk...")
@@ -1066,29 +1235,26 @@ def main(
                     "rer_operate": rer_operate,
                     "rer_toll": rer_toll,
                     "rerouting_cost": rerouting_cost,
+                    "isolated_flow_total": isolated_flow_total,
+                    "isolation_cost": isolation_cost,
                 }
             )
             cost_df = pd.DataFrame(cost_rows)
             cost_df["direct_damage_total_musd"] = direct_damage_total_musd
             cost_df["direct_damage_total_usd"] = direct_damage_total
             cost_df["direct_damage_total"] = direct_damage_total
-            cost_df["combined_total_cost"] = cost_df["rerouting_cost"] + cost_df["direct_damage_total"]
+            cost_df["combined_total_cost"] = (
+                cost_df["rerouting_cost"]
+                + cost_df["isolation_cost"]
+                + cost_df["direct_damage_total"]
+            )
             cost_df.to_csv(
                 out_path / f"rerouting_cost_{mode_name}_s{scenario_id}_day{event_day}.csv", index=False
             )
 
-            # trip isolations
-            if isolation_path.exists():
-                isolation_df = pd.read_parquet(isolation_path)
-                if "flow" in isolation_df.columns:
-                    isolation_df = isolation_df.rename(columns={"flow": "Car21"})
-            else:
-                isolation_df = pd.DataFrame(columns=["origin_node", "destination_node", "Car21"])
-
-            isolation_df = isolation_df[
-                (isolation_df.origin_node != isolation_df.destination_node)
-                & (isolation_df.Car21 > 0)
-            ].reset_index(drop=True)
+            # trip isolations (isolation_df already read/filtered above, right after
+            # the post-disruption flow simulation, to compute isolated_flow_total
+            # for the SC term)
             isolation_df.to_csv(
                 out_path / f"trip_isolations_{mode_name}_s{scenario_id}_day{event_day}.csv",
                 index=False,
@@ -1142,7 +1308,11 @@ def main(
         cost_df["direct_damage_total_musd"] = direct_damage_total_musd
         cost_df["direct_damage_total_usd"] = direct_damage_total
         cost_df["direct_damage_total"] = direct_damage_total
-        cost_df["combined_total_cost"] = cost_df["rerouting_cost"] + cost_df["direct_damage_total"]
+        cost_df["combined_total_cost"] = (
+            cost_df["rerouting_cost"]
+            + cost_df["isolation_cost"]
+            + cost_df["direct_damage_total"]
+        )
         cost_df.to_csv(out_path / f"cost_matrix_{mode_name}_by_scenario.csv", index=False)
         if mode_name == "freight":
             cost_df.to_csv(out_path / "cost_matrix_by_scenario.csv", index=False)
