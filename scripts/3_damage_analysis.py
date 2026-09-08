@@ -33,6 +33,27 @@ def first_existing(paths):
     return None
 
 
+def _load_damage_ratio_table(table_name: str) -> pd.DataFrame:
+    """Adapt a T22-shaped parameter table to damage_ratio_road_flood.xlsx's schema.
+
+    The xlsx (ungitted, damage_curves/damage_ratio_road_flood.xlsx) has columns
+    ``intensity`` (flood depth in METERS -- confirmed against the actual file:
+    values run 0, 0.05, 0.10, ...) and bare ``C1``..``C6``. T22's CSV uses
+    ``depth_cm`` (CENTIMETERS -- a real, easy-to-miss unit mismatch) and
+    verbose column names like ``C1_sophisticated_lowflow``. Convert both here
+    so create_damage_curves() and the C1..C6 dict lookups downstream
+    (compute_damage_fraction) work identically regardless of source.
+    """
+    from resiflow.tables import load_table
+
+    table = load_table(table_name)
+    df = table.rename(columns={"depth_cm": "intensity"})
+    df["intensity"] = pd.to_numeric(df["intensity"], errors="raise") / 100.0  # cm -> m
+    c_columns = {c: c.split("_")[0] for c in df.columns if c != "intensity"}
+    df = df.rename(columns=c_columns)
+    return df[["intensity", *sorted(c_columns.values())]]
+
+
 def create_damage_curves(damage_ratio_df: pd.DataFrame) -> Dict:
     """Create a dictionary of piecewise linear damage curves for various road
     classifications and flow conditions based on damage ratio data.
@@ -623,7 +644,14 @@ def main():
         print(f"Parameter overrides in force: {active_overrides_path()}")
 
     # damage curves
-    damages_ratio_df = pd.read_excel(damage_ratio_path)
+    if get_parameter("vulnerability", "use_table_damage_ratio_curves", False):
+        damages_ratio_df = _load_damage_ratio_table(
+            get_parameter(
+                "vulnerability", "damage_ratio_curves_table", "T22_damage_ratio_curves_TEMPLATE"
+            )
+        )
+    else:
+        damages_ratio_df = pd.read_excel(damage_ratio_path)
 
     # SA seam: optional vulnerability-curve perturbations, applied to the
     # loaded frame (the workbook itself stays pristine). Both parameters are

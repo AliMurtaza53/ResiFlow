@@ -89,7 +89,7 @@
     "landslide_script3_depth_scale": 0.001,
     "winter_storm_script3_depth_scale": 0.001,
     "speed_depth_exponent": 2.0,
-    "use_table_speed_depth": false,
+    "use_table_speed_depth": true,
     "speed_depth_table": "T19_speed_depth_curve_discretized"
   },
 
@@ -99,7 +99,10 @@
     "depth_scale_lambda": null,
     "damage_threshold_scale": 1.0,
     "use_table_damage_thresholds": false,
-    "damage_threshold_table": "T20_damage_level_depth_thresholds"
+    "damage_threshold_table": "T20_damage_level_depth_thresholds",
+    "_comment_damage_ratio": "use_table_damage_ratio_curves switches Script 3's C1-C6 depth-damage curves from damage_curves/damage_ratio_road_flood.xlsx (ungitted, local-only) to parameters/tables/T22_damage_ratio_curves_TEMPLATE.csv. Left FALSE: T22's manifest status is TEMPLATE_REPLACE_VALUES -- its numbers are illustrative shapes, not sourced (see the CSV's own header and van Ginkel et al. 2021 SI). Flip only after replacing T22's values with real extracted data; the wiring itself (unit conversion cm->m, column renaming) is tested and ready.",
+    "use_table_damage_ratio_curves": false,
+    "damage_ratio_curves_table": "T22_damage_ratio_curves_TEMPLATE"
   },
 
   "damage_costs": {
