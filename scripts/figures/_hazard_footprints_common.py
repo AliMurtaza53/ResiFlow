@@ -39,16 +39,6 @@ STATE_LINE = "#8a8a8a"
 SURFACE = "#ffffff"
 plt.rcParams["font.family"] = FONT_FAMILY
 
-# New Madrid label: our raster is the USGS M7.5 BSSC2014 CENTRAL-fault
-# scenario (see resiflow.hazards.scenario_registry's own comment), NOT the
-# M7.7 SOUTHERN-fault FEMA-exercise scenario (a real, different USGS
-# product, event nm19fema_m7p7_mt_se, that we don't have downloaded).
-# Confirmed against the live USGS scenario catalog 2026-09-09 before
-# labeling -- do not bump this to "7.7" without actually swapping the
-# source raster for that other event.
-NEW_MADRID_TITLE = "Missouri 1811-12* EQ"
-NEW_MADRID_NOTE = "*USGS M7.5 central-fault scenario (BSSC2014), not an actual ShakeMap from 1811-12"
-
 
 def load_conus_states(
     county_shp: Path = Path(r"C:\Users\akothaw\Desktop\data\faf5_data\county_shp\tl_2022_us_county.shp"),
@@ -138,52 +128,77 @@ def array_extent_9311(transform, height: int, width: int) -> tuple[float, float,
     return (left, right, bottom, top)
 
 
-def load_new_madrid_pga() -> tuple[np.ndarray, "rasterio.Affine", float]:
-    return reproject_preserve_native_res(
-        RAW / "earthquake" / "new_madrid_scenario" / "pga_g.tif", DISPLAY_CRS
-    )
-
-
-def load_mineral_pga() -> tuple[np.ndarray, "rasterio.Affine", float]:
-    return reproject_preserve_native_res(
-        RAW / "earthquake" / "mineral_shakemap" / "pga_g.tif", DISPLAY_CRS
-    )
-
+CASCADIA_HDF = Path(r"C:\Users\akothaw\Desktop\data\Cascadia9_shake_result.hdf")
+CASCADIA_TITLE = "M9.0 Cascadia Subduction Zone (median ensemble)"
+CASCADIA_NOTE = (
+    "USGS scenario cszm9ensemble_se -- median of 30 M9 rupture realizations\n"
+    "(Frankel et al. 2018), not a single deterministic ShakeMap"
+)
+CASCADIA_MAGNITUDE = 9.0
 
 # HAZUS Newmark PGD inputs matching the real pipeline's own
 # compute_landslide_pgd.py invocation for this susceptibility product (see
 # experiments/conus_multihazard/hopper/submit_align_hazards.slurm):
 # n10's count is 0..81 (9x9 10m sub-cells per 90m cell).
 SUSCEPTIBILITY_MAX_COUNT = 81.0
-NEW_MADRID_MAGNITUDE = 7.5  # BSSC2014 central-fault scenario
 
 
-def load_new_madrid_landslide_pgd_cm() -> tuple[np.ndarray, "rasterio.Affine", None]:
-    """Co-seismic Newmark PGD (cm) from the New Madrid M7.5 scenario, computed
+def load_cascadia_pga_raw() -> tuple[np.ndarray, "rasterio.Affine", str]:
+    """Read the Cascadia M9 ensemble ShakeMap's PGA grid straight from its
+    shake_result.hdf (ShakeMap 4.x format -- not a GeoTIFF, so no rasterio
+    path opens it directly). Grid geometry and CRS come from the dataset's
+    own attrs (xmin/xmax/ymin/ymax/dx/dy/nx/ny, EPSG:4326 -- ShakeMap grids
+    are always geographic). Confirmed the array's ``units: ln(g)`` attr is
+    literal (exp(raw max 0.327) = 1.387, matching dictionaries/info.json's
+    own reported max_grid exactly) -- most other ShakeMap-derived PGA
+    rasters in this project were pre-converted to g by an upstream prep
+    script; this one hasn't been, so the exp() happens here instead.
+    """
+    import h5py
+
+    with h5py.File(CASCADIA_HDF, "r") as f:
+        ds = f["arrays/imts/GREATER_OF_TWO_HORIZONTAL/PGA/mean"]
+        raw_ln_g = ds[()]
+        xmin, xmax = float(ds.attrs["xmin"]), float(ds.attrs["xmax"])
+        ymin, ymax = float(ds.attrs["ymin"]), float(ds.attrs["ymax"])
+        dx, dy = float(ds.attrs["dx"]), float(ds.attrs["dy"])
+
+    pga_g = np.exp(raw_ln_g).astype("float64")
+    # Standard north-up affine: row 0 at ymax, column 0 at xmin.
+    transform = rasterio.Affine(dx, 0.0, xmin, 0.0, -dy, ymax)
+    return pga_g, transform, "EPSG:4326"
+
+
+def load_cascadia_pga() -> tuple[np.ndarray, "rasterio.Affine", float]:
+    pga_g, transform, crs = load_cascadia_pga_raw()
+    return reproject_preserve_native_res(
+        None, DISPLAY_CRS, src_array=pga_g, src_transform=transform, src_crs_override=crs,
+    )
+
+
+def load_cascadia_landslide_pgd_cm() -> tuple[np.ndarray, "rasterio.Affine", None]:
+    """Co-seismic Newmark PGD (cm) from the Cascadia M9 scenario, computed
     fresh for this figure -- NOT a registered pipeline scenario_param (the
     pipeline only ever pairs landslide with Mineral, scenario_param=501), but
     the exact same method: resiflow.hazards.landslide_pgd's HAZUS Newmark
-    code (Eq. 4-14/4-15, Table 4-16), same susceptibility source (USGS n10),
-    same --susceptibility-max-count=81 the real pipeline uses for it.
+    code (Eq. 4-14/4-15, Table 4-16), same national susceptibility source
+    (USGS n10) and --susceptibility-max-count=81 the real pipeline uses for
+    Mineral. Using the SAME national layer here, just recomputed over
+    Cascadia's own footprint, is deliberate -- n10 already carries real,
+    much higher susceptibility values across the Cascade/Coast/Olympic
+    ranges than it does over New Madrid's flat Mississippi embayment; the
+    steep-terrain signal comes from evaluating the right region, not from
+    swapping to a different susceptibility product.
 
-    PGD has no native resolution of its own (see module docstring elsewhere
-    in this package) -- both inputs have to share one grid to combine
-    pixel-by-pixel. Resamples susceptibility (natively ~100m) DOWN onto New
-    Madrid PGA's own native grid (~1.7-2.1km) via area-averaging, since PGA
-    is the coarser/binding-constraint input; computing at a finer resolution
-    than PGA's own native detail would be false precision.
+    PGD has no native resolution of its own -- both inputs have to share one
+    grid to combine pixel-by-pixel. Resamples susceptibility (natively
+    ~100m) DOWN onto Cascadia PGA's own native grid (~1.7-2.2km) via
+    area-averaging, since PGA is the coarser/binding-constraint input.
     """
     from resiflow.hazards.landslide_pgd import bin_fractional_susceptibility_to_class, expected_pgd_mm
 
-    pga_path = RAW / "earthquake" / "new_madrid_scenario" / "pga_g.tif"
-    with rasterio.open(pga_path) as pga_ds:
-        pga = pga_ds.read(1).astype("float64")
-        pga_nodata = pga_ds.nodata
-        if pga_nodata is not None and np.isfinite(pga_nodata):
-            pga = np.where(pga == pga_nodata, np.nan, pga)
-        pga_transform = pga_ds.transform
-        pga_crs = pga_ds.crs
-        pga_shape = (pga_ds.height, pga_ds.width)
+    pga, pga_transform, pga_crs = load_cascadia_pga_raw()
+    pga_shape = pga.shape
 
     susc_path = RAW / "landslide" / "n10_susc" / "n10_conus.tif"
     with rasterio.open(susc_path) as susc_ds:
@@ -203,7 +218,7 @@ def load_new_madrid_landslide_pgd_cm() -> tuple[np.ndarray, "rasterio.Affine", N
 
     susc_class = bin_fractional_susceptibility_to_class(susc_on_pga_grid, SUSCEPTIBILITY_MAX_COUNT)
     susc_class = np.where(np.isnan(susc_on_pga_grid), np.nan, susc_class)
-    pgd_mm = expected_pgd_mm(susc_class, pga, magnitude=NEW_MADRID_MAGNITUDE)
+    pgd_mm = expected_pgd_mm(susc_class, pga, magnitude=CASCADIA_MAGNITUDE)
     pgd_cm = pgd_mm.astype("float64") / 10.0
     pgd_cm = np.where(np.isnan(pga) | np.isnan(susc_class), np.nan, pgd_cm)
 

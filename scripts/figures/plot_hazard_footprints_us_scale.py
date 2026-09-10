@@ -3,9 +3,9 @@
 Companion to plot_hazard_footprints_native_res.py, which zooms each panel to
 its own footprint to show native PIXEL SIZE heterogeneity. This figure holds
 every panel to the SAME CONUS-wide map extent instead, so relative FOOTPRINT
-SIZE is directly comparable -- Harvey's Houston-area extent next to New
-Madrid's multi-state extent next to Jonas's Mid-Atlantic corridor, all on one
-consistent basemap/scale.
+SIZE is directly comparable -- Harvey's Houston-area extent next to
+Cascadia's Pacific-Northwest-spanning M9 shaking footprint next to Jonas's
+Mid-Atlantic corridor, all on one consistent basemap/scale.
 
 Uses the same source loaders as the native-resolution figure
 (_hazard_footprints_common.py) -- same data, same reprojection (still
@@ -23,16 +23,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import matplotlib.pyplot as plt
 
 from _hazard_footprints_common import (
+    CASCADIA_NOTE,
+    CASCADIA_TITLE,
     INK_PRIMARY,
     INK_SECONDARY,
-    NEW_MADRID_NOTE,
-    NEW_MADRID_TITLE,
     SURFACE,
     draw_panel,
+    load_cascadia_landslide_pgd_cm,
+    load_cascadia_pga,
     load_conus_states,
     load_harvey,
-    load_new_madrid_landslide_pgd_cm,
-    load_new_madrid_pga,
     load_snodas_jonas,
 )
 
@@ -49,15 +49,15 @@ def main() -> int:
 
     fig, axes = plt.subplots(2, 2, figsize=(11, 8), facecolor=SURFACE)
 
-    nm_arr, nm_transform, _ = load_new_madrid_pga()
+    cas_arr, cas_transform, _ = load_cascadia_pga()
     draw_panel(
-        axes[0, 1], letter="b", title=f"Earthquake -- {NEW_MADRID_TITLE}",
-        arr=nm_arr, transform=nm_transform, native_res_m=None, states=states,
+        axes[0, 1], letter="b", title=f"Earthquake -- {CASCADIA_TITLE}",
+        arr=cas_arr, transform=cas_transform, native_res_m=None, states=states,
         cmap="viridis", unit_label="PGA (g)", fixed_extent=conus_extent,
         res_note_override="",
     )
 
-    ls_arr, ls_transform, _ = load_new_madrid_landslide_pgd_cm()
+    ls_arr, ls_transform, _ = load_cascadia_landslide_pgd_cm()
     draw_panel(
         axes[1, 0], letter="c", title="Co-seismic landslide -- Newmark PGD (same EQ)",
         arr=ls_arr, transform=ls_transform, native_res_m=None, states=states,
@@ -113,7 +113,7 @@ def main() -> int:
     # clip axes text by default) -- confirmed this exact overlap and fixed
     # it here rather than truncating the caveat or shrinking its font.
     fig.text(
-        0.02, 0.01, NEW_MADRID_NOTE, fontsize=9, color=INK_SECONDARY, ha="left", va="bottom",
+        0.02, 0.01, CASCADIA_NOTE, fontsize=9, color=INK_SECONDARY, ha="left", va="bottom",
     )
     fig.tight_layout(rect=(0, 0.02, 1, 0.93))
 

@@ -17,24 +17,31 @@ Panels:
      extracted copy). Requires
      inputs/multihazard_raw/Harvey_Depths_3m_Final.gdb extracted locally
      first (see the .zip alongside it).
-  b. Earthquake -- USGS M7.5 central-fault New Madrid scenario (BSSC2014),
-     labeled "Missouri 1811-12* EQ" per the historical 1811-12 New Madrid
-     sequence this scenario represents -- NOT the M7.7 southern-fault FEMA
-     scenario (a different, real USGS product/event we don't have
-     downloaded; confirmed against the live USGS scenario catalog
-     2026-09-09 before choosing this label -- see _hazard_footprints_common.py).
+  b. Earthquake -- USGS M9.0 Cascadia Subduction Zone scenario, event
+     cszm9ensemble_se, the MEDIAN (50th percentile) of an ensemble of 30 M9
+     rupture realizations (Frankel et al. 2018) -- not a single deterministic
+     ShakeMap. Read directly from the user's downloaded shake_result.hdf
+     (ShakeMap 4.x format, not a GeoTIFF) -- see
+     _hazard_footprints_common.py's load_cascadia_pga_raw(). Confirmed the
+     array's units are ln(g), not g (exp(raw max 0.327) = 1.387, matching the
+     file's own dictionaries/info.json max_grid exactly) before using it.
   c. Co-seismic landslide -- Newmark PGD (cm) computed fresh for this figure
-     from the SAME New Madrid M7.5 scenario as panel (b) + the USGS n10
+     from the SAME Cascadia M9 scenario as panel (b) + the USGS n10
      susceptibility layer, via resiflow.hazards.landslide_pgd's real HAZUS
      code (Eq. 4-14/4-15, Table 4-16) -- same method the pipeline uses for
-     Mineral (scenario_param=501), just paired with New Madrid instead,
-     since pairing landslide with a DIFFERENT earthquake than the one shown
-     in panel (b) would be confusing. NOT a registered pipeline
-     scenario_param (the pipeline only ever computes this for Mineral) --
-     see _hazard_footprints_common.py's load_new_madrid_landslide_pgd_cm().
-     PGD has no native resolution of its own (both inputs must share a grid
-     to combine); computed here on New Madrid PGA's own ~1.7-2.1km grid,
-     the binding-constraint resolution, not susceptibility's finer ~90-110m.
+     Mineral (scenario_param=501), just paired with Cascadia instead, since
+     pairing landslide with a DIFFERENT earthquake than the one shown in
+     panel (b) would be confusing. NOT a registered pipeline scenario_param
+     (the pipeline only ever computes this for Mineral) -- see
+     _hazard_footprints_common.py's load_cascadia_landslide_pgd_cm(). Using
+     the same national n10 layer (not a PNW-specific product) is deliberate:
+     it already carries real, much higher susceptibility across the
+     Cascade/Coast/Olympic ranges than over New Madrid's flat terrain -- the
+     steep-terrain signal comes from evaluating the right region, not a
+     different susceptibility dataset. PGD has no native resolution of its
+     own (both inputs must share a grid to combine); computed here on
+     Cascadia PGA's own ~1.7-2.2km grid, the binding-constraint resolution,
+     not susceptibility's finer ~90-110m.
   d. Winter Storm Jonas -- SNODAS snow depth, 2016-01-23 (~720-930 m, NSIDC
      G02158). Natively geographic (EPSG:4326, 30 arcsec) -- NOT reprojected
      from a NOHRSC sinusoidal grid as sometimes assumed; this CONUS GeoTIFF
@@ -52,16 +59,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import matplotlib.pyplot as plt
 
 from _hazard_footprints_common import (
+    CASCADIA_NOTE,
+    CASCADIA_TITLE,
     INK_PRIMARY,
     INK_SECONDARY,
-    NEW_MADRID_NOTE,
-    NEW_MADRID_TITLE,
     SURFACE,
     draw_panel,
+    load_cascadia_landslide_pgd_cm,
+    load_cascadia_pga,
     load_conus_states,
     load_harvey,
-    load_new_madrid_landslide_pgd_cm,
-    load_new_madrid_pga,
     load_snodas_jonas,
 )
 
@@ -72,20 +79,20 @@ def main() -> int:
     states = load_conus_states()
     fig, axes = plt.subplots(2, 2, figsize=(11, 9.5), facecolor=SURFACE)
 
-    nm_arr, nm_transform, nm_res = load_new_madrid_pga()
+    cas_arr, cas_transform, cas_res = load_cascadia_pga()
     draw_panel(
-        axes[0, 1], letter="b", title=f"Earthquake -- {NEW_MADRID_TITLE}",
-        arr=nm_arr, transform=nm_transform, native_res_m=nm_res, states=states,
-        cmap="viridis", unit_label="PGA (g)", extra_note=NEW_MADRID_NOTE,
+        axes[0, 1], letter="b", title=f"Earthquake -- {CASCADIA_TITLE}",
+        arr=cas_arr, transform=cas_transform, native_res_m=cas_res, states=states,
+        cmap="viridis", unit_label="PGA (g)", extra_note=CASCADIA_NOTE,
     )
 
-    ls_arr, ls_transform, ls_res = load_new_madrid_landslide_pgd_cm()
+    ls_arr, ls_transform, ls_res = load_cascadia_landslide_pgd_cm()
     draw_panel(
         axes[1, 0], letter="c", title="Co-seismic landslide -- Newmark PGD (same EQ)",
         arr=ls_arr, transform=ls_transform, native_res_m=ls_res, states=states,
         cmap="viridis", unit_label="Newmark PGD (cm)",
         extra_note="Computed fresh (not a registered pipeline scenario); on PGA's\n"
-                    "~1.7-2.1km grid, the binding constraint vs. susceptibility's ~90-110m",
+                    "~1.7-2.2km grid, the binding constraint vs. susceptibility's ~90-110m",
     )
 
     ws_arr, ws_transform, ws_res = load_snodas_jonas()
