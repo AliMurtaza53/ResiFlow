@@ -78,6 +78,52 @@ yet. Confirmed no hardcoded VA-only spatial clip would interfere: the leftover
 `fairfax_study_area.gpkg` check in `SiouxFallsMultihazardSource.__init__` only
 matches toy/test fixture directories, never the real `soge_clusters` base path.
 
+## Resolved: Hurricane Sandy wired in as a second real-flood case study (2026-09-10)
+
+User supplied 4 FEMA coastal-flood depth grids clipped to CT/NJ/NY/RI
+(`ct3m0214c.tif`, `nj3m0214c.tif`, `nys3m0214c.tif`, `ri3m0214c.tif`,
+under `inputs/multihazard_raw/flood/`) and asked to stitch them into one
+footprint. Inspected via rasterio: all EPSG:4269, float32, ~3m/px
+(dx≈3.09e-5°, matching Harvey's own ~3m convention), same nodata sentinel
+(`-3.4028230607370965e+38` = `np.finfo('float32').min`), depths 0–18m
+(NJ max ~17.9m). Each file is LZW-compressed and >90% nodata by area (a
+rectangular state bounding box around a thin real coastal/estuary
+inundation extent) — that combination is why NJ's file is ~1GB on disk
+despite a raw uncompressed array of ~14.4GB (53694×67048px).
+
+Unlike Harvey (one raster), these 4 rasters' bounding boxes genuinely
+overlap along shared coastline (CT/RI, NY/NJ across the Hudson) even though
+their valid (non-nodata) footprints mostly don't. `scripts/prepare_sandy_depths.py`
+(new) mosaics them: streams each source individually into one destination
+array via `reproject()`+`rasterio.band()` (never a full `src.read()` — same
+reasoning as Harvey, necessary at NJ's raw array scale even though the file
+itself is small), then averages any output pixel that gets valid data from
+more than one source rather than picking one arbitrarily (confirmed locally:
+only ~0.7–1.0% of valid output pixels are affected either way). The core
+mosaic function (`build_sandy_mosaic`) is resolution-parameterized and
+reused by both the pipeline's aligned 50m input and the comparison figures'
+coarser display mosaic, so the two can't drift apart.
+
+Wired in as its own `flood_sandy_northeast` hazard_subtype at
+`scenario_param=305` — a second real-flood case study alongside Harvey
+(`flood_harvey_houston`, 304), **not a replacement of it** in the pipeline;
+both stay runnable. `RealFloodSandyNortheastSource`
+(`src/resiflow/hazards/real_events.py`) reads the aligned output once it
+exists (own-bounds grid, same reasoning as Harvey — a 4-state footprint
+would be silently clipped to nothing useful against the VA reference grid
+or Harvey's Houston bbox). Hopper SLURM pair mirroring Harvey's:
+`submit_sandy_prep.slurm` (mosaic, ~2 min locally at 50m, so `--partition=normal`
+unlike Harvey's — no extraction step needed, the 4 raw files together are
+under 2GB) then `submit_sandy_305.slurm` (Script 2→3→3_postprocess→4,
+`--partition=bigmem` defensively since the damaged-edge count against the
+CONUS network is unmeasured, same reasoning as Harvey's 304 job).
+
+The hazard-footprint comparison figures (`scripts/figures/plot_hazard_footprints_*.py`)
+now show Sandy instead of Harvey in the flood panel — user's explicit
+request, to keep the figure's story on a genuinely dense, comparison-relevant
+Northeast Corridor flood event; Harvey remains a fully separate, runnable
+pipeline scenario, just no longer plotted there.
+
 ## Resolved: earthquake default switched to real ShakeMap PGA (2026-08-03)
 
 Real USGS product (`.flt`/`.hdr` mean+std grids for
@@ -552,3 +598,18 @@ corridors rather than reproducing the flat proxy.
   cost instead of reporting $0. Fixed a NaN-truthy bug in the new module
   caught by the existing toy pipeline test before being called done. Winter
   storm remains on the flood shim -- HAZUS has no dedicated module for it.
+- **2026-09-10**: Wired Hurricane Sandy in as a second real-flood case study
+  (see "Resolved: Hurricane Sandy wired in" above) -- `scenario_param=305`,
+  `flood_sandy_northeast`, alongside Harvey (304, still fully runnable, not
+  replaced). New `scripts/prepare_sandy_depths.py` mosaics 4 FEMA
+  state-clipped depth grids (CT/NJ/NY/RI) via streaming `reproject()`, same
+  approach as Harvey's prep script; `RealFloodSandyNortheastSource` added to
+  `real_events.py`. Ran the mosaic locally at 50m (~2 min, 59.1M px grid,
+  0.74% of valid pixels came from >1 overlapping source, averaged) to
+  produce the aligned pipeline input; Hopper SLURM pair
+  (`submit_sandy_prep.slurm`/`submit_sandy_305.slurm`) added but not yet run
+  there. Also swapped the hazard-footprint comparison figures' flood panel
+  from Harvey to Sandy per explicit user request -- both figure scripts and
+  `_hazard_footprints_common.py`'s `load_harvey()` replaced with
+  `load_sandy_flood()`, reusing the same `build_sandy_mosaic()` core the
+  pipeline input uses, just at a coarser display resolution.

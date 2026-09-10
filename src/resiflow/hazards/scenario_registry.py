@@ -72,6 +72,14 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(
         304, "flood", hazard_subtype="flood_harvey_houston", closure_threshold=30, label="flood_harvey_houston"
     ),
+    # Real Hurricane Sandy depths, CT/NJ/NY/RI mosaic -- a second real-flood
+    # case study alongside Harvey (both stay runnable), and the comparison
+    # figures' current flood panel default. See
+    # hazards/real_events.py's RealFloodSandyNortheastSource and
+    # scripts/prepare_sandy_depths.py.
+    HazardScenario(
+        305, "flood", hazard_subtype="flood_sandy_northeast", closure_threshold=30, label="flood_sandy_northeast"
+    ),
     HazardScenario(401, "earthquake", closure_threshold=25, label="earthquake"),
     # Real NSHM 2023 (probabilistic, 475yr RP) contour-rasterized PGA, the
     # earthquake default before 2026-08-03. Kept reachable under its own

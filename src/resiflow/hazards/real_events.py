@@ -62,6 +62,32 @@ class RealFloodHarveyHoustonSource(SiouxFallsMultihazardSource):
     multihazard_dir = MULTIHAZARD_ALIGNED_DIR
 
 
+class RealFloodSandyNortheastSource(SiouxFallsMultihazardSource):
+    """Real Hurricane Sandy coastal-flood depths, CT/NJ/NY/RI mosaic.
+
+    A second real-flood case study alongside Harvey (flood_harvey_houston,
+    304) -- both stay runnable; this one is the comparison figures' current
+    flood panel default (added 2026-09-10). scripts/prepare_sandy_depths.py
+    mosaics 4 separate state-clipped FEMA depth grids (each its own
+    rectangular bounding box; genuinely overlapping only along shared
+    coastline/estuaries, ~0.7% of valid output pixels -- averaged there, not
+    picked arbitrarily) into one raster, streamed the same way Harvey's prep
+    script handles its own single large source (reproject()+rasterio.band(),
+    never a full src.read()).
+
+    Aligned via its own union bounds (not the default VA reference grid or
+    Harvey's Houston bbox) -- same reasoning as Harvey: a regional flood
+    footprint spanning 4 states would be silently clipped to nothing useful
+    against either.
+    """
+
+    hazard_type = "flood"
+    hazard_subtype = "flood_sandy_northeast"
+    intensity_unit = "m_depth"
+    raster_field = "surface"
+    multihazard_dir = MULTIHAZARD_ALIGNED_DIR
+
+
 class RealEarthquakeSource(SiouxFallsMultihazardSource):
     """USGS NSHM 2023 (10% in 50yr, ~475yr return period), contour-rasterized.
 
@@ -234,6 +260,7 @@ def resolve_real_source(
         "flood": RealFloodSurfaceSource,
         "flood_surface": RealFloodSurfaceSource,
         "flood_harvey_houston": RealFloodHarveyHoustonSource,
+        "flood_sandy_northeast": RealFloodSandyNortheastSource,
         "earthquake": RealEarthquakeShakeMapSource,
         "earthquake_shakemap_mineral": RealEarthquakeShakeMapSource,
         "earthquake_nshm": RealEarthquakeSource,
