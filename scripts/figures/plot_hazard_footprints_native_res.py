@@ -10,13 +10,14 @@ is zoomed to its OWN footprint (see plot_hazard_footprints_us_scale.py for the
 companion figure at one shared CONUS-wide scale, for comparing relative size).
 
 Panels:
-  a. Hurricane Harvey flood depth  -- ~3 m (Harvey_Depths_3m_Final.gdb,
-     CUAHSI/FEMA, public/open per source confirmation). 84 GB uncompressed;
-     not tractable to read via /vsizip/ (confirmed: even a decimated read
-     over the zip hangs past 90s -- the FileGDB raster driver needs an
-     extracted copy). Requires
-     inputs/multihazard_raw/Harvey_Depths_3m_Final.gdb extracted locally
-     first (see the .zip alongside it).
+  a. Hurricane Sandy coastal flood depth -- ~3 m native (4 FEMA state-clipped
+     depth grids for CT/NJ/NY/RI, mosaicked onto one EPSG:9311 grid via
+     scripts/prepare_sandy_depths.py's build_sandy_mosaic(), decimated here
+     for display -- see _hazard_footprints_common.py's load_sandy_flood()).
+     Replaces Harvey as this panel's default (2026-09-10); Harvey
+     (Harvey_Depths_3m_Final.gdb, Houston/Harris County, CUAHSI/FEMA) stays
+     runnable as its own pipeline scenario (flood_harvey_houston, 304), just
+     no longer shown here -- see scripts/prepare_harvey_depths.py.
   b. Earthquake -- USGS M9.0 Cascadia Subduction Zone scenario, event
      cszm9ensemble_se, the MEDIAN (50th percentile) of an ensemble of 30 M9
      rupture realizations (Frankel et al. 2018) -- not a single deterministic
@@ -63,12 +64,14 @@ from _hazard_footprints_common import (
     CASCADIA_TITLE,
     INK_PRIMARY,
     INK_SECONDARY,
+    SANDY_NOTE,
+    SANDY_TITLE,
     SURFACE,
     draw_panel,
     load_cascadia_landslide_pgd_cm,
     load_cascadia_pga,
     load_conus_states,
-    load_harvey,
+    load_sandy_flood,
     load_snodas_jonas,
 )
 
@@ -104,21 +107,21 @@ def main() -> int:
 
     ax = axes[0, 0]
     try:
-        h_arr, h_transform, scale = load_harvey()
+        s_arr, s_transform, s_res = load_sandy_flood()
         draw_panel(
-            ax, letter="a", title="Hurricane Harvey -- flood depth",
-            arr=h_arr, transform=h_transform, native_res_m=3.0, states=states,
+            ax, letter="a", title=SANDY_TITLE,
+            arr=s_arr, transform=s_transform, native_res_m=3.0, states=states,
             cmap="viridis", unit_label="Depth (m)",
-            extra_note=f"display decimated {scale}x for tractability (84 GB source)",
+            extra_note=f"{SANDY_NOTE}\ndisplayed at ~{s_res:.0f}m (source ~3m)",
         )
     except FileNotFoundError:
         ax.text(
             0.5, 0.5,
-            "Harvey panel pending:\ninputs/multihazard_raw/Harvey_Depths_3m_Final.gdb.zip\n"
-            "not yet extracted (84 GB uncompressed).\nRe-run this script once extraction completes.",
+            "Sandy panel pending:\ninputs/multihazard_raw/flood/{ct,nj,nys,ri}3m0214c.tif\n"
+            "not found. Re-run this script once the 4 source tifs are in place.",
             ha="center", va="center", transform=ax.transAxes, fontsize=9.5, color=INK_SECONDARY,
         )
-        ax.set_title("(a) Hurricane Harvey -- flood depth", fontsize=12.5,
+        ax.set_title(f"(a) {SANDY_TITLE}", fontsize=12.5,
                      color=INK_PRIMARY, fontweight="bold", loc="left")
         ax.set_xticks([])
         ax.set_yticks([])

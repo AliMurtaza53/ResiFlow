@@ -76,8 +76,9 @@ def reproject_preserve_native_res(
     these figures exist to show).
 
     If src_array/src_transform/src_crs_override are given, reprojects that
-    in-memory array instead of re-reading src_path (used for Harvey, and for
-    SNODAS's pre-crop). Returns (reprojected_array, dst_transform,
+    in-memory array instead of re-reading src_path (used for Cascadia's PGA/
+    landslide-PGD arrays, and for SNODAS's pre-crop). Returns
+    (reprojected_array, dst_transform,
     native_res_m) where native_res_m is the approximate ground resolution
     of the ORIGINAL source (for the text annotation), not the display array.
     """
@@ -254,47 +255,44 @@ def load_snodas_jonas() -> tuple[np.ndarray, "rasterio.Affine", float]:
     )
 
 
-def load_harvey(target_px: int = 1200) -> tuple[np.ndarray, "rasterio.Affine", int]:
-    """Harvey flood depth, decimated for tractability (84 GB source).
+SANDY_TITLE = "Hurricane Sandy -- coastal flood depth (CT/NJ/NY/RI mosaic)"
+SANDY_NOTE = (
+    "FEMA depth grids for 4 states mosaicked onto one EPSG:9311 grid;\n"
+    "state footprints averaged where they overlap (~0.7% of valid pixels)"
+)
 
-    Uses Resampling.average (not nearest) for the decimated read: a plain
-    nearest-neighbor decimation of a flood-depth grid that has real dry
-    parcels interspersed with flooded ones at 3m scale picks whichever
-    single native pixel lands on each decimated sample point, which produces
-    a speckled/holey "cloud" look at 100x+ decimation even though the true
-    flood extent is much more continuous than that -- confirmed visually
-    2026-09-09. Resampling.max would be the more direct fix (fill each block
-    with its worst-case depth) but rasterio only allows it for warp
-    operations, not plain reads; Resampling.average is nodata-aware (this
-    source has nodata properly registered) and achieves the same practical
-    goal -- any block with at least one flooded native pixel gets a
-    representative nonzero depth instead of a hole, at the cost of averaging
-    down peak depths within a block rather than preserving the max.
 
-    Returns (reprojected_array, dst_transform, decimation_factor). Raises
-    FileNotFoundError if inputs/multihazard_raw/Harvey_Depths_3m_Final.gdb
-    hasn't been extracted from its .zip yet (84 GB uncompressed -- caller
-    should catch this and render a placeholder rather than fail outright).
+def load_sandy_flood(target_px: int = 1200) -> tuple[np.ndarray, "rasterio.Affine", float]:
+    """Hurricane Sandy coastal-flood depths, CT/NJ/NY/RI mosaic.
+
+    The flood panel's current default (added 2026-09-10), replacing Harvey
+    here -- Harvey stays runnable as its own pipeline scenario
+    (flood_harvey_houston, 304); see scripts/prepare_sandy_depths.py's module
+    docstring for why both are kept rather than one replacing the other in
+    the pipeline.
+
+    Reuses build_sandy_mosaic() -- the same function that builds the
+    pipeline's aligned 50m scenario input (flood_sandy_northeast, 305) -- at
+    a coarser display resolution computed to hit ~target_px on the mosaic's
+    longer axis, so this figure and the real pipeline input never drift out
+    of the same mosaic/overlap-averaging logic, just at different target
+    resolutions.
+
+    Returns (array, transform, display_resolution_m) -- display_resolution_m
+    is the DISPLAY grid's resolution (~300m, ~100x coarser than the ~3m
+    source for tractability), NOT the source's true native pixel size; pass
+    native_res_m=3.0 explicitly when calling draw_panel for this, the same
+    way load_harvey used to.
     """
-    gdb_path = RAW / "Harvey_Depths_3m_Final.gdb"
-    if not gdb_path.exists():
-        raise FileNotFoundError(
-            f"{gdb_path} not extracted yet -- unzip Harvey_Depths_3m_Final.gdb.zip first"
-        )
-    with rasterio.open(gdb_path) as src:
-        scale = max(1, min(src.width, src.height) // target_px)
-        out_shape = (max(1, src.height // scale), max(1, src.width // scale))
-        arr = src.read(1, out_shape=out_shape, resampling=Resampling.average).astype("float64")
-        nodata = src.nodata
-        if nodata is not None and np.isfinite(nodata):
-            arr = np.where(arr >= nodata * 0.99, np.nan, arr)
-        arr = np.where((arr < 0) | (arr > 15), np.nan, arr)
-        h_arr, h_transform, _ = reproject_preserve_native_res(
-            None, DISPLAY_CRS, src_array=arr,
-            src_transform=src.transform * rasterio.Affine.scale(scale, scale),
-            src_crs_override=src.crs,
-        )
-    return h_arr, h_transform, scale
+    scripts_dir = REPO_ROOT / "scripts"
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    from prepare_sandy_depths import build_sandy_mosaic, sandy_union_bounds_9311
+
+    west, south, east, north = sandy_union_bounds_9311()
+    resolution_m = max(east - west, north - south) / target_px
+    arr, transform, _ = build_sandy_mosaic(resolution_m)
+    return arr, transform, resolution_m
 
 
 def draw_panel(

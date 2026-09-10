@@ -3,7 +3,7 @@
 Companion to plot_hazard_footprints_native_res.py, which zooms each panel to
 its own footprint to show native PIXEL SIZE heterogeneity. This figure holds
 every panel to the SAME CONUS-wide map extent instead, so relative FOOTPRINT
-SIZE is directly comparable -- Harvey's Houston-area extent next to
+SIZE is directly comparable -- Sandy's CT/NJ/NY/RI coastal extent next to
 Cascadia's Pacific-Northwest-spanning M9 shaking footprint next to Jonas's
 Mid-Atlantic corridor, all on one consistent basemap/scale.
 
@@ -27,12 +27,13 @@ from _hazard_footprints_common import (
     CASCADIA_TITLE,
     INK_PRIMARY,
     INK_SECONDARY,
+    SANDY_TITLE,
     SURFACE,
     draw_panel,
     load_cascadia_landslide_pgd_cm,
     load_cascadia_pga,
     load_conus_states,
-    load_harvey,
+    load_sandy_flood,
     load_snodas_jonas,
 )
 
@@ -75,21 +76,21 @@ def main() -> int:
 
     ax = axes[0, 0]
     try:
-        h_arr, h_transform, _ = load_harvey()
+        s_arr, s_transform, _ = load_sandy_flood()
         draw_panel(
-            ax, letter="a", title="Hurricane Harvey -- flood depth",
-            arr=h_arr, transform=h_transform, native_res_m=None, states=states,
+            ax, letter="a", title=SANDY_TITLE,
+            arr=s_arr, transform=s_transform, native_res_m=None, states=states,
             cmap="viridis", unit_label="Depth (m)", fixed_extent=conus_extent,
             res_note_override="",
         )
     except FileNotFoundError:
         ax.text(
             0.5, 0.5,
-            "Harvey panel pending:\ninputs/multihazard_raw/Harvey_Depths_3m_Final.gdb.zip\n"
-            "not yet extracted (84 GB uncompressed).",
+            "Sandy panel pending:\ninputs/multihazard_raw/flood/{ct,nj,nys,ri}3m0214c.tif\n"
+            "not found.",
             ha="center", va="center", transform=ax.transAxes, fontsize=9.5, color=INK_SECONDARY,
         )
-        ax.set_title("(a) Hurricane Harvey -- flood depth", fontsize=12.5,
+        ax.set_title(f"(a) {SANDY_TITLE}", fontsize=12.5,
                      color=INK_PRIMARY, fontweight="bold", loc="left")
         ax.set_xticks([])
         ax.set_yticks([])
