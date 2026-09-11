@@ -124,6 +124,67 @@ request, to keep the figure's story on a genuinely dense, comparison-relevant
 Northeast Corridor flood event; Harvey remains a fully separate, runnable
 pipeline scenario, just no longer plotted there.
 
+## Resolved: Cascadia M9 earthquake + its co-seismic landslide wired as real pipeline scenarios (2026-09-11)
+
+The Cascadia M9 ensemble ShakeMap (event `cszm9ensemble_se`, median of 30 M9
+rupture realizations, Frankel et al. 2018) had only ever been used for the
+hazard-footprint comparison figures (read directly from
+`shake_result.hdf` in `scripts/figures/_hazard_footprints_common.py`,
+never aligned or registered as a scenario). User asked for it to be
+runnable as a real Hopper scenario alongside its co-seismic landslide, so
+it's now wired the same way Mineral/New Madrid are:
+
+- New `scripts/prepare_cascadia_pga.py` extracts PGA **and** an SA(1.0)
+  companion from the HDF (confirmed both present, same grid geometry, both
+  `ln(g)` — matching Mineral's convention, not New Madrid's percent-g
+  linear one). Omitting SA(1.0) would silently give this scenario's
+  bridges a $0 cost, the same gap already fixed for Mineral/New Madrid on
+  2026-08-20.
+- Aligned via `--own-bounds` at 50m (zero overlap with the VA reference
+  grid) — unusually large for an own-bounds raster: ~1 billion pixels /
+  2.6GB, since Cascadia's footprint spans northern California to the
+  Canadian border (confirmed via the HDF's own bounds).
+- Landslide: `n10` susceptibility realigned onto Cascadia's own PGA grid
+  (`--reference`, not `--own-bounds` — landslide and PGA must share one
+  grid), then `scripts/compute_landslide_pgd.py` run with `--magnitude 9.0
+  --susceptibility-max-count 81` — same HAZUS method/params the pipeline
+  already uses for Mineral's landslide (501), just a different earthquake.
+  Ran locally 2026-09-11: PGD range 0.65mm–10.9m (the 50m aligned grid's
+  finer resolution captures more extreme localized PGA×susceptibility
+  combinations than the comparison figure's coarser PGA-grid display
+  version, which topped out around 6.5m).
+- New scenarios: `earthquake_cascadia_m9_scenario` (`scenario_param=404`)
+  and `landslide_cascadia_m9` (`scenario_param=502`) in
+  `scenario_registry.py`; `RealEarthquakeCascadiaScenarioSource` /
+  `RealLandslideCascadiaSource` in `real_events.py`.
+- **Found and fixed a real bug while wiring this**: `disruption/build.py`'s
+  landslide branch never read `scenario.hazard_subtype` at all — the exact
+  same silent-identical-output bug already found and fixed for
+  `winter_storm` on 2026-08-21 (see below), just never ported to
+  landslide's branch since landslide had only ever had one variant before
+  now. Fixed the same way: read `scenario.hazard_subtype` (or
+  `RESIFLOW_LANDSLIDE_SUBTYPE`) before resolving the source, so 502
+  actually reaches `RealLandslideCascadiaSource` instead of silently
+  reusing Mineral's landslide raster under a different scenario_param.
+- Hopper SLURM: `submit_cascadia_prep.slurm` (the 6-step prep chain above)
+  then `submit_cascadia_404.slurm` / `submit_cascadia_landslide_502.slurm`
+  (independent of each other — different scenario_param, can run in
+  parallel). None run on Hopper yet; local prep run only.
+- Also added `submit_winter_storm_603.slurm` (Winter Storm Elliott) against
+  the current production `convergence_cpu8_bounded18` results_variant —
+  Elliott was already a registered scenario with aligned data on disk
+  (`scripts/prepare_snodas_depth.py`, added 2026-08-20), but had only ever
+  been submitted under Nandu's separate `conus_nandu_v1` variant
+  (`nandu_v1/submit_winter_storm_603.slurm`), never the main one.
+- All three new/updated SLURM jobs (Cascadia's two, Sandy's 305, Elliott's
+  603) use `NIRD_PATH_REALIZATION_STRATEGY=streaming_arrays` instead of
+  the older `duckdb_chunked_compact` every existing production job still
+  uses — validated 22.4% faster with matching dollar totals (2026-08-30,
+  see the change log below), and none of these jobs have run yet, so
+  there's no comparability reason to keep the slower strategy. Existing
+  jobs (Harvey/landslide-501/etc.) were left as-is, not switched
+  retroactively.
+
 ## Resolved: earthquake default switched to real ShakeMap PGA (2026-08-03)
 
 Real USGS product (`.flt`/`.hdr` mean+std grids for
@@ -613,3 +674,28 @@ corridors rather than reproducing the flat proxy.
   `_hazard_footprints_common.py`'s `load_harvey()` replaced with
   `load_sandy_flood()`, reusing the same `build_sandy_mosaic()` core the
   pipeline input uses, just at a coarser display resolution.
+- **2026-09-11**: Wired Cascadia M9 + its co-seismic landslide as real
+  pipeline scenarios (404/502) and added a production Elliott submission
+  script (603) -- see "Resolved: Cascadia M9 earthquake + its co-seismic
+  landslide wired as real pipeline scenarios" above. Found and fixed a real
+  bug in `disruption/build.py`'s landslide branch while doing this: it
+  never read `scenario.hazard_subtype`, the same silent-identical-output
+  bug already fixed for winter_storm on 2026-08-21, just never ported to
+  landslide since it had only ever had one variant. Restructured the
+  hazard-footprint comparison figures from a 2x2 to a 4x2 grid (4 hazard
+  types x 2 contrasting real events each: Harvey/Sandy,
+  New Madrid/Cascadia, their paired co-seismic landslides, Jonas/Elliott)
+  per explicit user request, restoring the Harvey and New Madrid loaders
+  that had been deleted during the earlier Cascadia swap and adding a new
+  Elliott loader. Found a real SNODAS data-quality issue while adding
+  Elliott's figure loader: a full-resolution read (not the earlier
+  decimated one, which smooths over isolated spikes) showed a true max of
+  31.25m at Mount Adams, WA's glaciated summit -- a known SNODAS
+  model-instability artifact over high alpine terrain, not real snowfall,
+  that also survives (diminished to 11.2m but still implausible) in the
+  real pipeline's own 50m-aligned `winter_storm_elliott` input; capped at
+  Jonas's same 2.0m for the figure only, not fixed in the pipeline. This
+  work landed on a new `feature/hazard-footprint-4x2-panel` branch (cut
+  from `perf/streaming-arrays-offset-and-vectorize-fix`) rather than
+  continuing to pile unrelated work onto the perf-named branch, per
+  explicit user direction.
