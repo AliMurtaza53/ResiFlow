@@ -129,6 +129,79 @@ def array_extent_9311(transform, height: int, width: int) -> tuple[float, float,
     return (left, right, bottom, top)
 
 
+# New Madrid label: our raster is the USGS M7.5 BSSC2014 CENTRAL-fault
+# scenario (see resiflow.hazards.scenario_registry's own comment), NOT the
+# M7.7 SOUTHERN-fault FEMA-exercise scenario (a real, different USGS
+# product, event nm19fema_m7p7_mt_se, that we don't have downloaded).
+# Confirmed against the live USGS scenario catalog 2026-09-09 before
+# labeling -- do not bump this to "7.7" without actually swapping the
+# source raster for that other event.
+NEW_MADRID_TITLE = "Missouri 1811-12* EQ"
+NEW_MADRID_NOTE = "*USGS M7.5 central-fault scenario (BSSC2014), not an actual ShakeMap from 1811-12"
+NEW_MADRID_MAGNITUDE = 7.5  # BSSC2014 central-fault scenario
+
+
+def load_new_madrid_pga() -> tuple[np.ndarray, "rasterio.Affine", float]:
+    return reproject_preserve_native_res(
+        RAW / "earthquake" / "new_madrid_scenario" / "pga_g.tif", DISPLAY_CRS
+    )
+
+
+def load_new_madrid_landslide_pgd_cm() -> tuple[np.ndarray, "rasterio.Affine", None]:
+    """Co-seismic Newmark PGD (cm) from the New Madrid M7.5 scenario, computed
+    fresh for this figure -- NOT a registered pipeline scenario_param (the
+    pipeline only ever pairs landslide with Mineral, scenario_param=501), but
+    the exact same method: resiflow.hazards.landslide_pgd's HAZUS Newmark
+    code (Eq. 4-14/4-15, Table 4-16), same susceptibility source (USGS n10),
+    same --susceptibility-max-count=81 the real pipeline uses for it.
+
+    PGD has no native resolution of its own (see module docstring elsewhere
+    in this package) -- both inputs have to share one grid to combine
+    pixel-by-pixel. Resamples susceptibility (natively ~100m) DOWN onto New
+    Madrid PGA's own native grid (~1.7-2.1km) via area-averaging, since PGA
+    is the coarser/binding-constraint input; computing at a finer resolution
+    than PGA's own native detail would be false precision.
+    """
+    from resiflow.hazards.landslide_pgd import bin_fractional_susceptibility_to_class, expected_pgd_mm
+
+    pga_path = RAW / "earthquake" / "new_madrid_scenario" / "pga_g.tif"
+    with rasterio.open(pga_path) as pga_ds:
+        pga = pga_ds.read(1).astype("float64")
+        pga_nodata = pga_ds.nodata
+        if pga_nodata is not None and np.isfinite(pga_nodata):
+            pga = np.where(pga == pga_nodata, np.nan, pga)
+        pga_transform = pga_ds.transform
+        pga_crs = pga_ds.crs
+        pga_shape = (pga_ds.height, pga_ds.width)
+
+    susc_path = RAW / "landslide" / "n10_susc" / "n10_conus.tif"
+    with rasterio.open(susc_path) as susc_ds:
+        susc_on_pga_grid = np.full(pga_shape, np.nan, dtype="float64")
+        susc_nodata = susc_ds.nodata
+        reproject(
+            source=rasterio.band(susc_ds, 1),
+            destination=susc_on_pga_grid,
+            src_transform=susc_ds.transform,
+            src_crs=susc_ds.crs,
+            dst_transform=pga_transform,
+            dst_crs=pga_crs,
+            src_nodata=susc_nodata,
+            dst_nodata=np.nan,
+            resampling=Resampling.average,
+        )
+
+    susc_class = bin_fractional_susceptibility_to_class(susc_on_pga_grid, SUSCEPTIBILITY_MAX_COUNT)
+    susc_class = np.where(np.isnan(susc_on_pga_grid), np.nan, susc_class)
+    pgd_mm = expected_pgd_mm(susc_class, pga, magnitude=NEW_MADRID_MAGNITUDE)
+    pgd_cm = pgd_mm.astype("float64") / 10.0
+    pgd_cm = np.where(np.isnan(pga) | np.isnan(susc_class), np.nan, pgd_cm)
+
+    arr9311, transform9311, res_m = reproject_preserve_native_res(
+        None, DISPLAY_CRS, src_array=pgd_cm, src_transform=pga_transform, src_crs_override=pga_crs,
+    )
+    return arr9311, transform9311, res_m
+
+
 CASCADIA_HDF = Path(r"C:\Users\akothaw\Desktop\data\Cascadia9_shake_result.hdf")
 CASCADIA_TITLE = "M9.0 Cascadia Subduction Zone (median ensemble)"
 CASCADIA_NOTE = (
@@ -253,6 +326,90 @@ def load_snodas_jonas() -> tuple[np.ndarray, "rasterio.Affine", float]:
         None, DISPLAY_CRS, src_array=cropped, src_transform=cropped_transform,
         src_crs_override=crs,
     )
+
+
+def load_elliott_snow() -> tuple[np.ndarray, "rasterio.Affine", float]:
+    """SNODAS Winter Storm Elliott, 2022-12-24 -- full CONUS extent, no crop.
+
+    Unlike Jonas, Elliott's real footprint genuinely IS close to full-CONUS
+    (a bomb-cyclone/Arctic outbreak, not a regional storm): confirmed
+    2026-09-11 that even a >500mm threshold spans coast to coast
+    (lon -124.3 to -68.9), so no regional crop is applied here the way
+    load_snodas_jonas() deliberately crops to the Mid-Atlantic -- showing
+    the full extent is the honest picture of how different two winter
+    storms' footprints can be.
+
+    Source (inputs/multihazard_raw/winter_storm/elliott_20221224/depth_mm.tif)
+    is scripts/prepare_snodas_depth.py's finished output -- the same real
+    product feeding the aligned pipeline scenario (winter_storm_elliott,
+    603). Confirmed a genuine SNODAS model-instability artifact survives in
+    this file (a full-resolution check, NOT a decimated one -- decimation
+    via Resampling.average dilutes an isolated spike across its whole block
+    and hides it): true max 31.25m at lon -121.49/lat 46.21, i.e. Mount
+    Adams, WA's glaciated summit, with a smooth gradient of implausible
+    values (22-31m) in the surrounding handful of pixels -- exactly the kind
+    of high-alpine/glaciated-terrain SNODAS artifact
+    prepare_snodas_depth.py's own docstring already documents for this
+    exact file (recurring fixed-location spikes across Uri/Elliott/
+    Snowmageddon), not real snowfall. Confirmed this artifact also survives
+    the real pipeline's own 50m alignment undiminished enough to matter
+    (11.2m in inputs/multihazard_aligned/winter_storm_elliott/event_1.tif) --
+    the production pipeline hasn't addressed it either; masking it here for
+    the figure only, at Jonas's same 2.0m cap, for a like-for-like
+    comparison between the two winter-storm columns (not a pipeline fix).
+    """
+    path = RAW / "winter_storm" / "elliott_20221224" / "depth_mm.tif"
+    with rasterio.open(path) as src:
+        raw_mm = src.read(1).astype("float64")
+        transform = src.transform
+        crs = src.crs
+    raw_m = np.where((raw_mm < 0) | (raw_mm > 2000.0), np.nan, raw_mm) / 1000.0
+    return reproject_preserve_native_res(
+        None, DISPLAY_CRS, src_array=raw_m, src_transform=transform, src_crs_override=crs,
+    )
+
+
+def load_harvey(target_px: int = 1200) -> tuple[np.ndarray, "rasterio.Affine", int]:
+    """Harvey flood depth, decimated for tractability (84 GB source).
+
+    Uses Resampling.average (not nearest) for the decimated read: a plain
+    nearest-neighbor decimation of a flood-depth grid that has real dry
+    parcels interspersed with flooded ones at 3m scale picks whichever
+    single native pixel lands on each decimated sample point, which produces
+    a speckled/holey "cloud" look at 100x+ decimation even though the true
+    flood extent is much more continuous than that -- confirmed visually
+    2026-09-09. Resampling.max would be the more direct fix (fill each block
+    with its worst-case depth) but rasterio only allows it for warp
+    operations, not plain reads; Resampling.average is nodata-aware (this
+    source has nodata properly registered) and achieves the same practical
+    goal -- any block with at least one flooded native pixel gets a
+    representative nonzero depth instead of a hole, at the cost of averaging
+    down peak depths within a block rather than preserving the max.
+
+    Returns (reprojected_array, dst_transform, decimation_factor). Raises
+    FileNotFoundError if inputs/multihazard_raw/Harvey_Depths_3m_Final.gdb
+    hasn't been extracted from its .zip yet (84 GB uncompressed -- caller
+    should catch this and render a placeholder rather than fail outright).
+    """
+    gdb_path = RAW / "Harvey_Depths_3m_Final.gdb"
+    if not gdb_path.exists():
+        raise FileNotFoundError(
+            f"{gdb_path} not extracted yet -- unzip Harvey_Depths_3m_Final.gdb.zip first"
+        )
+    with rasterio.open(gdb_path) as src:
+        scale = max(1, min(src.width, src.height) // target_px)
+        out_shape = (max(1, src.height // scale), max(1, src.width // scale))
+        arr = src.read(1, out_shape=out_shape, resampling=Resampling.average).astype("float64")
+        nodata = src.nodata
+        if nodata is not None and np.isfinite(nodata):
+            arr = np.where(arr >= nodata * 0.99, np.nan, arr)
+        arr = np.where((arr < 0) | (arr > 15), np.nan, arr)
+        h_arr, h_transform, _ = reproject_preserve_native_res(
+            None, DISPLAY_CRS, src_array=arr,
+            src_transform=src.transform * rasterio.Affine.scale(scale, scale),
+            src_crs_override=src.crs,
+        )
+    return h_arr, h_transform, scale
 
 
 SANDY_TITLE = "Hurricane Sandy -- coastal flood depth (CT/NJ/NY/RI mosaic)"
