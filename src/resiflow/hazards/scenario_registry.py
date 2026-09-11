@@ -100,7 +100,26 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
         closure_threshold=25,
         label="earthquake_new_madrid_m75_scenario",
     ),
+    # USGS M9.0 Cascadia Subduction Zone scenario, event cszm9ensemble_se,
+    # median of 30 M9 rupture realizations (Frankel et al. 2018) -- a
+    # third real-earthquake case study alongside Mineral (401) and New
+    # Madrid (403). See hazards/real_events.py's
+    # RealEarthquakeCascadiaScenarioSource and scripts/prepare_cascadia_pga.py.
+    HazardScenario(
+        404,
+        "earthquake",
+        hazard_subtype="earthquake_cascadia_m9_scenario",
+        closure_threshold=25,
+        label="earthquake_cascadia_m9_scenario",
+    ),
     HazardScenario(501, "landslide", closure_threshold=100, label="landslide"),
+    # Co-seismic Newmark PGD paired with the Cascadia M9 scenario (404)
+    # instead of Mineral -- same HAZUS method/susceptibility source
+    # (USGS n10), same --susceptibility-max-count=81, just a different
+    # earthquake. See hazards/real_events.py's RealLandslideCascadiaSource.
+    HazardScenario(
+        502, "landslide", hazard_subtype="landslide_cascadia_m9", closure_threshold=100, label="landslide_cascadia_m9"
+    ),
     HazardScenario(601, "winter_storm", closure_threshold=100, label="winter_storm"),
     # Additional real SNODAS days for winter-storm severity/regional
     # diversity beyond the single 2016-01-23 (Jonas) default -- see

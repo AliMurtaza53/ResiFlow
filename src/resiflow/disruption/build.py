@@ -386,9 +386,21 @@ def run_disruption(
 
             base_path = Path(load_config()["paths"]["soge_clusters"])
         if hazard_source is None:
-            hazard_source = resolve_real_source(base_path, "landslide") or LandslideHazardSource(
-                base_path
+            # Same class of bug already found and fixed for winter_storm below
+            # (2026-08-21): this branch never read scenario.hazard_subtype, so
+            # resolve_real_source(..., "landslide") with no hazard_subtype
+            # always mapped to the "landslide" key (RealLandslideSource, the
+            # original Mineral-paired PGD), regardless of scenario_param.
+            # Fixed before it could repeat that silent-identical-output
+            # mechanism for the new landslide_cascadia_m9 subtype (502).
+            landslide_subtype = (
+                scenario.hazard_subtype
+                or os.environ.get("RESIFLOW_LANDSLIDE_SUBTYPE", "").strip()
+                or None
             )
+            hazard_source = resolve_real_source(
+                base_path, "landslide", hazard_subtype=landslide_subtype
+            ) or LandslideHazardSource(base_path)
         run_intensity_disruption(
             path_key,
             event_key,
