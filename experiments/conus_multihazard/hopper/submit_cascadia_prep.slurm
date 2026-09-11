@@ -7,9 +7,27 @@
 # then the HAZUS Newmark PGD itself. See scripts/prepare_cascadia_pga.py's
 # module docstring for the full 5-step chain this script runs.
 #
-# PRE-FLIGHT: Cascadia9_shake_result.hdf must already be under
-# /scratch/akothaw/multimodal_hazard_data/inputs_raw/ (rsync from local --
-# it's small, a few MB, unlike Harvey/Sandy's raw data).
+# PRE-FLIGHT: confirmed via read-only SSH (2026-09-11) that Hopper's real
+# raw-data convention for earthquake sources is inputs_raw/earthquake/<name>/
+# (e.g. inputs_raw/earthquake/mineral_shakemap/pga_g.tif already exists there)
+# -- NOT under soge_clusters/inputs/multihazard_raw/ (an earlier draft of this
+# script incorrectly assumed that). Fixed to match. Two files must be rsynced
+# there before this runs, neither present on Hopper yet (confirmed via find):
+#   Cascadia9_shake_result.hdf -> inputs_raw/ (small, a few MB)
+#   n10_conus.tif -> inputs_raw/landslide/n10_susc/ (the raw susceptibility
+#     source -- also confirmed NOT present anywhere on Hopper's scratch,
+#     unlike its ALREADY-aligned Mineral-grid counterpart,
+#     landslide_susceptibility, which does exist)
+#
+# ALSO REQUIRED before this runs: soge_clusters/inputs/va_multihazard_aligned
+# must be renamed to multihazard_aligned (confirmed via read-only SSH
+# 2026-09-11 that it's still under the pre-de-VA-rename name on Hopper's
+# actual filesystem, even though the code was renamed weeks ago -- the
+# rename commit's own message flagged this exact gap: "the matching Hopper
+# scratch directories still need the same mv, done by hand since I only have
+# read-only SSH there"). Without this, every EXISTING real-data scenario
+# (Harvey, Mineral, New Madrid, landslide/501, Jonas/Uri/Elliott/
+# Snowmageddon) silently can't find its aligned raster under the new code.
 #
 # --mem=32G, --time=01:00:00: local run (2026-09-11) completed the full
 # 5-step chain in well under 10 minutes despite each aligned raster being
@@ -38,24 +56,24 @@ REPO=/scratch/akothaw/multimodal_hazard_data/code/ResiFlow
 # 1. Extract PGA (ln(g) -> linear g) from the HDF, native ~2km EPSG:4326 grid.
 python "$REPO/scripts/prepare_cascadia_pga.py" \
   --input "$RAW/Cascadia9_shake_result.hdf" \
-  --output "$DATA/inputs/multihazard_raw/earthquake/cascadia_m9_scenario/pga_g.tif"
+  --output "$RAW/earthquake/cascadia_m9_scenario/pga_g.tif"
 
 # 2. Extract SA(1.0) companion (bridge fragility needs it -- see script docstring).
 python "$REPO/scripts/prepare_cascadia_pga.py" \
   --input "$RAW/Cascadia9_shake_result.hdf" \
   --imt "SA(1.0)" \
-  --output "$DATA/inputs/multihazard_raw/earthquake/cascadia_m9_scenario/sa1p0_g.tif"
+  --output "$RAW/earthquake/cascadia_m9_scenario/sa1p0_g.tif"
 
 # 3. Align PGA to its own bounds at 50m/EPSG:9311 (zero overlap with the VA
 #    reference grid, same reasoning as New Madrid's own-bounds alignment).
 python "$REPO/scripts/align_hazard_rasters.py" \
-  --input "$DATA/inputs/multihazard_raw/earthquake/cascadia_m9_scenario/pga_g.tif" \
+  --input "$RAW/earthquake/cascadia_m9_scenario/pga_g.tif" \
   --own-bounds --resolution 50 \
   --output "$DATA/inputs/multihazard_aligned/earthquake_cascadia_m9_scenario/event_1.tif"
 
 # 4. Align SA(1.0) onto PGA's SAME grid (--reference, not --own-bounds again).
 python "$REPO/scripts/align_hazard_rasters.py" \
-  --input "$DATA/inputs/multihazard_raw/earthquake/cascadia_m9_scenario/sa1p0_g.tif" \
+  --input "$RAW/earthquake/cascadia_m9_scenario/sa1p0_g.tif" \
   --reference "$DATA/inputs/multihazard_aligned/earthquake_cascadia_m9_scenario/event_1.tif" \
   --output "$DATA/inputs/multihazard_aligned/earthquake_cascadia_m9_scenario_sa1p0/event_1.tif"
 
@@ -64,7 +82,7 @@ python "$REPO/scripts/align_hazard_rasters.py" \
 #    this); Mineral's existing aligned susceptibility is on VA's grid, not
 #    Cascadia's own-bounds one.
 python "$REPO/scripts/align_hazard_rasters.py" \
-  --input "$DATA/inputs/multihazard_raw/landslide/n10_susc/n10_conus.tif" \
+  --input "$RAW/landslide/n10_susc/n10_conus.tif" \
   --reference "$DATA/inputs/multihazard_aligned/earthquake_cascadia_m9_scenario/event_1.tif" \
   --output "$DATA/inputs/multihazard_aligned/landslide_susceptibility_cascadia/event_1.tif"
 
