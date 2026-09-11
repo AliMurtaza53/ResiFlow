@@ -167,6 +167,72 @@ class RealEarthquakeNewMadridScenarioSource(SiouxFallsMultihazardSource):
     sa1p0_companion = True
 
 
+class RealEarthquakeCascadiaScenarioSource(SiouxFallsMultihazardSource):
+    """USGS M9.0 Cascadia Subduction Zone scenario, event cszm9ensemble_se.
+
+    Median (50th percentile) of an ensemble of 30 M9 rupture realizations
+    (Frankel et al. 2018), read directly from the user's downloaded
+    shake_result.hdf (ShakeMap 4.x HDF5 format -- not the .flt/.hdr ESRI BIL
+    format Mineral/New Madrid use). A third real-earthquake case study
+    alongside Mineral (401) and New Madrid (403): unlike either of those,
+    this is a West Coast subduction-zone megathrust rather than an Eastern/
+    Central US crustal event, and its own PNW-spanning footprint is even
+    larger than New Madrid's 8-state reach (confirmed 2026-09-11: the HDF's
+    own bounds span lon [-127.27, -116.30], lat [36.77, 52.56] -- northern
+    California to the Canadian border). Aligned via --own-bounds, same
+    reasoning as New Madrid -- this footprint has zero overlap with the VA
+    reference grid.
+
+    scripts/prepare_cascadia_pga.py produces the aligned input: confirmed
+    the HDF's ``units`` attr is ln(g), same convention as Mineral's
+    real-time ShakeMap (exp(raw max 0.327) = 1.387, matching the file's own
+    dictionaries/info.json max_grid exactly) -- NOT New Madrid's percent-g
+    linear convention. Also confirmed SA(1.0) present in this HDF at the
+    same grid geometry, extracted as PGA's sa1p0_companion the same way
+    Mineral/New Madrid have one (2026-08-20 fix, see
+    docs/CONUS_MULTIHAZARD_METHODOLOGY.md's change log) -- omitting it would
+    silently give this scenario's bridges a $0 cost.
+    """
+
+    hazard_type = "earthquake"
+    hazard_subtype = "earthquake_cascadia_m9_scenario"
+    intensity_unit = "g_pga"
+    raster_field = "pga"
+    multihazard_dir = MULTIHAZARD_ALIGNED_DIR
+    sa1p0_companion = True
+
+
+class RealLandslideCascadiaSource(SiouxFallsMultihazardSource):
+    """Co-seismic Newmark PGD paired with the Cascadia M9 scenario (404).
+
+    A second real landslide case study alongside the original Mineral-paired
+    one (501, hazard_subtype="landslide") -- same HAZUS Newmark method
+    (Eq. 4-14/4-15, Table 4-16, src/resiflow/hazards/landslide_pgd.py), same
+    national USGS n10 susceptibility source and
+    --susceptibility-max-count=81, just recomputed against Cascadia's own
+    PGA (magnitude=9.0) instead of Mineral's (magnitude=5.8) -- n10 already
+    carries real, much higher susceptibility across the Cascade/Coast/
+    Olympic ranges than over Mineral's Central Virginia Seismic Zone, so the
+    steep-terrain signal comes from evaluating the right region, not a
+    different susceptibility dataset (same reasoning the earlier
+    New-Madrid-paired figure computation used, see
+    docs/CONUS_MULTIHAZARD_METHODOLOGY.md).
+
+    susceptibility_cascadia/event_1.tif is n10 realigned onto Cascadia PGA's
+    own --reference grid (scripts/align_hazard_rasters.py) -- landslide and
+    PGA must share one grid to combine pixel-by-pixel
+    (scripts/compute_landslide_pgd.py enforces this), and Mineral's existing
+    aligned susceptibility raster is on VA's reference grid, not Cascadia's
+    own-bounds one.
+    """
+
+    hazard_type = "landslide"
+    hazard_subtype = "landslide_cascadia_m9"
+    intensity_unit = "mm_displacement"
+    raster_field = "landslide"
+    multihazard_dir = MULTIHAZARD_ALIGNED_DIR
+
+
 class RealWinterStormSource(SiouxFallsMultihazardSource):
     hazard_type = "winter_storm"
     hazard_subtype = "winter_storm"
@@ -265,11 +331,13 @@ def resolve_real_source(
         "earthquake_shakemap_mineral": RealEarthquakeShakeMapSource,
         "earthquake_nshm": RealEarthquakeSource,
         "earthquake_new_madrid_m75_scenario": RealEarthquakeNewMadridScenarioSource,
+        "earthquake_cascadia_m9_scenario": RealEarthquakeCascadiaScenarioSource,
         "winter_storm": RealWinterStormSource,
         "winter_storm_uri": RealWinterStormUriSource,
         "winter_storm_elliott": RealWinterStormElliottSource,
         "winter_storm_snowmageddon": RealWinterStormSnowmageddonSource,
         "landslide": RealLandslideSource,
+        "landslide_cascadia_m9": RealLandslideCascadiaSource,
     }
     if hazard_type == "flood" and flood_subtype:
         key = flood_subtype
