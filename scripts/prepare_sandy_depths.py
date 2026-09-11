@@ -49,6 +49,7 @@ from __future__ import annotations
 
 import argparse
 import math
+import sys
 import time
 from pathlib import Path
 
@@ -58,6 +59,21 @@ from rasterio.transform import Affine, from_origin
 from rasterio.warp import Resampling, reproject, transform_bounds
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from resiflow.geo_runtime import configure_geo_runtime
+
+# Must run before any transform_bounds()/CRS lookup below -- confirmed on
+# Hopper's `nird` conda env (2026-09-11) that without this, PROJ can't find
+# proj.db and every CRS operation raises CPLE_AppDefinedError. Harmless
+# locally (this session's local runs never hit it -- rasterio's own bundled
+# PROJ data happened to be found by default there), but not something to
+# skip just because it wasn't needed on one machine. Same fix
+# align_hazard_rasters.py already relies on via rasterio_env() -- see
+# docs/geo_projection_conus.md.
+configure_geo_runtime()
+
 DEFAULT_RAW_DIR = REPO_ROOT / "inputs" / "multihazard_raw" / "flood"
 SANDY_SOURCE_FILES: tuple[str, ...] = ("ct3m0214c.tif", "nj3m0214c.tif", "nys3m0214c.tif", "ri3m0214c.tif")
 TARGET_CRS = "EPSG:9311"

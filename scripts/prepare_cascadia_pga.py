@@ -66,12 +66,26 @@ pass --reference pointing at PGA's own aligned output for it, not
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
 
 import h5py
 import numpy as np
 import rasterio
 from affine import Affine
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT / "src") not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from resiflow.geo_runtime import configure_geo_runtime
+
+# Must run before rasterio.open(..., crs=...) below -- confirmed on Hopper's
+# `nird` conda env (2026-09-11) that without this, PROJ can't find proj.db
+# and any CRS operation raises CPLE_AppDefinedError. Same fix
+# align_hazard_rasters.py already relies on via rasterio_env() -- see
+# docs/geo_projection_conus.md.
+configure_geo_runtime()
 
 ASSUMED_CRS = "EPSG:4326"
 
