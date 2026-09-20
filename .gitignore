@@ -42,6 +42,17 @@ sa_runs/*
 *.duckdb
 *.duckdb.wal
 
+# Raw/bulky source downloads for parameter-table sourcing work -- kept
+# locally for reference (e.g. EMFAC exports, scratch working copies) but not
+# meant to live alongside the curated T## tables in parameters/tables/.
+parameters/tables/raw/
+
+# Generated hazard-footprint comparison figures -- regenerate from
+# scripts/figures/plot_hazard_footprints_*.py rather than tracking output,
+# same convention as results/.
+scripts/figures/*.png
+scripts/figures/*.pdf
+
 # IDE / OS
 .idea/
 .vscode/
