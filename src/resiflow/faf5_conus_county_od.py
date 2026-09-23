@@ -276,9 +276,13 @@ def run_conus_county_od_by_sctg(
     read_chunksize: int = 50_000,
     od_chunk_size: int = 500,
     combine_every: int = 50,
-    default_payload_tons: float = 20.0,
+    default_payload_tons: float | None = None,
 ) -> tuple[pd.DataFrame, dict[str, object]]:
-    """Stream FAF5 regional OD to county-to-county OD with sctgG5 preserved."""
+    """Stream FAF5 regional OD to county-to-county OD with sctgG5 preserved.
+
+    Truck trips use T29 sctgG5 payloads unless ``default_payload_tons`` is set
+    (explicit flat override).
+    """
 
     origin_factors, destination_factors = county.load_truck_disaggregation_factors(
         origin_factor_path,
@@ -323,7 +327,12 @@ def run_conus_county_od_by_sctg(
         "output_path": str(output),
         "year": int(year),
         "mode": None if mode is None else str(mode),
-        "default_payload_tons": float(default_payload_tons),
+        "default_payload_tons": (
+            None if default_payload_tons is None else float(default_payload_tons)
+        ),
+        "payload_source": (
+            "flat_override" if default_payload_tons is not None else "T29_payload_conversion_factors"
+        ),
         **faf_summary,
         "regional_faf_od_sctg_records": int(len(faf_totals)),
         "output_county_od_records": int(len(county_od)),

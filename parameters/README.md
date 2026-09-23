@@ -29,6 +29,18 @@ damage profile:
 
 Override the active source with `RESIFLOW_NETWORK_SOURCE=faf5|osm`.
 
+## Parameter tables (`parameters/tables/`)
+
+Discretized audit-matrix CSVs (see `tables/manifest.csv`). Most stay behind
+`use_table_*` flags in `unified_parameters.json`.
+
+**Exception — T29 payloads:** tons→truck conversion in freight OD preprocessing
+loads `T29_payload_conversion_factors.csv` by default (not gated on a flag).
+Override with an explicit payload CSV or `--default-payload-tons`.
+
+Deferred payload refreshes (documented on the T29 header): VIUS 2021 PUF /
+FSRDC goods-weight, FAF6 `$/ton` vintage, SUT and haul-length factors.
+
 ## Unified scalar parameters
 
 - `unified_parameters.json` — optional overrides for scalar (non-dict) numeric

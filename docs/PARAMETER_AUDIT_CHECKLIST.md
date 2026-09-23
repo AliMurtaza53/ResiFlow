@@ -56,10 +56,16 @@ scratch each time.
 - [ ] **#27 Speed-restriction schedule (T27)** -- status
   `CURRENT+CANDIDATE`, per-flood-type recession gates not yet exposed.
   Decide if worth exposing in config before use.
-- [ ] **#29 Payload conversion factors (T29)** -- status
-  `APPROXIMATE_VERIFY`. Swap in the FAF5 Traffic Analysis commodity table
-  verbatim -- directly related to the flat-20-ton-payload freight
-  undercount already found this session.
+- [x] **#29 Payload conversion factors (T29)** -- **ADOPTED** for ResiFlow
+  `sctgG5` combination-unit means from FHWA-HOP-20-011 Table 52 (2017 CU),
+  tonnage-weighted with FAF5.7.1 truck `tons_2022`. Wired as the default for
+  county / CONUS freight OD tons→trips (`add_default_truck_trips` /
+  `build_conus_freight_od`); VA freight path defaults to T29 when other freight
+  inputs are set. Flat `--default-payload-tons` remains an explicit override.
+  **Deferred:** VIUS 2021 PUF goods-weight (not on public file), FSRDC Title-13
+  microdata, FAF6 `$/ton` refresh, SUT / haul-length-specific factors.
+  See `parameters/tables/T29_payload_conversion_factors.csv` header and
+  `docs/FREIGHT_OD_DISAGGREGATION.md`.
 
 ## Needs a methodology decision, not a code task
 
@@ -75,7 +81,10 @@ scratch each time.
   currently uses `VOT_USD_PER_HOUR["ogv"] x 24h` as the isolated-freight-flow
   proxy (see `4_rerouting_and_recovery_scenario_loop.py`) -- confirm whether
   that's considered the intended answer to this row, or still genuinely
-  open.
+  open. **Cargo $/ton half done:** national truck means by `sctgG5` from
+  FAF5.7.1 HiLoForecasts are in
+  `results/viz/FAF5_SCTGG5_USD_PER_TON.md` (2022: ~804/28/502/1183/3736).
+  Still need: holding rate, and adopt-vs-VOT decision (payload: T29 adopted).
 - [ ] **#30 LODES mode-share / telework scaling** -- jobs used directly as
   car trips, no mode-share or telework adjustment applied. Relates to the
   ~10% gap already found this session against the independent NHTS-style

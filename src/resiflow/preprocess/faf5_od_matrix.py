@@ -181,13 +181,14 @@ def convert_tonnage_to_vehicles(tonnage_ktons, commodity_type='all', year=2021):
         - Average truck payload: 15-25 tons depending on commodity
         - Annual flows converted to daily vehicle counts (divide by 365)
     """
-    # Average truck payload in tons
+    # Average truck payload in tons (see parameters/tables/T29_payload_conversion_factors.csv).
+    # Prefer T29 sctgG5 means when commodity is known; flat keys below are legacy aliases.
     AVG_PAYLOAD = {
-        'default': 20.0,
-        'bulk': 25.0,      # Coal, minerals (SCTG 10-15)
-        'container': 20.0,  # Manufactured goods (SCTG 24-39)
-        'food': 18.0,      # Perishables (SCTG 01-08)
-        'fuel': 22.0,      # Petroleum products (SCTG 16-19)
+        'default': 19.39,  # T29 all (FAF5.7.1 truck-wtd Table52 CU)
+        'bulk': 22.88,     # ~sctg1014
+        'container': 17.21,  # ~sctg2033
+        'food': 17.11,     # ~sctg0109
+        'fuel': 22.87,     # ~sctg1519
     }
     
     payload = AVG_PAYLOAD.get(commodity_type, AVG_PAYLOAD['default'])

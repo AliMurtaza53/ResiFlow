@@ -60,7 +60,7 @@ def build_conus_freight_od(
     skip_county: bool = False,
     require_gdb: bool = False,
     network_centroids_path: str | None = None,
-    default_payload_tons: float = 20.0,
+    default_payload_tons: float | None = None,
     read_chunksize: int = 50_000,
     od_chunk_size: int = 500,
 ) -> dict[str, str]:
@@ -197,7 +197,12 @@ def main() -> int:
     parser.add_argument("--require-gdb", action="store_true", help="Fail instead of county-shapefile fallback")
     parser.add_argument("--network-centroids", default=None, help="Exported FAF5 loading centroids gpq/parquet")
     parser.add_argument("--force-centroid", action="store_true")
-    parser.add_argument("--default-payload-tons", type=float, default=20.0)
+    parser.add_argument(
+        "--default-payload-tons",
+        type=float,
+        default=None,
+        help="Flat tons/truck override. Default: use parameters/tables/T29 by sctgG5.",
+    )
     parser.add_argument("--read-chunksize", type=int, default=50_000)
     parser.add_argument("--od-chunk-size", type=int, default=500)
     args = parser.parse_args()

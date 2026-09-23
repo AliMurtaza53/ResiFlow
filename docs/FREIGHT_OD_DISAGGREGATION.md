@@ -107,12 +107,21 @@ FAF CSV aliases are accepted by `normalize_faf_flows`: `dms_orig`, `dms_dest`, `
 
 ### Payload Factors
 
+Default table: ``parameters/tables/T29_payload_conversion_factors.csv``
+(FHWA-HOP-20-011 Table 52, 2017 combination-unit tons/truck, tonnage-weighted
+to ResiFlow ``sctgG5`` with FAF5.7.1 truck tons). Empty-mile share is documented
+in the T29 header but **not** applied in tons→trips.
+
 | Column | Meaning |
 |---|---|
-| `commodity` | SCTG/commodity group or `all` fallback |
-| `truck_type` | Truck type label |
-| `payload_tons` | Average tons per truck |
-| `distance_bin` | Optional placeholder for haul-distance-specific payloads |
+| `sctgG5` / `commodity` | ResiFlow group (`sctg0109`…`sctg3499`) or `all` fallback |
+| `truck_type` | `combination` (CUT); SUT deferred |
+| `payload_tons` | Average **loaded** tons per truck |
+| `distance_bin` | `all` until haul-length-specific FAF factors are adopted |
+
+**Deferred (not blocking):** VIUS 2021 PUF (no cargo goods-weight on the public
+file), VIUS 2021 FSRDC Title-13 microdata for a true goods-weight refresh, and
+FAF6 OD for `$/ton` vintage only (FAF6 has tons/value, not payload).
 
 ### Optional Distance Matrix
 

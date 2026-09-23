@@ -347,7 +347,11 @@ def main() -> int:
     parser.add_argument("--freight-crosswalk", default=None, help="Optional FAF zone-to-subarea crosswalk")
     parser.add_argument("--freight-weights", default=None, help="Optional subarea production/attraction weight table")
     parser.add_argument("--freight-centroids", default=None, help="Optional subarea centroid or node-map table")
-    parser.add_argument("--freight-payloads", default=None, help="Optional commodity/truck payload factor table")
+    parser.add_argument(
+        "--freight-payloads",
+        default=None,
+        help="Commodity/truck payload table (default: parameters/tables/T29 when other freight inputs are set)",
+    )
     parser.add_argument("--freight-distance-matrix", default=None, help="Optional subarea-to-subarea skim table")
     parser.add_argument("--freight-year", default="2021", help="FAF flow year for freight OD disaggregation")
     parser.add_argument(
@@ -404,11 +408,24 @@ def main() -> int:
     od_path = va_root / f"faf5_od_matrix_{args.state.upper()}_inverse_distance_{int(args.total_trips/1_000_000)}m.pq"
     freight_od_path = va_root / f"faf5_freight_od_matrix_{args.state.upper()}_{args.freight_year}.pq"
     script1_od_path = input_root / "census_datasets" / "faf5_od_matrix.pq" if input_root is not None else None
-    freight_paths = [
+    freight_core = [
         args.freight_flow_table,
         args.freight_crosswalk,
         args.freight_weights,
         args.freight_centroids,
+    ]
+    if any(freight_core) and not args.freight_payloads:
+        from resiflow.tables import tables_root
+
+        t29_path = tables_root() / "T29_payload_conversion_factors.csv"
+        if not t29_path.exists():
+            raise FileNotFoundError(
+                f"Freight OD needs payload factors; --freight-payloads unset and T29 missing: {t29_path}"
+            )
+        args.freight_payloads = str(t29_path)
+        print(f"Using T29 payload factors: {t29_path}")
+    freight_paths = [
+        *freight_core,
         args.freight_payloads,
     ]
     use_freight_od = args.od_source == "freight_gravity" or any(freight_paths)

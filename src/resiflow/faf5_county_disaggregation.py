@@ -443,27 +443,53 @@ def _normalize_payload_factors(payload_factors: pd.DataFrame) -> pd.DataFrame:
     return payload[["sctgG5", "truck_type", "payload_tons"]]
 
 
+def load_t29_payload_factors(params_root: str | Path | None = None) -> pd.DataFrame:
+    """Load adopted T29 sctgG5 combination-unit payload factors from parameters/tables."""
+
+    from resiflow.tables import load_table
+
+    return _normalize_payload_factors(
+        load_table("T29_payload_conversion_factors", params_root=params_root)
+    )
+
+
 def convert_tons_to_truck_trips(
     county_od: pd.DataFrame,
     payload_factors: pd.DataFrame | None = None,
     annual_to_daily_factor: float = 365,
     default_payload_tons: float | None = None,
 ) -> pd.DataFrame:
-    """Add annual/daily truck trip fields when payload factors are available."""
+    """Add annual/daily truck trips from T29, an explicit table, or a flat override.
+
+    Precedence: ``payload_factors``; else flat ``default_payload_tons``; else load T29.
+    Refuses a silent invented flat payload when neither table nor override is available
+    only if T29 itself is missing (``FileNotFoundError`` from the loader).
+    """
 
     result = county_od.copy()
+    if payload_factors is None and default_payload_tons is None:
+        payload_factors = load_t29_payload_factors()
     if payload_factors is None:
         if default_payload_tons is None:
-            return result
+            raise ValueError(
+                "payload_factors or default_payload_tons is required; "
+                "refusing to invent a flat payload"
+            )
         result["annual_truck_trips"] = result["tons"] / float(default_payload_tons)
         result["daily_truck_trips"] = result["annual_truck_trips"] / float(annual_to_daily_factor)
         return result
     payload = _normalize_payload_factors(payload_factors)
-    result = result.merge(payload, on="sctgG5", how="left")
+    keyed = payload[payload["sctgG5"] != "all"]
+    result = result.merge(keyed, on="sctgG5", how="left")
     missing_payload = result["payload_tons"].isna()
     if missing_payload.any():
-        missing_groups = sorted(result.loc[missing_payload, "sctgG5"].dropna().unique())
-        raise ValueError(f"Missing payload factors for sctgG5 groups: {missing_groups}")
+        fallback = payload[payload["sctgG5"] == "all"]
+        if fallback.empty:
+            missing_groups = sorted(result.loc[missing_payload, "sctgG5"].dropna().unique())
+            raise ValueError(f"Missing payload factors for sctgG5 groups: {missing_groups}")
+        fill = fallback.iloc[0]
+        result.loc[missing_payload, "payload_tons"] = float(fill["payload_tons"])
+        result.loc[missing_payload, "truck_type"] = fill["truck_type"]
     result["annual_truck_trips"] = result["tons"] / result["payload_tons"]
     result["daily_truck_trips"] = result["annual_truck_trips"] / float(annual_to_daily_factor)
     return result
@@ -472,14 +498,15 @@ def convert_tons_to_truck_trips(
 def add_default_truck_trips(
     county_od: pd.DataFrame,
     *,
-    default_payload_tons: float = 20.0,
+    default_payload_tons: float | None = None,
     annual_to_daily_factor: float = 365,
+    payload_factors: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    """Convert county tons to truck trips using a single payload assumption."""
+    """Convert county tons to truck trips via T29 (or an explicit flat override)."""
 
     return convert_tons_to_truck_trips(
         county_od,
-        payload_factors=None,
+        payload_factors=payload_factors,
         annual_to_daily_factor=annual_to_daily_factor,
         default_payload_tons=default_payload_tons,
     )

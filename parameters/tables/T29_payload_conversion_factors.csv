@@ -1,8 +1,24 @@
-# T29 - Tons->trucks conversion. AUTHORITATIVE source: FHWA FAF5 Traffic Analysis payload equivalencies by commodity class (via bts.gov/faf; derived from Census VIUS).
-# Replace the all-commodities approximation with the full FAF5 commodity table verbatim so ResiFlow truck volumes match FHWA's published FAF assignment (matrix row 29).
-commodity_class,item,value,units,status
-all_commodities,loaded_payload_avg,16.0,short tons/truck,APPROXIMATE_VERIFY
-all_commodities,effective_incl_empties,~ loaded x (1 - empty_share),short tons/truck,DERIVE
-all_commodities,empty_mile_share,0.167,fraction (ATRI 2026: 16.7%),SOURCED
-days_per_year,-,365,days (FAF AADTT convention),ADOPTED_DOCUMENT
-weekday_factor,-,1.0-1.2,dimensionless (SA lever),SA_FACTOR
+# T29 - Tons -> truck trips (loaded payload factors).
+# Source: FHWA-HOP-20-011 Table 52, 2017 Combination-Unit (CU) tons/truck, mapped to
+#   ResiFlow sctgG5 and tonnage-weighted with FAF5.7.1 truck (dms_mode=1) tons_2022.
+# truck_type=combination is the FAF long-haul primary class (CUT); SUT deferred.
+# distance_bin=all (haul-length-specific FAF factors not adopted yet).
+#
+# Documented scalars (NOT applied in tons->trips; empty is a separate network step):
+#   empty_mile_share=0.165  # ATRI Operational Costs 2026 Update, non-tank 2025
+#   days_per_year=365       # FAF AADTT convention
+#
+# DEFERRED (do not block Wave-1 bake-in; see docs/FREIGHT_OD_DISAGGREGATION.md):
+#   - VIUS 2021 PUF: no cargo "goods weight" on public file; useful for empty/structure only
+#   - VIUS 2021 FSRDC Title-13 microdata: true goods-weight payload refresh
+#   - FAF6 OD: refresh $/ton vintage only (FAF6.0.zip has tons/value, not payload)
+#
+# Formula: annual_truck_trips = tons / payload_tons; daily = annual / 365.
+# status: ADOPTED for ResiFlow sctgG5 CUT means; full SCTG2 x haul table still OPEN.
+sctgG5,truck_type,payload_tons,distance_bin,source,status
+sctg0109,combination,17.11,all,"FHWA-HOP-20-011 T52 2017 CU x FAF5.7.1 truck tons_2022",ADOPTED
+sctg1014,combination,22.88,all,"FHWA-HOP-20-011 T52 2017 CU x FAF5.7.1 truck tons_2022",ADOPTED
+sctg1519,combination,22.87,all,"FHWA-HOP-20-011 T52 2017 CU x FAF5.7.1 truck tons_2022",ADOPTED
+sctg2033,combination,17.21,all,"FHWA-HOP-20-011 T52 2017 CU x FAF5.7.1 truck tons_2022",ADOPTED
+sctg3499,combination,18.04,all,"FHWA-HOP-20-011 T52 2017 CU x FAF5.7.1 truck tons_2022",ADOPTED
+all,combination,19.39,all,"FAF5.7.1 truck-tonnage-weighted mean of Table52 CU over all sctg2",ADOPTED

@@ -400,9 +400,11 @@ def convert_tons_to_truck_trips(
 ) -> pd.DataFrame:
     """Convert annual tons to truck trips using payload factors."""
 
-    validate_required_columns(payload_factors, PAYLOAD_SCHEMA, "payload_factors")
     tons = disaggregated_tons.copy()
     payload = payload_factors.copy()
+    if "commodity" not in payload.columns and "sctgG5" in payload.columns:
+        payload = payload.rename(columns={"sctgG5": "commodity"})
+    validate_required_columns(payload, PAYLOAD_SCHEMA, "payload_factors")
     tons["commodity"] = _as_key(tons["commodity"])
     payload["commodity"] = _as_key(payload["commodity"])
     payload["payload_tons"] = pd.to_numeric(payload["payload_tons"], errors="coerce")

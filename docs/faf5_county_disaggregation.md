@@ -28,7 +28,9 @@ C:\Users\alimu\NIRD_Data\faf5_data\
 
 Optional:
 
-- Payload factor table with `sctgG5`, `truck_type`, and `payload_tons`.
+- Payload factor table with `sctgG5`, `truck_type`, and `payload_tons`
+  (default: repo `parameters/tables/T29_payload_conversion_factors.csv`).
+  Flat `default_payload_tons` is an explicit override only — no silent 20 t.
 - County-to-network-node map with `county_id,node_id` if the county OD should be converted to Script 1 assignment OD later.
 
 The factor loader accepts these county column variants:

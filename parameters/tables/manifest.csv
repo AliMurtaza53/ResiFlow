@@ -14,4 +14,4 @@ T22_damage_ratio_curves_TEMPLATE.csv,22,TEMPLATE_REPLACE_VALUES,Schema+grid fina
 T24_asset_unit_costs_US_candidate.csv,23-24,APPROXIMATE_VERIFY,Ranges only; exact extraction + UK workbook archival pending
 T26_recovery_design_current.csv,26,CURRENT+CANDIDATE_NOTE,Structure final; endpoint re-anchoring pending ER-record review
 T27_speed_restriction_schedule.csv,27,CURRENT+CANDIDATE,Expose gates in config; per-flood-type recession pending
-T29_payload_conversion_factors.csv,29,APPROXIMATE_VERIFY,Swap in FAF5 Traffic Analysis commodity table verbatim
+T29_payload_conversion_factors.csv,29,ADOPTED,FHWA-HOP-20-011 T52 2017 CU tonnage-weighted to sctgG5; VIUS2021/FAF6/FSRDC deferred
