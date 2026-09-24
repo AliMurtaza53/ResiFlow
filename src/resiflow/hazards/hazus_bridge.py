@@ -465,6 +465,68 @@ _ROAD_PGD_FRAGILITY: dict[str, tuple[tuple[float, float, float], float]] = {
 _MAJOR_ROAD_CLASSIFICATIONS = {"motorway", "motorway_link", "trunk", "trunk_link", "primary", "primary_link"}
 
 
+def _road_pgd_state_probs(road_classification: str | None, pgd_in: float | None) -> dict[str, float] | None:
+    """Shared Table 7-5 roadway PGD exceedance -> discrete state probs.
+
+    Returns None for zero/missing PGD (caller should treat as "no"/$0).
+    Factored out of road_direct_cost_usd so road_pgd_damage_level() (used by
+    the disruption-stage categorical fragility, fragility/{earthquake,
+    landslide}_categorical.py) shares the EXACT same curve that prices
+    direct cost, rather than a second, divergent implementation.
+    """
+    if pgd_in is None or (isinstance(pgd_in, float) and math.isnan(pgd_in)) or pgd_in <= 0:
+        return None
+    tier = "major" if _safe_str(road_classification).strip().lower() in _MAJOR_ROAD_CLASSIFICATIONS else "urban"
+    medians_in, beta = _ROAD_PGD_FRAGILITY[tier]
+    exceedance = tuple(_lognormal_exceedance_prob(pgd_in, m, beta) for m in medians_in)
+    p_slight, p_moderate, p_ext_complete = exceedance
+    # Table 7-5 only publishes 3 thresholds (Slight/Moderate/Extensive-
+    # Complete combined) -- treat the combined tier as this project's
+    # "extensive" for damage-level reporting (matches Table 11-10's own
+    # roadway cost ratio, which likewise doesn't distinguish extensive from
+    # complete for roads).
+    return {
+        "none": 1.0 - p_slight,
+        "slight": p_slight - p_moderate,
+        "moderate": p_moderate - p_ext_complete,
+        "extensive": p_ext_complete,
+        "complete": 0.0,
+    }
+
+
+def road_pgd_damage_level(*, road_classification: str | None, pgd_in: float | None) -> str:
+    """Real HAZUS Table 7-5 roadway PGD fragility -- governing damage level
+    only, no cost. Used by the disruption-stage categorical fragility so
+    damage_level_max (closures/operational speed) is driven by the SAME real
+    curve that prices direct cost, instead of an unrelated placeholder
+    threshold set -- see docs/HAZARD_TABLE_INTEGRATION_RUNBOOK.md.
+    """
+    probs = _road_pgd_state_probs(road_classification, pgd_in)
+    if probs is None:
+        return "no"
+    best_state = max(("none", "slight", "moderate", "extensive"), key=lambda s: probs[s])
+    return HAZUS_TO_RESIFLOW_DAMAGE_LEVEL[best_state]
+
+
+def bridge_pgd_damage_level_default(pgd_in: float | None) -> str:
+    """Real HAZUS Table 7-7 PGD fragility for bridges, governing damage level
+    only -- uses the SHARED base medians (3.9/3.9/3.9/13.8 in, beta=0.2) with
+    NO per-bridge geometry correction (f1=f2=1.0), because the disruption-
+    stage categorical-fragility call site (fragility/landslide_categorical.py)
+    doesn't have full NBI classification (spans/width/skew) available, only
+    PGD. This is a documented simplification for damage_level_max
+    (closures/speed) ONLY -- Script 3's real bridge cost computation
+    (bridge_direct_cost_usd) still applies the fully geometry-corrected,
+    per-HWB-class fragility separately.
+    """
+    if pgd_in is None or (isinstance(pgd_in, float) and math.isnan(pgd_in)) or pgd_in <= 0:
+        return "no"
+    exceedance = tuple(_lognormal_exceedance_prob(pgd_in, m, _PGD_BETA) for m in _SHARED_PGD_MEDIANS_IN)
+    probs = damage_state_probabilities(exceedance)
+    best_state = max(HAZUS_DAMAGE_STATES, key=lambda s: probs[s])
+    return HAZUS_TO_RESIFLOW_DAMAGE_LEVEL[best_state]
+
+
 def road_direct_cost_usd(
     *, road_classification: str | None, pgd_in: float | None, length_km: float, lanes: float | None = None
 ) -> tuple[float, str]:
@@ -478,26 +540,11 @@ def road_direct_cost_usd(
     cost (documented, not a bug: matching HAZUS's own table structure,
     which doesn't offer a per-lane figure to scale from).
     """
-    tier = "major" if _safe_str(road_classification).strip().lower() in _MAJOR_ROAD_CLASSIFICATIONS else "urban"
-    medians_in, beta = _ROAD_PGD_FRAGILITY[tier]
-
-    if pgd_in is None or math.isnan(pgd_in) or pgd_in <= 0:
+    probs = _road_pgd_state_probs(road_classification, pgd_in)
+    if probs is None:
         return 0.0, "no"
 
-    exceedance = tuple(_lognormal_exceedance_prob(pgd_in, m, beta) for m in medians_in)
-    p_slight, p_moderate, p_ext_complete = exceedance
-    # Table 7-5 only publishes 3 thresholds (Slight/Moderate/Extensive-
-    # Complete combined) -- treat the combined tier as this project's
-    # "extensive" for damage-level reporting (matches Table 11-10's own
-    # roadway cost ratio, which likewise doesn't distinguish extensive from
-    # complete for roads).
-    probs = {
-        "none": 1.0 - p_slight,
-        "slight": p_slight - p_moderate,
-        "moderate": p_moderate - p_ext_complete,
-        "extensive": p_ext_complete,
-        "complete": 0.0,
-    }
+    tier = "major" if _safe_str(road_classification).strip().lower() in _MAJOR_ROAD_CLASSIFICATIONS else "urban"
     ratio = expected_damage_ratio(probs, asset_type="road")
     best_state = max(("none", "slight", "moderate", "extensive"), key=lambda s: probs[s])
 

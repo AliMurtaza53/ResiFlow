@@ -1,0 +1,23 @@
+# T34 - Winter storm day-of-reopening schedule, by clearance rank x damage level x region (Ali/ASSIP intern, Sensitivity Analysis Nandu project).
+# STATUS: SOURCED. Day on which each T33 clearance rank becomes passable, counted from end of storm.
+# Links in a rank are closed before day_open and open after -- capacity on an open link is NOT 100%, apply
+# T35's speed_recovery curve on top of this. day_open = ROUND(base_days x region_factor), minimum 1.
+# Region definitions: high_capability = mean annual snowfall >= 40in; moderate = 10-40in; low_capability = <10in.
+# BLOCKER: needs a per-link/state/county region classification (mean annual snowfall) -- not yet in the
+# pipeline. Also needs winter-storm-specific damage_level thresholds (not the flood-shim's) -- a modeling
+# decision, not a data-acquisition task. See docs/HAZARD_TABLE_INTEGRATION_RUNBOOK.md Track B Step 2.
+"#Day on which each rank becomes passable, starting from end of storm. Links in a rank are closed before day_open and open after. Capacity on an open link is not 100% - apply the speed_recovery curve. day_open = ROUND(base days x region_factor), minimum 1.",,,,,,,
+"#We can define high_capability as >= 40 in. mean annual snow, moderate as 10-40 in. mean snow, and low_capability as <10 in. mean snow",,,,,,,
+region,region_factor,damage_level,day_open_rank1,day_open_rank2,day_open_rank3,day_open_rank4,day_open_rank5
+high_capability,0.6,minor,1,1,1,1,1
+high_capability,0.6,moderate,1,1,1,2,2
+high_capability,0.6,extensive,1,2,2,3,4
+high_capability,0.6,severe,2,2,4,5,7
+moderate,1,minor,1,1,1,2,2
+moderate,1,moderate,1,2,2,3,4
+moderate,1,extensive,2,3,4,5,7
+moderate,1,severe,3,4,6,8,11
+low_capability,1.6,minor,2,2,2,3,3
+low_capability,1.6,moderate,2,3,3,5,6
+low_capability,1.6,extensive,3,5,6,8,11
+low_capability,1.6,severe,5,6,10,13,18

@@ -33,11 +33,38 @@ def test_flood_river_edr_monotonic() -> None:
 
 
 def test_earthquake_edr_monotonic() -> None:
+    # No road_label -> treated as roads -> always "no" now (HAZUS publishes
+    # no ground-shaking fragility for roads; see fragility/
+    # earthquake_categorical.py's module docstring). Monotonic trivially
+    # (constant), which is the correct behavior, not a weakened test --
+    # test_earthquake_road_always_no and test_earthquake_bridge_edr_monotonic
+    # below cover the two branches explicitly.
     pga = pd.Series(np.linspace(0, 0.6, 40))
     rc = pd.Series(["tertiary"] * len(pga))
     ranks = _level_rank(compute_damage_levels_vectorized(rc, pga))
     assert ranks.is_monotonic_increasing
     assert ranks.iloc[0] == 0
+
+
+def test_earthquake_road_always_no() -> None:
+    pga = pd.Series(np.linspace(0, 1.0, 20))
+    rc = pd.Series(["motorway"] * len(pga))
+    road_label = pd.Series(["road"] * len(pga))
+    levels = compute_damage_levels_vectorized(rc, pga, road_label)
+    assert (levels == "no").all()
+
+
+def test_earthquake_bridge_edr_monotonic() -> None:
+    # Bridges still use the placeholder PGA-threshold curve (real Sa(1.0s)
+    # fragility needs a raster pass not available at this call site) -- so
+    # bridges, unlike roads, should still show real variation with PGA.
+    pga = pd.Series(np.linspace(0, 0.6, 40))
+    rc = pd.Series(["tertiary"] * len(pga))
+    road_label = pd.Series(["Bridge"] * len(pga))
+    ranks = _level_rank(compute_damage_levels_vectorized(rc, pga, road_label))
+    assert ranks.is_monotonic_increasing
+    assert ranks.iloc[0] == 0
+    assert ranks.iloc[-1] > 0
 
 
 def test_landslide_edr_monotonic() -> None:
@@ -46,6 +73,20 @@ def test_landslide_edr_monotonic() -> None:
     ranks = _level_rank(landslide_levels(rc, mm))
     assert ranks.is_monotonic_increasing
     assert ranks.iloc[0] == 0
+
+
+def test_landslide_bridge_edr_monotonic() -> None:
+    # Bridges use the real HAZUS Table 7-7 base-median PGD fragility (see
+    # hazus_bridge.bridge_pgd_damage_level_default) -- much lower medians
+    # than the roadway curve, so bridges should reach "severe" well before
+    # 400mm where roads are still mid-curve.
+    mm = pd.Series(np.linspace(0, 400, 40))
+    rc = pd.Series(["local"] * len(mm))
+    road_label = pd.Series(["Bridge"] * len(mm))
+    ranks = _level_rank(landslide_levels(rc, mm, road_label))
+    assert ranks.is_monotonic_increasing
+    assert ranks.iloc[0] == 0
+    assert ranks.iloc[-1] == 4  # "severe"
 
 
 def test_winter_storm_edr_monotonic() -> None:

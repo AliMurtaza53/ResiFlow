@@ -179,6 +179,38 @@ def test_road_direct_cost_zero_at_zero_pgd():
     assert level == "no"
 
 
+def test_road_pgd_damage_level_matches_road_direct_cost_usd():
+    # road_pgd_damage_level() is factored out of road_direct_cost_usd() so
+    # the disruption-stage categorical fragility (fragility/{earthquake,
+    # landslide}_categorical.py) shares the EXACT same curve that prices
+    # direct cost -- this is the harmonization guarantee, not just a nice-to-have.
+    for pgd_in in (0.0, 5.0, 20.0, 40.0, 80.0, 150.0):
+        for rc in ("motorway", "residential"):
+            level_only = hz.road_pgd_damage_level(road_classification=rc, pgd_in=pgd_in)
+            _, level_from_cost = hz.road_direct_cost_usd(road_classification=rc, pgd_in=pgd_in, length_km=1.0)
+            assert level_only == level_from_cost
+
+
+def test_road_pgd_damage_level_zero_at_zero_or_missing_pgd():
+    assert hz.road_pgd_damage_level(road_classification="motorway", pgd_in=0.0) == "no"
+    assert hz.road_pgd_damage_level(road_classification="motorway", pgd_in=None) == "no"
+
+
+def test_bridge_pgd_damage_level_default_zero_at_zero_pgd():
+    assert hz.bridge_pgd_damage_level_default(0.0) == "no"
+    assert hz.bridge_pgd_damage_level_default(None) == "no"
+
+
+def test_bridge_pgd_damage_level_default_monotonic():
+    ranks = {"no": 0, "slight": 1, "minor": 1, "moderate": 2, "extensive": 3, "severe": 4, "complete": 4}
+    prev = -1
+    for pgd_in in (0.0, 1.0, 2.0, 3.9, 6.0, 10.0, 13.8, 20.0, 40.0):
+        level = hz.bridge_pgd_damage_level_default(pgd_in)
+        rank = ranks[level]
+        assert rank >= prev
+        prev = rank
+
+
 def test_hazus_damage_level_crosswalk_is_complete_and_matches_existing_vocabulary():
     # The 5-level vocabulary must match fragility/{earthquake,landslide,
     # winter_storm}_categorical.py's own damage-level strings exactly.

@@ -1,0 +1,23 @@
+# T33 - Winter storm road-class clearance priority / plow-fleet allocation (Ali/ASSIP intern, Sensitivity Analysis Nandu project).
+# STATUS: SOURCED. Real road-hierarchy-based fleet-share model -- feeds T34's day-of-reopening schedule.
+# Hierarchy: t_r = (L_r*P)/(F*s_r*rho) => s_r = (L_r/t_r) / SUM_j(L_j/t_j), intensity I_r = s_r/L_r, proportional to 1/t_r.
+# Shares are solved from target times. t_r is after end of winter storm and the times are absolute, not relative.
+# Two blocks below: first the clearance-rank/road-class/fleet-share table, then base recovery days by rank x
+# damage level (minor/moderate/extensive/severe) for the 'moderate' snow-capability region -- multiply by
+# T34's region_factor for other regions.
+"#Hierarchy: t_r = (L_r*P)/(F*s_r*rho)  =>  s_r = (L_r/t_r) / SUM_j(L_j/t_j),  intensity I_r = s_r/L_r, proportional to 1/t_r.  ",,,,,,,
+"#Shares are solved from target times. t_r is after end of winter storm and the times are absolute, not relative.",,,,,,,
+clearance_rank,rank_label,road_classification members (OSM),road_class,lane-mile share L_r,target hours t_r,fleet share s_r,fleet intensity I_r
+1,Limited access / interstate,motorway;motorway_link;trunk;trunk_link,major,0.03,18,0.07947019867549668,2.649006622516556
+2,Principal arterial,primary;primary_link,major,0.1,24,0.1986754966887417,1.986754966887417
+3,Minor arterial,secondary;secondary_link,major,0.12,36,0.15894039735099336,1.324503311258278
+4,Collector,tertiary;tertiary_link,minor,0.2,48,0.1986754966887417,0.9933774834437085
+5,Local / residential,residential;unclassified;service;living_street;road,minor,0.55,72,0.3642384105960265,0.6622516556291391
+TOTAL,,,,1,,1,
+clearance_rank,base days: minor,moderate,extensive,severe,,,
+1,1,1,2,3,,,
+2,1,2,3,4,,,
+3,1,2,4,6,,,
+4,2,3,5,8,,,
+5,2,4,7,11,,,
+#Base days are for the moderate region; multiply by region_factor.,,,,,,,

@@ -34,7 +34,7 @@ def intersections_with_intensity(
     field_name: str,
     intensity_col: str,
     damage_level_col: str,
-    categorical_fn: Callable[[pd.Series, pd.Series], pd.Series],
+    categorical_fn: Callable[[pd.Series, pd.Series, pd.Series], pd.Series],
     boundary_gdf: Optional[gpd.GeoDataFrame] = None,
     script3_depth_scale: float = 1.0,
 ) -> gpd.GeoDataFrame | None:
@@ -59,9 +59,16 @@ def intersections_with_intensity(
     if depth_col not in intersections.columns:
         intersections[depth_col] = 0.0
     intersections[intensity_col] = pd.to_numeric(intersections[depth_col], errors="coerce").fillna(0.0)
+    # road_label ("Bridge" vs. ordinary road) so per-hazard categorical
+    # fragility (fragility/{earthquake,landslide,winter_storm}_categorical.py)
+    # can classify bridges and roads against the real, asset-appropriate
+    # HAZUS curve instead of one generic threshold set -- see
+    # docs/HAZARD_TABLE_INTEGRATION_RUNBOOK.md. raster_line.py guarantees
+    # this column exists (falls back to None), so this is never a KeyError.
     intersections[damage_level_col] = categorical_fn(
         intersections["road_classification"],
         intersections[intensity_col],
+        intersections["road_label"],
     )
     intersections["flood_depth_surface"] = intersections[intensity_col] * script3_depth_scale
     intersections["flood_depth_river"] = 0.0

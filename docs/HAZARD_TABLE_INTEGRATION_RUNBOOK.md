@@ -1,6 +1,51 @@
 # Runbook: integrating the new earthquake/landslide/winter-storm tables
 
-Written 2026-09-19. Scope: the two parameter sources the intern (Ali)
+**Progress update, 2026-09-23:** T31-T35 landed in `parameters/tables/`
+(manifest updated). Landslide and earthquake-roads are now fully harmonized
+-- see "Harmonization, done 2026-09-23" below. Earthquake-bridges and all of
+winter storm remain open, see their sections. Branch:
+`feature/paraminputs_update`.
+
+## Harmonization, done 2026-09-23 (zero new data needed)
+
+Found while starting Track A: `damage_level_max` (the field driving
+operational closures/speed -> indirect/rerouting cost) was being set by a
+"PLACEHOLDER -- confirm with advisor" categorical fragility
+(`fragility/{earthquake,landslide}_categorical.py`) completely disconnected
+from whatever priced direct cost -- for landslide, that placeholder's
+thresholds (25-300mm) were below HAZUS's own real median for "slight"
+damage (304.8mm), so closures were far more aggressive than the priced
+event would ever justify.
+
+Fixed for the two hazards that needed zero new data:
+- `hazards/hazus_bridge.py` gained `road_pgd_damage_level()` and
+  `bridge_pgd_damage_level_default()` -- damage-level-only wrappers around
+  the exact same Table 7-5/7-7 fragility that already prices direct cost
+  (verified identical to `road_direct_cost_usd`'s own level via a
+  dedicated test, `test_road_pgd_damage_level_matches_road_direct_cost_usd`).
+- `disruption/intensity_hazard.py`'s shared `categorical_fn` call site now
+  passes `road_label` as a 3rd argument (all 3 hazards' categorical modules
+  updated to accept it, `winter_storm_categorical.py` accepts-but-ignores
+  for now) so bridges and roads can be classified differently.
+- **Landslide**: roads -> real Table 7-5 curve, bridges -> real Table 7-7
+  base-medians (no per-bridge geometry correction -- full NBI attributes
+  aren't available at this call site; Script 3's actual bridge cost still
+  applies the geometry-corrected version). Full fix, both asset types.
+- **Earthquake roads**: placeholder removed entirely -- HAZUS publishes no
+  ground-shaking fragility for roads, so "no" damage from PGA alone is the
+  *correct* behavior until liquefaction PGD exists (Track A below), not a
+  gap. **Earthquake bridges**: still the old placeholder -- the real Sa(1.0s)
+  fragility needs a raster pass not available at this generic call site;
+  using PGA as an Sa(1.0s) proxy would be a real methodological error
+  (mixing intensity measures), not a documented simplification. Real
+  follow-up, not done here.
+- Tests: `tests/test_hazus_bridge.py` (+4), `tests/test_fragility_
+  monotonicity.py` (+3, incl. explicit bridge-vs-road cases). Full existing
+  suite reruns clean -- 0 regressions from this change (7 pre-existing
+  failures unrelated to it, all in T04/T19 areas another session has in
+  flight on this branch).
+
+Scope: the two parameter sources the intern (Ali)
 produced --
 `hazus_roadway_pga_compound_lookup.csv` (earthquake, via liquefaction) and
 `winter_storm_cost_and_recovery.xlsx` (winter storm) -- and what an

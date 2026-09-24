@@ -1,0 +1,36 @@
+# T32 - Winter storm direct cleanup cost function (Ali/ASSIP intern, Sensitivity Analysis Nandu project).
+# STATUS: SOURCED. Real DOT-regression-based cost model -- replaces the flood-shim direct-cost path for
+# winter_storm (snow depth mm / 1000 repackaged as a fake flood depth, run through FLOOD's damage_ratio/
+# damage_cost workbooks; confirmed independently wrong by 150-1000x vs. real Jonas damage estimates, see
+# results/finale_2026_08/build_finale_figures.py's WINTER_STORM_EXCLUSION note).
+# Formula: C = [kappa + c_pass * passes] * T_factor, USD per lane-mile per event.
+#   passes = MAX(snow_depth_mm/d_plow_mm, duration_hours/cycle_hours)
+#   T_factor = MIN(T_cap, 1 + T_slope*MAX(0, T_ref - air_temp_F))
+# BLOCKER: needs duration_hours and air_temp_F per event/link -- the pipeline currently only carries
+# winter_storm_max_mm (peak depth). Sources cited below (NOHRSC for duration, ERA5-Land/PRISM/nClimGrid
+# for temperature) are not yet intersected for any real winter-storm event. See
+# docs/HAZARD_TABLE_INTEGRATION_RUNBOOK.md Track B Step 2.
+# Two blocks below: first the named coefficients (parameter,value,units,source), then 5 worked examples
+# (snow_depth_mm,duration_hours,air_temp_F,passes,T_factor,USD/lane-mile,class multiplier,USD/lane-mile adj),
+# then the per-input data source citations.
+"#Direct cleanup cost, USD per lane-mile per event.  C = [kappa + c_pass * passes] * T_factor,  ",,,,,,,
+"#where passes = MAX(snow_depth_mm/d_plow_mm, duration_hours/cycle_hours) and T_factor = MIN(T_cap, 1 + T_slope*MAX(0, T_ref - air_temp_F))",,,,,,,
+Parameter,Value,Units,Source,,,,
+kappa,50.4,USD/lane-mile,MnDOT and WisDOT regression,,,,
+c_pass,23.7,USD/lane-mile/pass,Calibrated to the validated depth-only curve,,,,
+d_plow_mm,50,mm,Arbitrary,,,,
+cycle_hours,3,hours,WisDOT published cycle,,,,
+T_ref,30,deg F,Arbitrary (or supported by event-specific datasource),,,,
+T_slope,0.025,per deg F,MDOT,,,,
+T_cap,2,multiplier,Salt largely ineffective below ~15 F,,,,
+snow_depth_mm,duration_hours,air_temp_F,passes,T_factor,USD/lane-mile,class multiplier,USD/lane-mile adj
+150,12,28,4,1.05,152.46,2,304.92
+75,6,30,2,1,97.8,2,195.6
+300,24,20,8,1.25,300,2,600
+600,36,10,12,1.5,502.19999999999993,0.85,426.86999999999995
+50,8,32,2.6666666666666665,1,113.6,0.85,96.55999999999999
+Input,Source,,,,,,
+snow_depth_mm,"NOHRSC National Gridded Snowfall Analysis, 6hr, 1 km resolution",,,,,,
+duration_hours,Same NOHRSC grids,,,,,,
+air_temp_F,"ERA5-Land hourly 2 m, and NOAA nClimGrid-Daily 5 km / PRISM 4 km",,,,,,
+class multiplier,"major 2.00 (motorway, motorway_link, trunk, primary, secondary) | minor 0.85 | network average 1.00",,,,,,

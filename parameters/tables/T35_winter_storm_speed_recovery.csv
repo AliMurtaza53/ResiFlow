@@ -1,0 +1,15 @@
+# T35 - Winter storm post-reopening capacity restoration curve (Ali/ASSIP intern, Sensitivity Analysis Nandu project).
+# STATUS: SOURCED, cites FHWA Road Weather Management Program (arterial speeds 30-40% below normal on
+# snowy/slushy pavement; highway speeds 5-40% below).
+# Capacity of a link that is open (per T34), as a fraction of pre-event free-flow capacity, by days since
+# that link's rank opened. link_capacity(day) = 0 if day < day_open, else speed_factor(day - day_open).
+# Distinguishes major vs. minor road classes (T33's road_class column) -- major roads recover faster
+# (chemical treatment reaches bare pavement by day 3) than minor/local roads (day 4).
+"#Capacity of a link that is open, as a fraction of pre-event capacity, by days since that link's rank opened. Source: FHWA Road Weather Management Program - arterial speeds 30-40% below normal on snowy or slushy pavement; highway speeds 5-40% below.",,,
+days_since_open,speed_factor_major,speed_factor_minor,condition
+0,0.7,0.6,first pass complete; packed snow or slush
+1,0.85,0.75,repeat cycles and chemical action
+2,0.95,0.88,approaching bare pavement
+3,1,0.95,bare pavement on major roads
+4,1,1,fully recovered
+"link_capacity(day) = 0 if day < day_open, else speed_factor(day - day_open)",,,
