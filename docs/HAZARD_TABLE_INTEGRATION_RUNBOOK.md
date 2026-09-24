@@ -1,10 +1,112 @@
 # Runbook: integrating the new earthquake/landslide/winter-storm tables
 
-**Progress update, 2026-09-23:** T31-T35 landed in `parameters/tables/`
+**Progress update, 2026-09-23 (2):** Track A (earthquake road liquefaction,
+direct cost) and half of Track B (winter storm direct cost) are now wired
+and real -- see "Direct cost wiring, done 2026-09-23" below. Bridges
+(earthquake ground-shaking) and winter storm RECOVERY (T33-T35) are
+explicitly out of scope for this pass and still open.
+
+**Progress update, 2026-09-23 (1):** T31-T35 landed in `parameters/tables/`
 (manifest updated). Landslide and earthquake-roads are now fully harmonized
 -- see "Harmonization, done 2026-09-23" below. Earthquake-bridges and all of
 winter storm remain open, see their sections. Branch:
 `feature/paraminputs_update`.
+
+## Direct cost wiring, done 2026-09-23 (2)
+
+**Track A closed for its real-coverage footprint.** The real blocker
+("no liquefaction susceptibility layer exists") turned out to already be
+half-solved: `inputs/multihazard_raw/landslide/cusec_sg_liquefaction.zip`
+(already in the repo, unused) is 8 state geological-survey liquefaction
+susceptibility maps (AL/AR/IL/IN/KY/MO/MS/TN, a mid-2000s FEMA/CUSEC New
+Madrid catastrophic-planning study) sharing one harmonized field (`TYPE`,
+confirmed a direct 0-5 match to T31's own VeryLow..VeryHigh classes via
+Arkansas's own text-labeled rows). `scripts/prepare_cusec_liquefaction_
+susceptibility.py` rasterizes all 8 into one susceptibility raster; wired
+in via a new `liquefaction_companion` raster pass (mirrors the existing
+Sa(1.0s) `sa1p0_companion` pattern) on `RealEarthquakeNewMadridScenarioSource`
+only -- Mineral (401) and Cascadia (404) have zero overlap with this dataset
+and correctly stay $0, not backfilled. `hazards/liquefaction.py` is the new
+T31 lookup module (nearest-magnitude-grid, linearly-interpolated PGA); note
+its docstring on T31's `p_slight/p_moderate/p_extensive_complete` columns
+being DISCRETE state probabilities, not cumulative exceedance -- confirmed
+by direct inspection, an easy trap since hazus_bridge.py's own curves use
+the opposite (cumulative) convention. New flag:
+`vulnerability.use_table_earthquake_liquefaction` (default off). Tests:
+`tests/test_liquefaction.py` (9), plus 2 new cases in `test_hazus_bridge.py`.
+
+While wiring this, found and fixed a live bug (not from this session's
+earlier work, but exposed by it): `disruption/intensity_hazard.py`'s
+`categorical_fn` interface was widened to 3 args on 2026-09-23 (1) for the
+harmonization fix above, but `disruption/earthquake.py`'s own placeholder
+`_no_damage_level` (used for the Sa(1.0s)/liquefaction raster passes) was
+never updated to match -- a `TypeError` on EVERY earthquake scenario with
+`sa1p0_companion=True` (Mineral, New Madrid, Cascadia all have it), silently
+uncaught because no test exercised that code path directly. Fixed, plus a
+regression test (`tests/test_disruption_earthquake.py`) and the identical
+fix applied proactively to `disruption/winter_storm.py`'s own new companion
+branch so it doesn't repeat the same mistake.
+
+**Track B, direct cost half closed** (recovery -- T33/T34/T35 -- still
+open, out of scope for this pass). `hazards/winter_storm_cost.py`
+implements T32's formula directly (its CSV stacks 3 different tables in one
+file by design, so it's hand-parsed, not read via `resiflow.tables.
+load_table`) -- verified to reproduce all 5 of T32's own worked examples
+exactly (`tests/test_winter_storm_cost.py`). `duration_hours`/`air_temp_F`
+per event/link now come from real (if approximate) sources via
+`scripts/prepare_winter_storm_duration_temp.py`:
+  - `air_temp_F`: PRISM daily minimum temperature, 4km CONUS, free/no-auth
+    download (`https://services.nacse.org/prism/data/get/us/4km/tmin/
+    <YYYYMMDD>`) -- a real per-pixel value, T32's own header lists PRISM as
+    a valid temperature source, though tmin (not tmean) is a documented
+    choice.
+  - `duration_hours`: NOT the ideal NOHRSC 6-hr snowfall analysis T32's
+    header cites -- that product's historical archive for these specific
+    past dates wasn't readily reachable within scope. Instead: 3 consecutive
+    days of NOHRSC SNODAS daily snow-DEPTH grids (peak day +/- 1, same
+    product `winter_storm_max_mm` already uses); a day counts as "actively
+    snowing" if depth increased > 10mm vs. the prior day; duration_hours =
+    24h * qualifying-day count (0/24/48). Coarser granularity than the ideal
+    source -- documented as an approximation, not fabricated data.
+
+Wired via a new `winter_storm_cost_companions` raster-pass flag (same
+pattern as `liquefaction_companion`) on all 4 real winter-storm sources
+(Jonas/Uri/Elliott/Snowmageddon -- real data sourced and generated for all
+4, not just Jonas). `air_temp_F`'s nodata fills to NaN, not this project's
+usual 0.0 default (0degF is a real, very cold value, not "unknown" -- would
+have biased T_factor upward); `duration_hours` keeps the 0.0 default ("no
+active-snowfall day detected" is a real, intended reading there). New flag:
+`vulnerability.use_table_winter_storm_cost` (default off), wired into
+`scripts/3_damage_analysis.py`'s winter_storm branch (previously always the
+flood-shim path, confirmed 150-1000x off vs. real Jonas estimates -- see
+`calculate_damage()`'s own docstring). Tests: `tests/test_winter_storm_cost.py`
+(9), `tests/test_disruption_winter_storm.py` (1).
+
+**Regenerating the companion rasters** (`inputs/multihazard_aligned/` is
+gitignored -- local-only, like every other aligned raster in this project;
+these commands reproduce them from already-local or freely re-downloadable
+raw inputs):
+
+```
+python scripts/prepare_cusec_liquefaction_susceptibility.py \
+    --cusec-zip inputs/multihazard_raw/landslide/cusec_sg_liquefaction.zip \
+    --output inputs/multihazard_aligned/earthquake_new_madrid_m75_scenario_liquefaction/event_1.tif
+
+# Per winter-storm event (repeat for winter_storm[_uri|_elliott|_snowmageddon]):
+#   1. 3 consecutive SNODAS_<YYYYMMDD>.tar days from
+#      https://noaadata.apps.nsidc.org/NOAA/G02158/masked/<year>/<MM_Mon>/
+#      (peak day +/- 1 -- see inputs/multihazard_raw/winter_storm/ for which
+#      days each event already has staged locally)
+#   2. curl https://services.nacse.org/prism/data/get/us/4km/tmin/<peakYYYYMMDD> -o prism_tmin.zip
+python scripts/prepare_winter_storm_duration_temp.py \
+    --snodas-tar-before <day-1>.tar --snodas-tar-peak <peak>.tar --snodas-tar-after <day+1>.tar \
+    --prism-tmin-zip prism_tmin.zip \
+    --output-dir inputs/multihazard_aligned/<hazard_subtype>_duration_temp_scratch
+# then copy duration_hours.tif -> inputs/multihazard_aligned/<hazard_subtype>_duration/event_1.tif
+#      and air_temp_F.tif   -> inputs/multihazard_aligned/<hazard_subtype>_airtemp/event_1.tif
+```
+
+---
 
 ## Harmonization, done 2026-09-23 (zero new data needed)
 

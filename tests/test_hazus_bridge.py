@@ -235,13 +235,64 @@ def test_compute_row_direct_damage_musd_earthquake_bridge_nonzero_with_sa1p0():
     assert musd > 0.0
 
 
-def test_compute_row_direct_damage_musd_earthquake_road_always_zero_even_with_sa1p0():
+def test_compute_row_direct_damage_musd_earthquake_road_zero_by_default_even_with_sa1p0():
     # HAZUS's road fragility (Table 7-5) is PGD-only, no ground-shaking
-    # curve -- roads report $0 for earthquake regardless of Sa(1.0s).
+    # curve -- roads report $0 for earthquake regardless of Sa(1.0s), UNLESS
+    # use_table_earthquake_liquefaction is on and a real susceptibility code
+    # is present (see test below) -- that flag defaults off, so this is the
+    # default-config behavior, not an absolute one.
     row = pd.Series({
         "psa1p0_g": 2.0, "road_label": "road", "length": 500.0, "road_classification": "primary",
     })
     assert hz.compute_row_direct_damage_musd(row, hazard_type="earthquake") == 0.0
+
+
+def test_compute_row_direct_damage_musd_earthquake_road_nonzero_with_liquefaction_table(monkeypatch, tmp_path):
+    import json
+
+    from resiflow.parameters import clear_cache
+
+    ov_path = tmp_path / "overrides.json"
+    ov_path.write_text(
+        json.dumps({"vulnerability": {"use_table_earthquake_liquefaction": True}}), encoding="utf-8"
+    )
+    monkeypatch.setenv("RESIFLOW_PARAM_OVERRIDES", str(ov_path))
+    clear_cache()
+    try:
+        row = pd.Series({
+            "pga_g": 0.4,
+            "liquefaction_class_code": 5.0,
+            "road_label": "road",
+            "length": 500.0,
+            "road_classification": "primary",
+        })
+        musd = hz.compute_row_direct_damage_musd(
+            row, hazard_type="earthquake", hazard_subtype="earthquake_new_madrid_m75_scenario"
+        )
+        assert musd > 0.0
+        # Flag on but no susceptibility coverage on the row -> still $0,
+        # not an assumed value.
+        uncovered_row = pd.Series({
+            "pga_g": 0.4, "road_label": "road", "length": 500.0, "road_classification": "primary",
+        })
+        assert hz.compute_row_direct_damage_musd(
+            uncovered_row, hazard_type="earthquake", hazard_subtype="earthquake_new_madrid_m75_scenario"
+        ) == 0.0
+        # Off-footprint scenario (Mineral) -> $0 even with a (hypothetical)
+        # susceptibility code present.
+        mineral_row = pd.Series({
+            "pga_g": 0.4,
+            "liquefaction_class_code": 5.0,
+            "road_label": "road",
+            "length": 500.0,
+            "road_classification": "primary",
+        })
+        assert hz.compute_row_direct_damage_musd(
+            mineral_row, hazard_type="earthquake", hazard_subtype="earthquake_shakemap_mineral"
+        ) == 0.0
+    finally:
+        monkeypatch.delenv("RESIFLOW_PARAM_OVERRIDES", raising=False)
+        clear_cache()
 
 
 def test_compute_row_direct_damage_musd_landslide_zero_pgd():

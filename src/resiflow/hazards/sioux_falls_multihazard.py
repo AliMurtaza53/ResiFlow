@@ -31,6 +31,24 @@ class SiouxFallsMultihazardSource:
     # event_<id>.tif convention) -- HAZUS bridge ground-shaking fragility
     # (Table 7-6) needs Sa(1.0s), not PGA. See hazards/hazus_bridge.py.
     sa1p0_companion: bool = False
+    # Set True on earthquake sources that have a companion liquefaction
+    # susceptibility raster aligned under
+    # inputs/<multihazard_dir>/<hazard_subtype>_liquefaction/ (same
+    # event_<id>.tif convention, uint8 HAZUS Table 4-8 codes 0-5, nodata=255
+    # -- see scripts/prepare_cusec_liquefaction_susceptibility.py). Real
+    # coverage is regional (8 CUSEC states), not national, so this is only
+    # True for RealEarthquakeNewMadridScenarioSource -- see
+    # hazards/liquefaction.py and docs/HAZARD_TABLE_INTEGRATION_RUNBOOK.md
+    # Track A.
+    liquefaction_companion: bool = False
+    # Set True on winter-storm sources with companion duration_hours/
+    # air_temp_F rasters aligned under inputs/<multihazard_dir>/
+    # <hazard_subtype>_duration/ and <hazard_subtype>_airtemp/ (same
+    # event_<id>.tif convention) -- T32's direct cleanup cost formula
+    # (hazards/winter_storm_cost.py) needs both alongside snow depth. See
+    # scripts/prepare_winter_storm_duration_temp.py and
+    # docs/HAZARD_TABLE_INTEGRATION_RUNBOOK.md Track B.
+    winter_storm_cost_companions: bool = False
 
     def __init__(self, base_path: Path) -> None:
         self.base_path = Path(base_path)
@@ -84,6 +102,34 @@ class SiouxFallsMultihazardSource:
                         sa_path,
                         key,
                     )
+            if self.liquefaction_companion:
+                liq_root = self.base_path / "inputs" / self.multihazard_dir / f"{self.hazard_subtype}_liquefaction"
+                liq_path = liq_root / f"event_{key}.tif"
+                if liq_path.exists():
+                    event_dict[str(key)]["liquefaction_class"].append(str(liq_path))
+                else:
+                    logging.warning(
+                        "Liquefaction susceptibility companion raster not found: %s -- "
+                        "earthquake road direct cost stays $0 for event %s (see "
+                        "hazards/liquefaction.py)",
+                        liq_path,
+                        key,
+                    )
+            if self.winter_storm_cost_companions:
+                for suffix, field in (("_duration", "duration_hours"), ("_airtemp", "air_temp_F")):
+                    companion_root = self.base_path / "inputs" / self.multihazard_dir / f"{self.hazard_subtype}{suffix}"
+                    companion_path = companion_root / f"event_{key}.tif"
+                    if companion_path.exists():
+                        event_dict[str(key)][field].append(str(companion_path))
+                    else:
+                        logging.warning(
+                            "Winter storm %s companion raster not found: %s -- T32 direct cost "
+                            "falls back to its documented default for that input, event %s "
+                            "(see hazards/winter_storm_cost.py)",
+                            field,
+                            companion_path,
+                            key,
+                        )
         return event_dict
 
     def resolve_event(self, event_id: str) -> HazardEvent:

@@ -165,6 +165,10 @@ class RealEarthquakeNewMadridScenarioSource(SiouxFallsMultihazardSource):
     raster_field = "pga"
     multihazard_dir = MULTIHAZARD_ALIGNED_DIR
     sa1p0_companion = True
+    # Real liquefaction susceptibility coverage (8 CUSEC states, see
+    # hazards/liquefaction.py) overlaps this scenario's footprint -- Mineral
+    # (401) and Cascadia (404) don't, so only this class sets this.
+    liquefaction_companion = True
 
 
 class RealEarthquakeCascadiaScenarioSource(SiouxFallsMultihazardSource):
@@ -239,6 +243,11 @@ class RealWinterStormSource(SiouxFallsMultihazardSource):
     intensity_unit = "mm_ice"
     raster_field = "winter_storm"
     multihazard_dir = MULTIHAZARD_ALIGNED_DIR
+    # duration_hours (SNODAS 3-day depth-delta proxy) + air_temp_F (PRISM
+    # tmin) for T32's direct cost formula -- see
+    # scripts/prepare_winter_storm_duration_temp.py and
+    # hazards/winter_storm_cost.py.
+    winter_storm_cost_companions = True
 
 
 class RealWinterStormUriSource(SiouxFallsMultihazardSource):
@@ -264,6 +273,7 @@ class RealWinterStormUriSource(SiouxFallsMultihazardSource):
     intensity_unit = "mm_ice"
     raster_field = "winter_storm"
     multihazard_dir = MULTIHAZARD_ALIGNED_DIR
+    winter_storm_cost_companions = True
 
 
 class RealWinterStormElliottSource(SiouxFallsMultihazardSource):
@@ -278,6 +288,7 @@ class RealWinterStormElliottSource(SiouxFallsMultihazardSource):
     intensity_unit = "mm_ice"
     raster_field = "winter_storm"
     multihazard_dir = MULTIHAZARD_ALIGNED_DIR
+    winter_storm_cost_companions = True
 
 
 class RealWinterStormSnowmageddonSource(SiouxFallsMultihazardSource):
@@ -292,6 +303,7 @@ class RealWinterStormSnowmageddonSource(SiouxFallsMultihazardSource):
     intensity_unit = "mm_ice"
     raster_field = "winter_storm"
     multihazard_dir = MULTIHAZARD_ALIGNED_DIR
+    winter_storm_cost_companions = True
 
 
 class RealLandslideSource(SiouxFallsMultihazardSource):

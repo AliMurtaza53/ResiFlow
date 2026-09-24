@@ -22,7 +22,9 @@ SCRIPT3_DEPTH_SCALE = get_parameter(
 )
 
 
-def _no_damage_level(road_classification: pd.Series, intensity: pd.Series) -> pd.Series:
+def _no_damage_level(
+    road_classification: pd.Series, intensity: pd.Series, road_label: pd.Series
+) -> pd.Series:
     """Placeholder categorical_fn for the Sa(1.0s) pass -- not a fragility model.
 
     HAZUS's own bridge fragility (hazards/hazus_bridge.py) computes damage
@@ -30,6 +32,8 @@ def _no_damage_level(road_classification: pd.Series, intensity: pd.Series) -> pd
     pass only needs the raw intensity value carried through, so the categorical
     damage_level column intersections_with_intensity() also produces here is
     discarded before returning (see intersections_with_earthquake below).
+    Accepts road_label for interface parity with the shared categorical_fn
+    signature (intensity_hazard.py's intersections_with_intensity) -- unused.
     """
     return pd.Series(["no"] * len(intensity), index=intensity.index)
 
@@ -65,6 +69,29 @@ def intersections_with_earthquake(
         if result is None or result.empty:
             return result
         return result[["e_id", "length", "index_i", "index_j", "psa1p0_g"]]
+    if source_field == "liquefaction_class":
+        # HAZUS road liquefaction cost (hazards/liquefaction.py, T31) needs a
+        # per-segment susceptibility CODE (0-5, categorical), not an
+        # intensity to run through a fragility curve -- a second raster pass
+        # over the same links, same shape as the psa1p0 branch above. The
+        # raw code survives unmodified (no interpolation): raster_line.py's
+        # intersect_features_with_raster/snail split each segment at exact
+        # grid-cell boundaries and reads one discrete cell value per split,
+        # so a categorical code is safe to carry through this path.
+        result = intersections_with_intensity(
+            road_links,
+            event_key,
+            raster_path,
+            clip_path,
+            field_name="liquefaction_class",
+            intensity_col="liquefaction_class_code",
+            damage_level_col="_liquefaction_class_unused_damage_level",
+            categorical_fn=_no_damage_level,
+            boundary_gdf=boundary_gdf,
+        )
+        if result is None or result.empty:
+            return result
+        return result[["e_id", "length", "index_i", "index_j", "liquefaction_class_code"]]
     return intersections_with_intensity(
         road_links,
         event_key,

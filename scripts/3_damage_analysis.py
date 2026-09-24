@@ -854,8 +854,12 @@ def main():
                     "See hazards/hazus_bridge.py's compute_row_direct_damage_musd docstring."
                 )
             intersections_with_damage = intersections.copy()
+            active_hazard_subtype = getattr(active_scenario, "hazard_subtype", None)
             intersections_with_damage["direct_damage_mean_musd"] = intersections_with_damage.apply(
-                lambda row: compute_row_direct_damage_musd(row, hazard_type=hazard_type), axis=1
+                lambda row: compute_row_direct_damage_musd(
+                    row, hazard_type=hazard_type, hazard_subtype=active_hazard_subtype
+                ),
+                axis=1,
             )
             intersections_with_damage["direct_damage_mean_usd"] = (
                 intersections_with_damage["direct_damage_mean_musd"] * 1_000_000.0
@@ -865,6 +869,51 @@ def main():
             # numeric_only=True and doesn't special-case damage_level_max
             # the way it does damage_level_surface/river, so that column
             # doesn't reliably survive to this point.
+            intersections_with_damage = intersections_with_damage[
+                intersections_with_damage["direct_damage_mean_musd"] > 0
+            ].reset_index(drop=True)
+        elif hazard_type == "winter_storm" and get_parameter(
+            "vulnerability", "use_table_winter_storm_cost", False
+        ):
+            # T32's real DOT-regression direct cleanup cost formula (see
+            # hazards/winter_storm_cost.py), replacing the flood-shim path
+            # below for winter_storm specifically. duration_hours/air_temp_F
+            # come from real-but-approximate companion rasters (see
+            # scripts/prepare_winter_storm_duration_temp.py) when the active
+            # hazard_source has them (all 4 real winter-storm sources do);
+            # missing on a given segment falls back to winter_storm_cost.py's
+            # own documented defaults, not a fabricated value.
+            from resiflow.hazards.winter_storm_cost import winter_storm_direct_cost_usd_per_lane_mile
+
+            _METERS_PER_MILE = 1609.344
+
+            def _winter_storm_row_cost_musd(row: pd.Series) -> float:
+                cost_per_lane_mile = winter_storm_direct_cost_usd_per_lane_mile(
+                    snow_depth_mm=row.get("winter_storm_mm"),
+                    duration_hours=row.get("duration_hours"),
+                    air_temp_F=row.get("air_temp_F"),
+                    road_classification=row.get("road_classification"),
+                )
+                if cost_per_lane_mile <= 0.0:
+                    return 0.0
+                # `or` is unsafe here: NaN is truthy in Python, so
+                # `row.get("length") or 0.0` would NOT replace a NaN length
+                # -- explicit isnan checks instead (same footgun documented
+                # in hazus_bridge.py's own _safe_str/_safe_float helpers).
+                length_m = row.get("length")
+                length_m = 0.0 if length_m is None or pd.isna(length_m) else float(length_m)
+                lanes = row.get("lanes")
+                lanes = 2.0 if lanes is None or pd.isna(lanes) else float(lanes)
+                lane_miles = (length_m / _METERS_PER_MILE) * lanes
+                return (cost_per_lane_mile * lane_miles) / 1_000_000.0
+
+            intersections_with_damage = intersections.copy()
+            intersections_with_damage["direct_damage_mean_musd"] = intersections_with_damage.apply(
+                _winter_storm_row_cost_musd, axis=1
+            )
+            intersections_with_damage["direct_damage_mean_usd"] = (
+                intersections_with_damage["direct_damage_mean_musd"] * 1_000_000.0
+            )
             intersections_with_damage = intersections_with_damage[
                 intersections_with_damage["direct_damage_mean_musd"] > 0
             ].reset_index(drop=True)

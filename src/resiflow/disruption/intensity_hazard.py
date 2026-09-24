@@ -37,6 +37,7 @@ def intersections_with_intensity(
     categorical_fn: Callable[[pd.Series, pd.Series, pd.Series], pd.Series],
     boundary_gdf: Optional[gpd.GeoDataFrame] = None,
     script3_depth_scale: float = 1.0,
+    fillna_value: float = 0.0,
 ) -> gpd.GeoDataFrame | None:
     """Sample raster along links and attach intensity + categorical damage."""
     candidate_links = subset_features_to_raster_extent(road_links, raster_path)
@@ -58,7 +59,7 @@ def intersections_with_intensity(
     depth_col = f"flood_depth_{field_name}"
     if depth_col not in intersections.columns:
         intersections[depth_col] = 0.0
-    intersections[intensity_col] = pd.to_numeric(intersections[depth_col], errors="coerce").fillna(0.0)
+    intersections[intensity_col] = pd.to_numeric(intersections[depth_col], errors="coerce").fillna(fillna_value)
     # road_label ("Bridge" vs. ordinary road) so per-hazard categorical
     # fragility (fragility/{earthquake,landslide,winter_storm}_categorical.py)
     # can classify bridges and roads against the real, asset-appropriate

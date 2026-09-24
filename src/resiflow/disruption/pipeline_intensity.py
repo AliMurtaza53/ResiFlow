@@ -123,6 +123,16 @@ def run_intensity_disruption(
                         "flood_depth_river",
                         "damage_level_surface",
                         "damage_level_river",
+                        # Categorical companion raster codes (not a physical
+                        # intensity unit, so not "_mm"/"_g") -- see
+                        # disruption/earthquake.py's liquefaction_class branch
+                        # and hazards/liquefaction.py.
+                        "liquefaction_class_code",
+                        # T32 winter-storm cost-formula companions -- see
+                        # disruption/winter_storm.py and
+                        # hazards/winter_storm_cost.py.
+                        "duration_hours",
+                        "air_temp_F",
                     }
                     or c.startswith("flood_depth_")
                     or c.startswith("damage_level_")

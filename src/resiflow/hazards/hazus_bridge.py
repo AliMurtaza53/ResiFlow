@@ -557,7 +557,9 @@ _SQM_PER_SQFT = 0.09290304
 _MM_PER_INCH = 25.4
 
 
-def compute_row_direct_damage_musd(row: pd.Series, *, hazard_type: str) -> float:
+def compute_row_direct_damage_musd(
+    row: pd.Series, *, hazard_type: str, hazard_subtype: str | None = None
+) -> float:
     """Per-row (Script 3's intersections_gp) HAZUS direct damage, million USD.
 
     Replaces the flood-shim path (calculate_damage() + damage_ratio_road_
@@ -567,7 +569,7 @@ def compute_row_direct_damage_musd(row: pd.Series, *, hazard_type: str) -> float
     actually produces for this project -- HAZUS's ground-shaking axis isn't
     applicable to landslide's own PGD-only intensity in this pipeline.
 
-    earthquake: ground-shaking (Sa(1.0s)) only, bridges only. Sa(1.0s) is
+    earthquake, bridges: ground-shaking (Sa(1.0s)) only. Sa(1.0s) is
     intersected as a second raster pass alongside PGA -- see
     hazards/sioux_falls_multihazard.py's sa1p0_companion flag,
     disruption/earthquake.py's intersections_with_earthquake source_field
@@ -575,11 +577,18 @@ def compute_row_direct_damage_musd(row: pd.Series, *, hazard_type: str) -> float
     "psa1p0_g" is 0.0 (not NaN) when no Sa(1.0s) raster exists for a given
     hazard_source, so this correctly falls through to $0 for those cases
     (e.g. RealEarthquakeSource, the NSHM source, has no Sa companion).
-    Roads always get $0 for earthquake: HAZUS's road fragility (Table 7-5)
-    is PGD-only (permanent ground deformation) with no ground-shaking curve
-    -- this project has no liquefaction/ground-failure PGD computed for the
-    earthquake hazard itself (only landslide's Newmark PGD exists), so this
-    is a real HAZUS methodology fact, not a gap.
+
+    earthquake, roads: HAZUS's road fragility (Table 7-5) is PGD-only
+    (ground-failure), not ground-shaking -- so roads need a liquefaction-
+    derived PGD, not PGA directly. When
+    ``vulnerability.use_table_earthquake_liquefaction`` is on (default off --
+    see hazards/liquefaction.py), this calls the real T31 PGA->liquefaction->
+    PGD->cost chain using a per-segment susceptibility_class from a
+    real-but-regional source (8 CUSEC states; see
+    scripts/prepare_cusec_liquefaction_susceptibility.py). Off, or for any
+    segment with no susceptibility coverage (e.g. Mineral/Cascadia, outside
+    the CUSEC footprint), roads report $0 -- a real HAZUS methodology/data-
+    coverage fact, not a gap papered over with an assumed class.
     """
     if hazard_type not in ("earthquake", "landslide"):
         return 0.0
@@ -589,7 +598,19 @@ def compute_row_direct_damage_musd(row: pd.Series, *, hazard_type: str) -> float
 
     if hazard_type == "earthquake":
         if not is_bridge:
-            return 0.0
+            from resiflow.parameters import get_parameter
+
+            if not get_parameter("vulnerability", "use_table_earthquake_liquefaction", False):
+                return 0.0
+            from resiflow.hazards.liquefaction import road_liquefaction_direct_cost_usd_per_km
+
+            cost_usd_per_km, _level = road_liquefaction_direct_cost_usd_per_km(
+                hazard_subtype=hazard_subtype,
+                susceptibility_code=row.get("liquefaction_class_code"),
+                road_classification=row.get("road_classification"),
+                pga_g=row.get("pga_g"),
+            )
+            return (cost_usd_per_km * (length_m / 1000.0)) / 1_000_000.0
         sa_1p0_g = _safe_float(row.get("psa1p0_g"))
         if sa_1p0_g is None or sa_1p0_g <= 0:
             return 0.0
