@@ -38,7 +38,7 @@ SRC_ROOT = REPO_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from resiflow.preprocess.faf5_network import apply_bridge_index  # noqa: E402
+from resiflow.preprocess.faf5_network import apply_bridge_index, derive_road_label  # noqa: E402
 
 
 def main() -> int:
@@ -48,16 +48,25 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
+    if not args.road_links.exists():
+        raise FileNotFoundError(f"--road-links not found: {args.road_links}")
+    if not args.bridge_index.exists():
+        raise FileNotFoundError(f"--bridge-index not found: {args.bridge_index}")
+
     links = gpd.read_parquet(args.road_links)
     bridge_index = pd.read_parquet(args.bridge_index)
 
     before_bridges = int((links.get("road_bridge") == "yes").sum()) if "road_bridge" in links.columns else 0
     patched = apply_bridge_index(links, bridge_index)
+    if "road_tunnel" not in patched.columns:
+        patched["road_tunnel"] = "no"
+    patched = derive_road_label(patched)
     after_bridges = int((patched["road_bridge"] == "yes").sum())
 
     print(f"Links: {len(patched)} (unchanged row count: {len(patched) == len(links)})")
     print(f"road_bridge='yes' before patch: {before_bridges}")
     print(f"road_bridge='yes' after patch: {after_bridges} ({after_bridges / len(patched):.2%} of links)")
+    print(f"road_label value counts:\n{patched['road_label'].value_counts()}")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     patched.to_parquet(args.output, index=False)

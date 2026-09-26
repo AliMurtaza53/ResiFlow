@@ -35,9 +35,31 @@ ATTR_FIELDS = [
     "URBAN_CODE",
 ]
 
-STATE_TO_LAYER = {
-    # HPMS layers are HPMS_FULL_{ST}_2020
+# HPMS 2020 used mixed-case names; HPMS 2024 uses lowercase snake_case.
+# Some 2020 toll fields are absent in 2024 (only toll_id remains).
+_FIELD_ALIASES = {
+    "Route_ID": ("Route_ID", "route_id"),
+    "Begin_Point": ("Begin_Point", "begin_point"),
+    "End_Point": ("End_Point", "end_point"),
+    "Terrain_Type": ("Terrain_Type", "terrain_type"),
+    "STRUCTURE_TYPE": ("STRUCTURE_TYPE", "structure_type"),
+    "TOL_CHARGED": ("TOL_CHARGED", "tol_charged"),
+    "TOLL_TYPE": ("TOLL_TYPE", "toll_type"),
+    "THROUGH_LANES": ("THROUGH_LANES", "through_lanes"),
+    "F_SYSTEM": ("F_SYSTEM", "f_system"),
+    "URBAN_CODE": ("URBAN_CODE", "Urban_Code", "urban_code", "urban_id"),
 }
+
+
+def _resolve_field(available: set[str], canonical: str) -> str | None:
+    for alias in _FIELD_ALIASES.get(canonical, (canonical,)):
+        if alias in available:
+            return alias
+        # case-insensitive fallback
+        lower_map = {a.lower(): a for a in available}
+        if alias.lower() in lower_map:
+            return lower_map[alias.lower()]
+    return None
 
 
 def nonempty(x) -> bool:
@@ -149,39 +171,55 @@ def load_faf_keyed(faf_gdb: str):
 
 
 def load_hpms_state(hpms_zip_gdb: str, state: str, needed_routes: set[str]):
-    layer = f"HPMS_FULL_{state}_2020"
     layers = {L[0] for L in pyogrio.list_layers(hpms_zip_gdb)}
-    if layer not in layers:
-        return None, f"missing layer {layer}"
+    # Donor year varies (HPMS_FULL_RI_2020 vs HPMS_FULL_RI_2024).
+    candidates = sorted(
+        L for L in layers if L.upper().startswith(f"HPMS_FULL_{state.upper()}_")
+    )
+    if not candidates:
+        return None, f"missing layer HPMS_FULL_{state}_*"
+    layer = candidates[-1]  # prefer highest year suffix if multiple
+    if len(candidates) > 1:
+        print(f"  note: multiple HPMS layers {candidates}; using {layer}")
 
     info = pyogrio.read_info(hpms_zip_gdb, layer=layer)
-    available = set(info["fields"])
-    cols = ["Route_ID", "Begin_Point", "End_Point"] + [f for f in ATTR_FIELDS if f in available]
+    available = {str(f) for f in info["fields"]}
+    route_f = _resolve_field(available, "Route_ID")
+    beg_f = _resolve_field(available, "Begin_Point")
+    end_f = _resolve_field(available, "End_Point")
+    if not route_f or not beg_f or not end_f:
+        return None, (
+            f"layer {layer} missing Route_ID/Begin_Point/End_Point "
+            f"(resolved route={route_f} beg={beg_f} end={end_f})"
+        )
+    attr_src = {canon: _resolve_field(available, canon) for canon in ATTR_FIELDS}
+    cols = [route_f, beg_f, end_f] + [v for v in attr_src.values() if v]
     meta, _, _, arrays = read(hpms_zip_gdb, layer=layer, columns=cols, read_geometry=False)
-    d = {n: np.asarray(a) for n, a in zip(meta["fields"], arrays)}
+    d = {str(n): np.asarray(a) for n, a in zip(meta["fields"], arrays)}
 
     # Index only routes needed by FAF
     by_route: dict[str, list] = defaultdict(list)
-    n = len(d["Route_ID"])
+    n = len(d[route_f])
     for i in range(n):
-        rid = d["Route_ID"][i]
+        rid = d[route_f][i]
         if not nonempty(rid):
             continue
         rid = str(rid)
         if rid not in needed_routes:
             continue
-        b = as_float(d["Begin_Point"][i])
-        e = as_float(d["End_Point"][i])
+        b = as_float(d[beg_f][i])
+        e = as_float(d[end_f][i])
         if not (math.isfinite(b) and math.isfinite(e)):
             continue
         if e < b:
             b, e = e, b
         attrs = {}
-        for f in ATTR_FIELDS:
-            if f not in d:
-                attrs[f] = None
+        for canon in ATTR_FIELDS:
+            src = attr_src.get(canon)
+            if not src or src not in d:
+                attrs[canon] = None
             else:
-                attrs[f] = as_int_or_none(d[f][i])
+                attrs[canon] = as_int_or_none(d[src][i])
         by_route[rid].append((b, e, attrs))
 
     for rid in by_route:
@@ -538,6 +576,11 @@ def main():
         default=r"C:\Users\akothaw\Downloads\HPMS_2020.gdb.zip",
     )
     ap.add_argument(
+        "--hpms-gdb-name",
+        default="",
+        help="Inner GDB folder name inside the zip (default: auto-detect HPMS*.gdb)",
+    )
+    ap.add_argument(
         "--out-dir",
         default=r"C:\Users\akothaw\Desktop\data\faf5_data\network_data\hpms_transfer",
     )
@@ -546,7 +589,40 @@ def main():
 
     out_dir = Path(args.out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
-    hpms_gdb = rf"/vsizip/{args.hpms_zip}/HPMS_2020.gdb"
+    zip_path = Path(args.hpms_zip)
+    if not zip_path.exists():
+        raise FileNotFoundError(f"--hpms-zip not found: {zip_path}")
+    gdb_name = args.hpms_gdb_name.strip()
+    if not gdb_name:
+        import zipfile
+
+        with zipfile.ZipFile(zip_path) as zf:
+            tops = sorted(
+                {
+                    n.split("/")[0]
+                    for n in zf.namelist()
+                    if n.lower().endswith(".gdb/") or "/.gdb/" in n.lower() or n.lower().endswith(".gdb")
+                }
+            )
+            gdb_dirs = [t for t in tops if t.lower().endswith(".gdb")]
+        if not gdb_dirs:
+            # entries like HPMS2024.gdb/a00000001.gdbtable
+            with zipfile.ZipFile(zip_path) as zf:
+                gdb_dirs = sorted(
+                    {
+                        n.split("/")[0]
+                        for n in zf.namelist()
+                        if n.split("/")[0].lower().endswith(".gdb")
+                    }
+                )
+        if len(gdb_dirs) != 1:
+            raise ValueError(
+                f"Could not auto-detect a single HPMS*.gdb inside {zip_path}; "
+                f"found {gdb_dirs}. Pass --hpms-gdb-name."
+            )
+        gdb_name = gdb_dirs[0]
+    hpms_gdb = rf"/vsizip/{zip_path.as_posix()}/{gdb_name}"
+    print(f"HPMS donor: {hpms_gdb}")
 
     t0 = time.time()
     print("Loading keyed FAF links...")
@@ -669,7 +745,7 @@ def main():
         "by_class_match_pct": by_class_match_pct,
         "elapsed_sec": time.time() - t0,
         "notes": [
-            "FAF HPMS keys documented as ~2018; donor is HPMS 2020 — RouteID/measure drift expected.",
+            f"FAF HPMS keys documented as ~2018; donor GDB={gdb_name} — RouteID/measure drift expected.",
             "Transfer applies only to FAF links with HPMS keys (~20% links / ~28% USA miles).",
             "Categorical attributes: length-weighted predominance along overlapping measure range.",
         ],

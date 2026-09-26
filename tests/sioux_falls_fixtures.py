@@ -33,7 +33,10 @@ from toy_pipeline_fixtures import (
     write_toy_config,
 )
 
-SNOW_DEPTH_MM = 200.0
+# 300 mm sits past the T19-winter speed curve's zero (>= 254 mm), so the toy
+# bridge-bottleneck links are closed (max_speed == 0). It was 200 mm under the
+# retired k=150 mm quadratic.
+SNOW_DEPTH_MM = 300.0
 SNOW_SCENARIO_KEY_MM = 150
 
 TESTBED = load_testbed("sioux_falls")
@@ -256,6 +259,11 @@ def write_road_links(
 
     # Nodes are WGS84 lon/lat; build in 4326 then reproject to the pipeline CRS.
     road_links = gpd.GeoDataFrame(rows, crs=SOURCE_CRS).to_crs(OUTPUT_CRS)
+    # Toy links that are the bridge: inventory length = link geometry length.
+    road_links["length"] = road_links.geometry.length
+    road_links["structure_length_m"] = road_links["length"].where(
+        road_links["road_label"].astype(str).str.lower().eq("bridge")
+    )
     out = toy_data_dir / "inputs" / "networks" / "faf5" / "faf5_road_links.gpq"
     out.parent.mkdir(parents=True, exist_ok=True)
     road_links.to_parquet(out)

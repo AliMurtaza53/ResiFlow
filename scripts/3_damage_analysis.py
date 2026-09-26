@@ -178,69 +178,36 @@ def compute_damage_values(
     damage_level: str,
     damage_values: float,  # million $/unit
     bridge_width=None,
+    tunnel_length_m=None,
+    structure_length_m=None,
 ) -> Tuple[float, float, float]:
     """
     Calculate the damage costs (minimum, maximum, and mean) for different types of road
     infrastructure (bridges, tunnels, and ordinary roads) caused by flooding.
 
-    Parameters:
-    ----------
-    length : float
-        The length of the infrastructure (in meters).
-    flood_type : str
-        The type of flood (e.g., "river", "surface").
-    damage_fraction : float
-        The fraction of damage to the infrastructure (e.g., 0.5 for 50% damage).
-    road_classification : str
-        The classification of the road (e.g., motorway, primary, local).
-    form_of_way : str
-        The configuration of the road (e.g., "Single Carriageway", "Dual Carriageway").
-    urban : int
-        Binary indicator for urban (1) or suburban (0) areas.
-    lanes : int
-        The number of lanes on the road.
-    road_label : str
-        The type of infrastructure ("bridge", "tunnel", or "road").
-    damage_level : str
-        The severity level of damage (e.g., "minor", "major", "catastrophic").
-    damage_values : dict
-        A nested dictionary containing damage cost values (in million $/unit) for
-        different infrastructure types,
-        flood types, and damage levels. The dictionary should have the structure:
-        {
-            "bridge_flood_type": {"damage_level": {"min": value, "max": value}},
-            "tunnel": {"specific_key": {"min": value, "max": value}},
-            "road": {"specific_key": {"min": value, "max": value}}
-        }.
-    bridge_width : float, optional
-        The width of the bridge (in meters). Required if `road_label` is "bridge".
-
-    Returns:
-    -------
-    Tuple [float, float, float]
-        A tuple containing:
-        - min_cost (float): The minimum estimated damage cost.
-        - max_cost (float): The maximum estimated damage cost.
-        - mean_cost (float): The mean estimated damage cost.
+    Asset geometry for costing comes from inventory attributes when present:
+    - bridge: structure_length_m (NBI) x bridge_width (NBI deck); not full FAF length
+    - tunnel: min(FAF length, tunnel_length_m from NTI) — tunnel fraction of the edge
+    - road: FAF link length
     """
 
-    def compute_bridge_damage(length, width, flood_type, damage_level):
+    def compute_bridge_damage(asset_length, width, flood_type, damage_level):
         """Calculate min and max damage for bridges."""
         min_damage = (
-            width * length * damage_values[f"bridge_{flood_type}"][damage_level]["min"]
+            width * asset_length * damage_values[f"bridge_{flood_type}"][damage_level]["min"]
         )
         max_damage = (
-            width * length * damage_values[f"bridge_{flood_type}"][damage_level]["max"]
+            width * asset_length * damage_values[f"bridge_{flood_type}"][damage_level]["max"]
         )
         return min_damage, max_damage
 
-    def compute_tunnel_or_road_damage(length, lanes, key1, key2, damage_fraction):
+    def compute_tunnel_or_road_damage(asset_length, lanes, key1, key2, damage_fraction):
         """Calculate min and max damage for tunnels or roads."""
         min_damage = (
-            length * 1e-3 * lanes * damage_values[key1][key2]["min"] * damage_fraction
+            asset_length * 1e-3 * lanes * damage_values[key1][key2]["min"] * damage_fraction
         )
         max_damage = (
-            length * 1e-3 * lanes * damage_values[key1][key2]["max"] * damage_fraction
+            asset_length * 1e-3 * lanes * damage_values[key1][key2]["max"] * damage_fraction
         )
         return min_damage, max_damage
 
@@ -258,11 +225,56 @@ def compute_damage_values(
     if road_label == "bridge":
         if bridge_width is None:
             raise ValueError("Bridge width is required for bridges!")
+        # Prefer NBI structure length; refuse to silently price full FAF length.
+        if structure_length_m is None or pd.isna(structure_length_m):
+            raise ValueError(
+                "structure_length_m (NBI) is required for bridge costing; "
+                "FAF link length alone is not an asset length"
+            )
+        asset_length = float(structure_length_m)
+        if asset_length <= 0:
+            raise ValueError(f"structure_length_m must be > 0, got {asset_length}")
         min_cost, max_cost = compute_bridge_damage(
-            length, bridge_width, flood_type, damage_level
+            asset_length, bridge_width, flood_type, damage_level
         )
 
-    elif road_label in ["tunnel", "road"]:
+    elif road_label == "tunnel":
+        urban_key = "urb" if urban == 1 else "sub"
+        rc = "" if road_classification is None else str(road_classification).strip().lower()
+        if rc in {"motorway", "motorway_link"}:
+            lane_key = "ge8" if lanes >= 8 else "lt8"
+            key = f"m_{lane_key}_{urban_key}"
+        elif rc in {"trunk", "primary", "secondary"}:
+            if form_of_way == "Single Carriageway":
+                key = f"asingle_{urban_key}"
+            else:
+                lane_key = "ge6" if lanes >= 6 else "lt6"
+                key = f"abdual_{lane_key}_{urban_key}"
+        elif form_of_way == "Single Carriageway":
+            key = f"bsingle_{urban_key}"
+        else:
+            lane_key = "ge6" if lanes >= 6 else "lt6"
+            key = f"bdual_{lane_key}_{urban_key}"
+
+        if key not in damage_values[road_label]:
+            key = fallback_asset_label(road_classification)
+
+        if tunnel_length_m is None or pd.isna(tunnel_length_m):
+            raise ValueError(
+                "tunnel_length_m (NTI) is required for tunnel costing; "
+                "refusing to price the full FAF link length as tunnel"
+            )
+        # Tunnel fraction: cost only min(edge length, inventory tunnel length).
+        asset_length = min(float(length), float(tunnel_length_m))
+        if asset_length <= 0:
+            raise ValueError(
+                f"tunnel asset length must be > 0 (length={length}, tunnel_length_m={tunnel_length_m})"
+            )
+        min_cost, max_cost = compute_tunnel_or_road_damage(
+            asset_length, lanes, road_label, key, damage_fraction
+        )
+
+    elif road_label == "road":
         urban_key = "urb" if urban == 1 else "sub"
         rc = "" if road_classification is None else str(road_classification).strip().lower()
         if rc in {"motorway", "motorway_link"}:
@@ -288,6 +300,9 @@ def compute_damage_values(
         )
     else:
         raise ValueError("Invalid road_label. Must be 'bridge', 'tunnel', or 'road'.")
+
+    mean_cost = 0.5 * (min_cost + max_cost)
+    return min_cost, max_cost, mean_cost
 
     mean_cost = np.mean([min_cost, max_cost])
 
@@ -388,6 +403,9 @@ def calculate_damage(
             damage_curves,
         )
 
+        structure_length_m = getattr(row, "structure_length_m", None)
+        tunnel_length_m = getattr(row, "tunnel_length_m", None)
+
         # Compute damage values for both curves
         damage_values_1 = compute_damage_values(
             row.length,
@@ -401,6 +419,8 @@ def calculate_damage(
             row[f"damage_level_{flood_type}"],
             damage_values,
             row.averageWidth,
+            tunnel_length_m=tunnel_length_m,
+            structure_length_m=structure_length_m,
         )
         damage_values_2 = compute_damage_values(
             row.length,
@@ -414,6 +434,8 @@ def calculate_damage(
             row[f"damage_level_{flood_type}"],
             damage_values,
             row.averageWidth,
+            tunnel_length_m=tunnel_length_m,
+            structure_length_m=structure_length_m,
         )
 
         # Return a dictionary of results for easier assignment
@@ -530,10 +552,10 @@ def format_intersections(
     # Build attributes from FAF5 assignment links.
     rl = road_links.copy()
     if "road_label" not in rl.columns:
-        if "road_bridge" in rl.columns:
-            rl["road_label"] = (
-                rl["road_bridge"].astype(str).str.lower().replace({"yes": "bridge", "no": "road"})
-            )
+        if "road_bridge" in rl.columns or "road_tunnel" in rl.columns:
+            from resiflow.preprocess.faf5_network import derive_road_label
+
+            rl = derive_road_label(rl)
         else:
             rl["road_label"] = "road"
 
@@ -562,6 +584,12 @@ def format_intersections(
         if col not in rl.columns:
             rl[col] = np.nan
 
+    # Asset geometry from inventory (NBI/NTI); required for bridge/tunnel costing.
+    asset_cols = []
+    for col in ("structure_length_m", "tunnel_length_m", "tunnel_fraction"):
+        if col in rl.columns:
+            asset_cols.append(col)
+
     intersections_gp = intersections_gp.merge(
         rl[
             [
@@ -574,6 +602,7 @@ def format_intersections(
                 "averageWidth",
                 "road_label",
                 *hazus_cols,
+                *asset_cols,
             ]
         ],
         on="e_id",

@@ -17,6 +17,8 @@ FAF5 Link Schema (as of V2021.05):
 - Various toll and state attributes
 """
 
+from __future__ import annotations
+
 import geopandas as gpd
 import pandas as pd
 from pathlib import Path
@@ -84,6 +86,26 @@ DETAIL_CLASS_MAPPING = {
 }
 
 
+def attach_faf5_class(links: pd.DataFrame, raw_id_class: pd.DataFrame) -> pd.DataFrame:
+    """Add ``faf5_class`` (raw FAF5 ``Class`` code) to converted links, joined on ``e_id``.
+
+    ``raw_id_class`` has the raw FAF5 ``ID`` and ``Class`` columns
+    (``convert_faf5_links`` sets ``e_id = ID.astype(str)``, so that is the
+    join key). Existing columns -- notably ``road_classification`` -- are
+    left untouched. Links whose raw ``Class`` is null keep ``<NA>``.
+    """
+    ids = raw_id_class["ID"].astype(str)
+    if ids.duplicated().any():
+        raise ValueError("Raw FAF5 ID is not unique; cannot join Class onto e_id safely")
+    class_by_id = pd.Series(
+        pd.to_numeric(raw_id_class["Class"], errors="coerce").astype("Int64").to_numpy(),
+        index=ids.to_numpy(),
+    )
+    out = links.copy()
+    out["faf5_class"] = out["e_id"].astype(str).map(class_by_id).astype("Int64")
+    return out
+
+
 def apply_bridge_index(links: gpd.GeoDataFrame, bridge_index: pd.DataFrame) -> gpd.GeoDataFrame:
     """Set road_bridge/averageWidth from a precomputed NBI bridge index.
 
@@ -116,6 +138,13 @@ def apply_bridge_index(links: gpd.GeoDataFrame, bridge_index: pd.DataFrame) -> g
     else:
         links["averageWidth"] = overridden_width
 
+    # NBI structure length (asset attribute) — used for bridge deck-area costing
+    # instead of the (often much longer) FAF link length.
+    if "structure_length_m" in bridge_index.columns:
+        links["structure_length_m"] = links["e_id"].map(
+            bridge_index.set_index("e_id")["structure_length_m"]
+        )
+
     # HAZUS bridge-classification fields (added 2026-08-20; see
     # scripts/build_nbi_bridge_index.py's "dominant structure" comment for
     # how these are chosen when multiple structures map to one e_id).
@@ -141,6 +170,111 @@ def apply_bridge_index(links: gpd.GeoDataFrame, bridge_index: pd.DataFrame) -> g
     return links
 
 
+def apply_tunnel_flags(links: gpd.GeoDataFrame, tunnel_e_ids) -> gpd.GeoDataFrame:
+    """Set road_tunnel=yes for e_ids known as tunnels (e.g. HPMS STRUCTURE_TYPE=2).
+
+    Unlisted links become road_tunnel=no. Does not invent tunnels; caller must
+    pass only evidence-backed IDs (LRS-keyed HPMS overlap, NTI, etc.).
+    """
+    links = links.copy()
+    tunnel_ids = {str(x) for x in tunnel_e_ids}
+    links["e_id"] = links["e_id"].astype(str)
+    if "road_tunnel" not in links.columns:
+        links["road_tunnel"] = "no"
+    links.loc[links["e_id"].isin(tunnel_ids), "road_tunnel"] = "yes"
+    links.loc[~links["e_id"].isin(tunnel_ids), "road_tunnel"] = "no"
+    return links
+
+
+def apply_tunnel_index(links: gpd.GeoDataFrame, tunnel_index: pd.DataFrame) -> gpd.GeoDataFrame:
+    """Attach NTI existence + asset length onto FAF links.
+
+    Sets ``road_tunnel``, ``tunnel_length_m`` (from NTI), and
+    ``tunnel_fraction = min(1, tunnel_length_m / link.length)`` for costing.
+    FAF join only asserts presence on the network; NTI length is the asset
+    measure used in damage formulas.
+    """
+    if "e_id" not in tunnel_index.columns:
+        raise KeyError("tunnel_index missing required column 'e_id'")
+    if "tunnel_length_m" not in tunnel_index.columns:
+        raise KeyError(
+            "tunnel_index missing required column 'tunnel_length_m' "
+            "(rebuild with scripts/build_nti_tunnel_index.py)"
+        )
+    if "length" not in links.columns:
+        raise KeyError("links missing required column 'length' (meters)")
+
+    links = apply_tunnel_flags(links, tunnel_index["e_id"])
+    by_id = tunnel_index.copy()
+    by_id["e_id"] = by_id["e_id"].astype(str)
+    length_by = by_id.set_index("e_id")["tunnel_length_m"]
+    links["tunnel_length_m"] = links["e_id"].astype(str).map(length_by)
+    link_len = pd.to_numeric(links["length"], errors="coerce")
+    tun_len = pd.to_numeric(links["tunnel_length_m"], errors="coerce")
+    frac = (tun_len / link_len).where(link_len > 0)
+    links["tunnel_fraction"] = frac.clip(upper=1.0)
+    # Non-tunnel links: explicit nulls, not invented zeros
+    is_tun = links["road_tunnel"].astype(str).str.lower().eq("yes")
+    links.loc[~is_tun, "tunnel_length_m"] = pd.NA
+    links.loc[~is_tun, "tunnel_fraction"] = pd.NA
+    return links
+
+
+def tunnel_e_ids_from_hpms_enriched(hpms_csv: Path | str) -> set[str]:
+    """e_ids with HPMS STRUCTURE_TYPE==2 on an LRS-enriched CSV (column ID)."""
+    path = Path(hpms_csv)
+    if not path.exists():
+        raise FileNotFoundError(f"HPMS LRS enriched CSV not found: {path}")
+    df = pd.read_csv(path, usecols=["ID", "hpms_STRUCTURE_TYPE"])
+    struct = pd.to_numeric(df["hpms_STRUCTURE_TYPE"], errors="coerce")
+    return set(df.loc[struct == 2, "ID"].astype(str))
+
+
+def derive_road_label(
+    links: gpd.GeoDataFrame,
+    *,
+    on_conflict: str = "prefer_tunnel",
+) -> gpd.GeoDataFrame:
+    """Set road_label from road_bridge / road_tunnel flags.
+
+    on_conflict: 'prefer_tunnel' (default), 'prefer_bridge', or 'error'.
+    """
+    if on_conflict not in {"prefer_tunnel", "prefer_bridge", "error"}:
+        raise ValueError(
+            f"on_conflict must be prefer_tunnel|prefer_bridge|error, got {on_conflict!r}"
+        )
+    links = links.copy()
+    bridge = (
+        links["road_bridge"].astype(str).str.strip().str.lower().eq("yes")
+        if "road_bridge" in links.columns
+        else pd.Series(False, index=links.index)
+    )
+    tunnel = (
+        links["road_tunnel"].astype(str).str.strip().str.lower().eq("yes")
+        if "road_tunnel" in links.columns
+        else pd.Series(False, index=links.index)
+    )
+    both = bridge & tunnel
+    if both.any():
+        n = int(both.sum())
+        sample = links.loc[both, "e_id"].astype(str).head(20).tolist()
+        if on_conflict == "error":
+            raise ValueError(
+                f"{n} link(s) flagged as both bridge and tunnel "
+                f"(first e_ids: {sample}); refuse to invent precedence"
+            )
+        if on_conflict == "prefer_tunnel":
+            links.loc[both, "road_bridge"] = "no"
+            bridge = bridge & ~both
+        else:
+            links.loc[both, "road_tunnel"] = "no"
+            tunnel = tunnel & ~both
+    links["road_label"] = "road"
+    links.loc[bridge, "road_label"] = "bridge"
+    links.loc[tunnel, "road_label"] = "tunnel"
+    return links
+
+
 def _clean_label(value):
     if value is None:
         return None
@@ -154,6 +288,7 @@ DEFAULTS = {
     'lanes': get_parameter("preprocess", "faf5_default_lanes", 2),
     'average_toll_cost': get_parameter("preprocess", "faf5_default_avg_toll_cost", 0.0),
     'road_bridge': 'no',
+    'road_tunnel': 'no',
     'meters_per_lane': get_parameter("preprocess", "faf5_default_meters_per_lane", 3.5),
 }
 
@@ -405,6 +540,11 @@ def convert_faf5_links(
 
     # Keep the historical column name for downstream compatibility.
     assignment_links['road_classification'] = assignment_links['road_classification_coarse']
+    # Raw FAF5 Class code, kept ALONGSIDE road_classification (which collapses
+    # several codes: 23 -> 'primary', 16/17/18/19/36/41 -> 'service', 33 ->
+    # 'motorway'). The winter-storm clearance model (T33) is keyed on this code.
+    if 'Class' in faf5_links.columns:
+        assignment_links['faf5_class'] = pd.to_numeric(faf5_links['Class'], errors='coerce').astype('Int64')
     assignment_links['network_source'] = 'faf5'
 
     print(f"  ✓ road_classification_coarse: {assignment_links['road_classification_coarse'].nunique()} types")
@@ -433,13 +573,23 @@ def convert_faf5_links(
     # 8. Average width - estimated from lanes
     assignment_links['averageWidth'] = assignment_links['lanes'] * DEFAULTS['meters_per_lane']
     
-    # 9. Toll cost - check toll fields
-    if 'Toll_Type' in faf5_links.columns:
-        # If Toll_Type is not null, we could estimate cost, but default to 0
-        assignment_links['average_toll_cost'] = DEFAULTS['average_toll_cost']
-    else:
-        assignment_links['average_toll_cost'] = DEFAULTS['average_toll_cost']
-    
+    # 9. Toll cost — FAF5 TRUCKTOLL is the truck toll amount on the link
+    # (5-axle average × segment length on toll facilities). Required column;
+    # missing values on individual links become 0 (non-toll segments).
+    if "TRUCKTOLL" not in faf5_links.columns:
+        raise KeyError(
+            "FAF5 links missing required column 'TRUCKTOLL'; refuse to invent "
+            "average_toll_cost. Pass TRUCKTOLL from FAF5Network.gdb (or 0.0 on "
+            "synthetic fixtures)."
+        )
+    truck_toll = pd.to_numeric(faf5_links["TRUCKTOLL"], errors="coerce")
+    assignment_links["average_toll_cost"] = truck_toll.fillna(0.0).astype(float)
+    n_toll = int((assignment_links["average_toll_cost"] > 0).sum())
+    print(
+        f"  ✓ average_toll_cost: {n_toll} of {len(assignment_links)} links "
+        f"with TRUCKTOLL > 0 (sum={assignment_links['average_toll_cost'].sum():.2f})"
+    )
+
     # 10. Bridge indicator. FAF5's own schema (see this module's docstring)
     # carries no bridge/structure field at all -- unlike every other DEFAULTS
     # entry, there is no source column to check, so this was previously an
@@ -470,7 +620,40 @@ def convert_faf5_links(
             "unified_parameters.json to fix this."
         )
 
-    # 11. Optional: Copy useful attributes
+    # 11. Tunnel indicator. Primary: NTAD NTI spatial-join index. HPMS LRS
+    # STRUCTURE_TYPE=2 is QA-only fallback when no NTI index is configured.
+    assignment_links["road_tunnel"] = DEFAULTS["road_tunnel"]
+    nti_index_path = get_parameter("preprocess", "nti_tunnel_index_path", None)
+    hpms_csv = get_parameter("preprocess", "hpms_lrs_enriched_csv", None)
+    if nti_index_path and Path(nti_index_path).exists():
+        tunnel_index = pd.read_parquet(nti_index_path)
+        assignment_links = apply_tunnel_index(assignment_links, tunnel_index)
+        n_tunnels = int((assignment_links["road_tunnel"] == "yes").sum())
+        print(
+            f"  ✓ road_tunnel: {n_tunnels} of {len(assignment_links)} links "
+            f"from NTI tunnel index via {nti_index_path}"
+        )
+    elif hpms_csv and Path(hpms_csv).exists():
+        tunnel_ids = tunnel_e_ids_from_hpms_enriched(hpms_csv)
+        assignment_links = apply_tunnel_flags(assignment_links, tunnel_ids)
+        # HPMS has no tunnel length — fraction unknown; costing must not invent it
+        assignment_links["tunnel_length_m"] = pd.NA
+        assignment_links["tunnel_fraction"] = pd.NA
+        n_tunnels = int((assignment_links["road_tunnel"] == "yes").sum())
+        print(
+            f"  ⚠ road_tunnel: {n_tunnels} links from HPMS STRUCTURE_TYPE=2 via "
+            f"{hpms_csv} (QA fallback; no tunnel_length_m — prefer NTI index)"
+        )
+    else:
+        print(
+            "  ⚠ road_tunnel: NO NTI tunnel index or HPMS LRS CSV configured/found "
+            f"(nti_tunnel_index_path={nti_index_path!r}, "
+            f"hpms_lrs_enriched_csv={hpms_csv!r}) -- every link is non-tunnel."
+        )
+
+    assignment_links = derive_road_label(assignment_links, on_conflict="prefer_tunnel")
+
+    # 12. Optional: Copy useful attributes
     optional_columns = ['Road_Name', 'STATE', 'County_Name', 'FAFZONE', 
                        'Speed_Limit', 'AB_FinalSpeed', 'BA_FinalSpeed']
     for col in optional_columns:
@@ -480,6 +663,7 @@ def convert_faf5_links(
     # Report summary
     print(f"\n✓ Conversion complete: {len(assignment_links)} links")
     print(f"  Road types: {dict(assignment_links['road_classification'].value_counts())}")
+    print(f"  road_label: {dict(assignment_links['road_label'].value_counts())}")
     
     return assignment_links
 
@@ -514,7 +698,8 @@ def validate_assignment_network(links_gdf):
     """Validate that converted links have required assignment columns."""
     required_cols = ['from_id', 'to_id', 'e_id', 'geometry', 'length', 
                      'lanes', 'road_classification', 'average_toll_cost', 
-                     'urban', 'averageWidth', 'road_bridge']
+                     'urban', 'averageWidth', 'road_bridge', 'road_tunnel',
+                     'road_label']
     
     missing = [col for col in required_cols if col not in links_gdf.columns]
     

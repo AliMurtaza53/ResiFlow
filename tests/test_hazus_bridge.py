@@ -211,6 +211,22 @@ def test_bridge_pgd_damage_level_default_monotonic():
         prev = rank
 
 
+def test_bridge_sa_damage_level_default_zero_at_zero_sa():
+    assert hz.bridge_sa_damage_level_default(0.0) == "no"
+    assert hz.bridge_sa_damage_level_default(None) == "no"
+
+
+def test_bridge_sa_damage_level_default_monotonic():
+    ranks = {"no": 0, "minor": 1, "moderate": 2, "extensive": 3, "severe": 4}
+    prev = -1
+    for sa in (0.0, 0.2, 0.5, 0.8, 1.0, 1.5, 2.0, 3.0):
+        level = hz.bridge_sa_damage_level_default(sa)
+        rank = ranks[level]
+        assert rank >= prev, (sa, level, prev)
+        prev = rank
+    assert hz.bridge_sa_damage_level_default(3.0) != "no"
+
+
 def test_hazus_damage_level_crosswalk_is_complete_and_matches_existing_vocabulary():
     # The 5-level vocabulary must match fragility/{earthquake,landslide,
     # winter_storm}_categorical.py's own damage-level strings exactly.
@@ -221,13 +237,14 @@ def test_hazus_damage_level_crosswalk_is_complete_and_matches_existing_vocabular
 def test_compute_row_direct_damage_musd_earthquake_zero_without_sa1p0():
     # No psa1p0_g on the row (e.g. hazard_source has no Sa(1.0s) companion
     # raster) -- must report 0, not a value computed from mismatched PGA.
-    row = pd.Series({"landslide_mm": 500.0, "road_label": "bridge", "length": 50.0, "averageWidth": 10.0})
+    row = pd.Series({"landslide_mm": 500.0, "road_label": "bridge", "length": 50.0, "averageWidth": 10.0, "structure_length_m": 50.0})
     assert hz.compute_row_direct_damage_musd(row, hazard_type="earthquake") == 0.0
 
 
 def test_compute_row_direct_damage_musd_earthquake_bridge_nonzero_with_sa1p0():
     row = pd.Series({
         "psa1p0_g": 0.8, "road_label": "bridge", "length": 60.0, "averageWidth": 10.0,
+        "structure_length_m": 60.0,
         "structure_kind_code": "1", "structure_type_code": "02", "bridge_state": "VA",
         "year_built": 1960.0, "main_unit_spans": 3.0, "max_span_length_m": 20.0, "skew_degrees": 0.0,
     })
@@ -303,6 +320,7 @@ def test_compute_row_direct_damage_musd_landslide_zero_pgd():
 def test_compute_row_direct_damage_musd_landslide_bridge_nonzero():
     row = pd.Series({
         "landslide_mm": 200.0, "road_label": "bridge", "length": 60.0, "averageWidth": 10.0,
+        "structure_length_m": 60.0,
         "structure_kind_code": "1", "structure_type_code": "02", "bridge_state": "VA",
         "year_built": 1960.0, "main_unit_spans": 3.0, "max_span_length_m": 20.0, "skew_degrees": 0.0,
     })

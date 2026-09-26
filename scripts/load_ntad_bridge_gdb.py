@@ -23,8 +23,11 @@ NTAD_National_Bridge_Inventory/FeatureServer/0), confirmed 2026-08-18:
 Usage::
 
     python scripts/load_ntad_bridge_gdb.py \\
-        --gdb /path/to/extracted/xxxxxxxx.gdb \\
+        --input /path/to/NTAD_National_Bridge_Inventory.gpkg \\
         --output /path/to/nbi_bridges_ntad.parquet
+
+    # Legacy alias still accepted:
+    python scripts/load_ntad_bridge_gdb.py --gdb /path/to/xxx.gdb --output ...
 """
 
 from __future__ import annotations
@@ -48,8 +51,10 @@ from download_nbi_bridges import (  # noqa: E402
 )
 
 
-def load_ntad_bridges(gdb_path: Path, layer: str = "National_Bridge_Inventory") -> pd.DataFrame:
-    gdf = gpd.read_file(gdb_path, layer=layer)
+def load_ntad_bridges(input_path: Path, layer: str = "National_Bridge_Inventory") -> pd.DataFrame:
+    if not input_path.exists():
+        raise FileNotFoundError(f"NTAD bridge inventory not found: {input_path}")
+    gdf = gpd.read_file(input_path, layer=layer)
 
     df = pd.DataFrame(
         {
@@ -87,21 +92,39 @@ def load_ntad_bridges(gdb_path: Path, layer: str = "National_Bridge_Inventory") 
 
     before = len(df)
     df = df.dropna(subset=["latitude", "longitude"]).reset_index(drop=True)
+    # NTAD sometimes encodes missing as 0,0
+    bad_origin = (df["latitude"] == 0) & (df["longitude"] == 0)
+    df = df.loc[~bad_origin].reset_index(drop=True)
     dropped = before - len(df)
     if dropped:
-        print(f"Dropped {dropped} structures with unrecorded coordinates.")
+        print(f"Dropped {dropped} structures with unrecorded/zero coordinates.")
 
     return df
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--gdb", type=Path, required=True, help="Path to the extracted .gdb directory")
+    parser.add_argument(
+        "--input",
+        type=Path,
+        default=None,
+        help="Path to NTAD National Bridge Inventory .gpkg or .gdb",
+    )
+    parser.add_argument(
+        "--gdb",
+        type=Path,
+        default=None,
+        help="Legacy alias for --input (file geodatabase directory)",
+    )
     parser.add_argument("--layer", default="National_Bridge_Inventory")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
 
-    df = load_ntad_bridges(args.gdb, layer=args.layer)
+    input_path = args.input or args.gdb
+    if input_path is None:
+        raise SystemExit("Provide --input (or legacy --gdb)")
+
+    df = load_ntad_bridges(input_path, layer=args.layer)
     print(f"Total: {len(df)} bridges across {df['state'].nunique()} states/territories.")
 
     args.output.parent.mkdir(parents=True, exist_ok=True)

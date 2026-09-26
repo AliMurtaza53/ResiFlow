@@ -1,8 +1,8 @@
 # HPMS → FAF5 LRS attribute transfer — status note
 
-**Branch intent:** `feature/hpms-faf-lrs-transfer`  
+**Branch intent:** `feature/faf5-network-enrichment` (revived from `feature/hpms-faf-lrs-transfer`)  
 **Script:** `scripts/hpms_to_faf_lrs_transfer.py`  
-**Date:** 2026-09-22
+**Date:** 2026-09-22 (updated 2026-09-25)
 
 ## Goal
 
@@ -62,6 +62,30 @@ python scripts/hpms_to_faf_lrs_transfer.py \
 
 Open `qa_report.html` for match charts + sample map. Join enriched CSV to
 FAF on `ID` for full-network QA.
+
+## OSM (deferred)
+
+OpenStreetMap is a possible **future** secondary source for tunnels/structures
+on FAF links that lack HPMS LRS keys. It is **not** in scope for this branch:
+we keep FAF5 as the base network and only attach attributes where NBI (bridges)
+or HPMS LRS overlap (tunnels / structure type) provides evidence. Do not replace
+FAF with an OSM extract here.
+
+## Enrichment wiring (same branch)
+
+| Attribute | Source | Wire-up |
+|-----------|--------|---------|
+| Toll $ | FAF5 `TRUCKTOLL` | `faf5_network.convert_faf5_links` → `average_toll_cost` |
+| Bridge | NBI index parquet | `nbi_bridge_index_path` / `scripts/patch_faf5_bridge_attributes.py` |
+| Tunnel | **NTAD NTI** spatial-join index | `nti_tunnel_index_path` / `scripts/patch_faf5_tunnel_attributes.py` |
+| Tunnel QA | HPMS `STRUCTURE_TYPE=2` on LRS-keyed overlap | compare only (`summarize_network_structure_counts.py`) |
+| Terrain / lanes | HPMS LRS (2020 pilot; 2024 donor supported) | `scripts/hpms_to_faf_lrs_transfer.py --hpms-gdb-name HPMS2024.gdb` |
+
+Local dry-run artifacts (not production swap):
+`Desktop/data/faf5_data/network_data/enrichment/`
+(`faf5_road_links_bridge_tunnel_patched.gpq`, indices, `structure_coverage_compare.json`).
+
+On bridge∩tunnel conflicts, patch requires explicit `--on-conflict prefer_tunnel|prefer_bridge` (default: error). Dry-run used `prefer_tunnel` and wrote `bridge_tunnel_conflicts.csv`.
 
 ## Related context (not this branch)
 

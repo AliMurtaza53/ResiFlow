@@ -527,6 +527,41 @@ def bridge_pgd_damage_level_default(pgd_in: float | None) -> str:
     return HAZUS_TO_RESIFLOW_DAMAGE_LEVEL[best_state]
 
 
+def bridge_sa_damage_level_default(
+    sa_1p0_g: float | None,
+    *,
+    hwb_class: str = "HWB28",
+    num_spans: float | None = None,
+) -> str:
+    """HAZUS Table 7-6 Sa(1.0s) fragility → governing damage level (no cost).
+
+    Disruption-stage counterpart to ``bridge_pgd_damage_level_default``:
+    raster_line keeps only road_label at intersection time (no NBI class
+    fields), so this defaults to HWB28 (catch-all curve in ``_TABLE_7_6``)
+    with K3D=1 when spans unknown. Script 3's ``bridge_direct_cost_usd``
+    still classifies per-bridge from NBI and prices with the fully corrected
+    curve.
+
+    State selection is argmax of discrete state probabilities (same rule as
+    PGD helpers and the level returned alongside Script 3 cost) — not a draw
+    from the distribution. A single disruption network needs one deterministic
+    damage_level_max; sampling belongs in an ensemble/MC wrapper, not here.
+    """
+    sa = _safe_float(sa_1p0_g)
+    if sa is None or sa <= 0:
+        return "no"
+    fragility = get_fragility(hwb_class)
+    k3d = compute_k3d(hwb_class, num_spans)
+    adjusted_medians = tuple(m * k3d for m in fragility.sa_medians_g)
+    exceedance = tuple(
+        _lognormal_exceedance_prob(sa, median, fragility.sa_beta)
+        for median in adjusted_medians
+    )
+    probs = damage_state_probabilities(exceedance)
+    best_state = max(HAZUS_DAMAGE_STATES, key=lambda s: probs[s])
+    return HAZUS_TO_RESIFLOW_DAMAGE_LEVEL[best_state]
+
+
 def road_direct_cost_usd(
     *, road_classification: str | None, pgd_in: float | None, length_km: float, lanes: float | None = None
 ) -> tuple[float, str]:
@@ -596,6 +631,22 @@ def compute_row_direct_damage_musd(
     is_bridge = _safe_str(row.get("road_label")).strip().lower() == "bridge"
     length_m = _safe_float(row.get("length")) or 0.0
 
+    def _bridge_asset_geometry():
+        """NBI structure length x deck width — not FAF link length."""
+        asset_len = _safe_float(row.get("structure_length_m"))
+        if asset_len is None or asset_len <= 0:
+            raise ValueError(
+                "structure_length_m (NBI) is required for bridge costing; "
+                f"got {row.get('structure_length_m')!r} for e_id={row.get('e_id')!r}"
+            )
+        width = _safe_float(row.get("averageWidth"))
+        if width is None or width <= 0:
+            raise ValueError(
+                "averageWidth (NBI deck_width_m) is required for bridge costing; "
+                f"got {row.get('averageWidth')!r} for e_id={row.get('e_id')!r}"
+            )
+        return asset_len, width
+
     if hazard_type == "earthquake":
         if not is_bridge:
             from resiflow.parameters import get_parameter
@@ -622,15 +673,15 @@ def compute_row_direct_damage_musd(
             num_spans=row.get("main_unit_spans"),
             max_span_length_m=row.get("max_span_length_m"),
         )
-        width_m = _safe_float(row.get("averageWidth")) or 3.65
-        deck_area_sqft = (length_m * width_m) / _SQM_PER_SQFT
+        asset_len, width_m = _bridge_asset_geometry()
+        deck_area_sqft = (asset_len * width_m) / _SQM_PER_SQFT
         cost_usd, _level = bridge_direct_cost_usd(
             hwb_class=hwb_class,
             sa_1p0_g=sa_1p0_g,
             pgd_in=None,
             num_spans=row.get("main_unit_spans"),
             span_width_m=width_m,
-            bridge_length_m=length_m,
+            bridge_length_m=asset_len,
             skew_degrees=row.get("skew_degrees"),
             deck_area_sqft=deck_area_sqft,
         )
@@ -656,15 +707,15 @@ def compute_row_direct_damage_musd(
             num_spans=row.get("main_unit_spans"),
             max_span_length_m=row.get("max_span_length_m"),
         )
-        width_m = _safe_float(row.get("averageWidth")) or 3.65
-        deck_area_sqft = (length_m * width_m) / _SQM_PER_SQFT
+        asset_len, width_m = _bridge_asset_geometry()
+        deck_area_sqft = (asset_len * width_m) / _SQM_PER_SQFT
         cost_usd, _level = bridge_direct_cost_usd(
             hwb_class=hwb_class,
             sa_1p0_g=None,
             pgd_in=pgd_in,
             num_spans=row.get("main_unit_spans"),
             span_width_m=width_m,
-            bridge_length_m=length_m,
+            bridge_length_m=asset_len,
             skew_degrees=row.get("skew_degrees"),
             deck_area_sqft=deck_area_sqft,
         )
