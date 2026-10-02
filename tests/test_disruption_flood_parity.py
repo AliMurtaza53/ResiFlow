@@ -25,6 +25,26 @@ def test_compute_maximum_speed_matches_vectorized_rule() -> None:
     assert scalar == pytest.approx(float(frame["max_speed"].iloc[0]))
 
 
+def test_truck_threshold_keeps_roads_usable_longer_than_passenger() -> None:
+    # 45cm depth: closed to passengers (xd30, 45 >= 30) but still passable
+    # to trucks (xd60, 45 < 60) -- T19's own cars=30/trucks=60 split.
+    frame = apply_max_speed_to_links(
+        pd.DataFrame({"flood_depth_max": [0.45], "free_flow_speeds": [50.0]}),
+        depth_key=30,
+        truck_depth_key=60,
+    )
+    assert frame["max_speed"].iloc[0] == 0.0
+    assert frame["max_speed_truck"].iloc[0] > 0.0
+
+
+def test_truck_column_absent_without_truck_depth_key() -> None:
+    frame = apply_max_speed_to_links(
+        pd.DataFrame({"flood_depth_max": [0.1], "free_flow_speeds": [50.0]}),
+        depth_key=30,
+    )
+    assert "max_speed_truck" not in frame.columns
+
+
 def test_link_disruption_record_from_flood_row() -> None:
     row = pd.Series(
         {

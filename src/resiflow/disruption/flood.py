@@ -15,7 +15,10 @@ from resiflow.exposure.raster_line import (
     intersect_features_with_raster,
     subset_features_to_raster_extent,
 )
-from resiflow.fragility.flood_categorical import compute_damage_levels_on_flooded_roads_vectorized
+from resiflow.fragility.flood_categorical import (
+    _is_major_vectorized,
+    compute_damage_levels_on_flooded_roads_vectorized,
+)
 
 DAMAGE_LEVEL_DICT: Dict[str, int] = {
     "no": 0,
@@ -74,9 +77,14 @@ def intersections_with_damage(
     embankment against surface flood: 100 cm (motorways/major roads)
     embankment against river flood: 200 cm (motorways/major roads)
     """
-    # Determine major roads for embankment adjustment (works for both UK and FAF classifications)
-    is_major_road = intersections["road_classification"].astype(str).str.lower().isin(
-        ["motorway", "motorway_link", "trunk", "primary", "secondary"]
+    # Determine major roads for embankment adjustment (works for both UK and FAF
+    # classifications; prefers real hpms_fclass when present -- F1-F3, see
+    # resiflow.hpms_fclass -- same classifier the damage-level call below uses,
+    # so embankment adjustment and damage-level classification never disagree
+    # on which roads are "major").
+    is_major_road = _is_major_vectorized(
+        intersections["road_classification"],
+        intersections["hpms_fclass"] if "hpms_fclass" in intersections.columns else None,
     )
     
     if flood_type == "surface":
@@ -96,6 +104,8 @@ def intersections_with_damage(
         intersections["trunk_road"] if "trunk_road" in intersections.columns else pd.Series(False, index=intersections.index),
         intersections["road_label"] if "road_label" in intersections.columns else pd.Series("", index=intersections.index),
         intersections[f"flood_depth_{flood_type}"],
+        hpms_fclass=intersections["hpms_fclass"] if "hpms_fclass" in intersections.columns else None,
+        nhs_designation=intersections["nhs_designation"] if "nhs_designation" in intersections.columns else None,
     )
     if flood_type == "coastal":
         intersections["flood_depth_surface"] = intersections["flood_depth_coastal"]

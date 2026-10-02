@@ -1,22 +1,33 @@
 # Parameter-table manifest. Convention: '#' provenance header lines, then labeled-axis columns with units embedded in column names.
-# status vocabulary: CURRENT_DISCRETIZED (faithful to repo) | APPROXIMATE_VERIFY (anchored, pull exact) | TEMPLATE_REPLACE_VALUES | PLACEHOLDER_DO_NOT_USE | SOURCED | ADOPTED | OPEN
+# status vocabulary: CURRENT_DISCRETIZED | APPROXIMATE_VERIFY | TEMPLATE_REPLACE_VALUES | PLACEHOLDER_DO_NOT_USE | SOURCED | ADOPTED | OPEN | OUT_OF_SCOPE | ARCHIVED_LEGACY | ARCHIVED_REJECTED | SEALED
 file,audit_matrix_rows,status,note
 T00_model_constants_comparison.csv,"1-3,7,18,25",MIXED,Scalars; pin editions/years before adoption
-T04_fuel_consumption_speed_UK_TAG_current.csv,4,CURRENT_DISCRETIZED,Faithful discretization of stored TAG coefficients; unit conflict flagged
+T04_avg_fuel_VOC.csv,4,SEALED,Li-like constant fuel-only; gas_suv=MDV + diesel_heavy_truck=T7 Tractor Class 8 (see T04_avg_fuel_VOC_sealed.csv if canonical locked)
+T04_EMFAC2025_CA_fuel_speed.csv,4,SEALED,Speed-bin companion to sealed T04 avg; EMFAC2025 CA CY2026
+T04_fuel_consumption_speed_UK_TAG_current.csv,4,CURRENT_DISCRETIZED,Faithful discretization of stored TAG coefficients; unit conflict flagged; Wave-1 prefers sealed T04 avg not this curve
 T04_fuel_consumption_speed_US_candidate.csv,4,APPROXIMATE_VERIFY,Anchored shape; finalize from EPA MOVES4
-T05_nonfuel_cost_speed_UK_TAG_current.csv,5,CURRENT_DISCRETIZED,Faithful discretization; unit conflict flagged
-T05_nonfuel_cost_US_candidate.csv,5,MIXED,ATRI headline figures sourced; component split verify against report tables
+T05_nonfuel_OUT_OF_SCOPE.csv,5,OUT_OF_SCOPE,Wave-1 sealed: Li fuel-only + A-3 VOT; no non-fuel VOC (ATRI would double-count capital vs A-3)
+T05_nonfuel_cost_speed_UK_TAG_current.csv,5,ARCHIVED_LEGACY,Dormant default for use_table_nonfuel_curve=false path name only; Wave-1 does not adopt non-fuel table. Copy also in archive/
+archive/T05_nonfuel_cost_speed_UK_TAG_current.csv,5,ARCHIVED_LEGACY,UK TAG discretization; not adopted for Wave-1
+archive/T05_nonfuel_cost_US_candidate.csv,5,ARCHIVED_REJECTED,ATRI/AAA candidate rejected — double-counts vs Exhibit A-3 truck VOT capital
 T08_assignment_tiers_UK_current.csv,"8-10,14",CURRENT_DISCRETIZED,Verbatim from assignment_profiles.json
-T08_assignment_tiers_US_candidate.csv,"8-11,14",APPROXIMATE_VERIFY,Pull exact HCM/NCHRP exhibit values before adoption
-T19_speed_depth_curve_discretized.csv,18-19,ADOPTED,Curve retained; truck threshold is the candidate change
-T20_damage_level_depth_thresholds.csv,20-21,CURRENT+FLAGGED,Coastal rows are placeholders - do not run
-T22_damage_ratio_curves_TEMPLATE.csv,22,TEMPLATE_REPLACE_VALUES,Schema+grid final; values illustrative until extracted from workbook/van Ginkel SI
+T08_assignment_tiers_US_candidate.csv,"8-11,14",APPROXIMATE_VERIFY,Pull exact HCM/NCHRP exhibit values before adoption -- superseded for real assignment use by T08b (real per-link join) when assignment.use_table_t08b is on
+T08b_facility_area_capacity_speed_US_candidate.csv,n/a (new -- 2026-10-02),SOURCED,NCHRP 825 Exhibit 128 verified against source image; real per-link join (facility_type x area_type x lane_category from hpms_fclass/urban/lanes) via resiflow.networks.t08b_profile -- see assignment.use_table_t08b. 8%-small-metro-population adjustment and Downtown/Suburban area_type split both deferred -- no urbanized-area-size crosswalk exists in this project yet (same gap as T24 CP25); local_access row is an unsourced analyst default -- not NCHRP 825
+T19_speed_depth_curve_discretized.csv,18-19,ADOPTED,Curve retained; truck threshold is the candidate change -- wired 2026-10-02: hazard_disruption.flood_closure_threshold_truck_cm (default 60) drives a new max_speed_truck column via apply_max_speed_to_links alongside the existing passenger-threshold max_speed (30cm) -- v_ratio_xd15 confirmed to have zero consumers anywhere in this project -- left unwired
+T20_damage_level_depth_thresholds.csv,20-21,CURRENT+FLAGGED,Coastal rows are placeholders - do not run -- major/minor split basis updated 2026-10-02: flood_categorical._is_major prefers real hpms_fclass (F1-F3 major) over the old name-based set when present
+T20_damage_level_depth_thresholds_US_candidate.csv,n/a (new -- 2026-10-02),SOURCED,Li et al. 2026 SI Table S6 (river = discretized van Ginkel 2021 Table 2) -- van Ginkel/Li sophisticated/simple/ordinary 3-way scheme now classified from real NHS (FAF5's own field) + real NTI-matched tunnel presence via resiflow.hpms_fclass.flood_road_class_sophistication -- auto-selected by flood_categorical.py when vulnerability.damage_threshold_table points here instead of the legacy file. Coastal rows remain PLACEHOLDER_SUBSTITUTE_RIVER -- never auto-loaded
+T22_damage_ratio_curves_TEMPLATE.csv,22,TEMPLATE_REPLACE_VALUES,Schema+grid final; values illustrative until extracted from workbook/van Ginkel SI -- NOT the live source; the real curves already live in damage_curves/damage_ratio_road_flood.xlsx (van Ginkel-sourced -- confirmed 2026-10-02 byte-identical to parameters/tables/damage_ratio_road_flood.xlsx) and are read directly by Script 3's default (non-table) path
+T22_damage_ratio_curves_updated.csv,22,ARCHIVED_REJECTED,Incomplete reshape attempt (6 of 121 depth knots -- missing cells -- own header still says REPLACE these values) -- superseded by damage_ratio_road_flood.xlsx; not loaded by any code path
 T24_asset_unit_costs_US_candidate.csv,23-24,APPROXIMATE_VERIFY,Ranges only; exact extraction + UK workbook archival pending
 T26_recovery_design_current.csv,26,CURRENT+CANDIDATE_NOTE,Structure final; endpoint re-anchoring pending ER-record review
-T27_speed_restriction_schedule.csv,27,CURRENT+CANDIDATE,Expose gates in config; per-flood-type recession pending
+T27_speed_restriction_schedule.csv,27,CURRENT+CANDIDATE,FLOOD ONLY depth gates 2m/6m; EQ/LS use T37/T38 (Script 4 hazard_type branch)
 T29_payload_conversion_factors.csv,29,ADOPTED,FHWA-HOP-20-011 T52 2017 CU tonnage-weighted to sctgG5; VIUS2021/FAF6/FSRDC deferred
 T31_earthquake_road_liquefaction_pga_lookup.csv,n/a (new -- Ali/ASSIP),SOURCED,Full HAZUS-methodology grid (magnitude x susceptibility x road_tier x PGA); wired 2026-09-23 behind use_table_earthquake_liquefaction using a real-but-regional (8 CUSEC states) susceptibility layer -- see hazards/liquefaction.py and docs/HAZARD_TABLE_INTEGRATION_RUNBOOK.md Track A
 T32_winter_storm_direct_cost_function.csv,n/a (new -- Ali/ASSIP),SOURCED,Real DOT-regression cost formula; wired 2026-09-23 behind use_table_winter_storm_cost using real-but-approximate duration_hours (SNODAS 3-day depth-delta proxy -- not the ideal 6hr NOHRSC grid) + air_temp_F (PRISM tmin) for all 4 real events -- see hazards/winter_storm_cost.py and docs/HAZARD_TABLE_INTEGRATION_RUNBOOK.md Track B
 T33_winter_storm_clearance_order.csv,n/a (new -- Ali/ASSIP),SOURCED,Road-class clearance-priority/fleet-share model; directly usable -- road_classification already in the network
 T34_winter_storm_clearance_schedule.csv,n/a (new -- Ali/ASSIP),SOURCED,Day-of-reopening by rank x damage level x region; needs a snowfall-region classification per link and winter-storm-specific damage_level thresholds -- see Track B Step 2
 T35_winter_storm_speed_recovery.csv,n/a (new -- Ali/ASSIP),SOURCED,Post-reopening capacity curve by major/minor road class; directly usable once T34 supplies day_open
+T36_damage_state_operational_factors.csv,n/a (EQ/LS ops),ADOPTED,"HAZUS EQ TM 6.1 Table 7-4 day-1 Functional % → speed_factor=capacity_factor by hazard×bridge|road; day-1 only (not T26 recovery). Inventory ledger: T36_damage_state_operational_factors_inventory.csv"
+T36_damage_state_operational_factors_inventory.csv,n/a (EQ/LS ops),SOURCED,Research ledger (HAZUS/Shiraki/Padgett/ATC-20/Northridge); not loaded by model — adopted subset is T36_damage_state_operational_factors.csv
+T37_earthquake_residual_speed_schedule.csv,n/a (EQ residual),ADOPTED,HAZUS Table 7-4 minor/moderate speed×day; extensive/severe defer to T26. Replaces flood_depth gates for earthquake
+T38_landslide_residual_speed_schedule.csv,n/a (LS residual),ADOPTED,HAZUS roadway Table 7-4 landslide residual speed; same T26 split as T37

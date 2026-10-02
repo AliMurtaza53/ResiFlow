@@ -7,6 +7,7 @@ import logging
 import numpy as np
 import pandas as pd
 
+from resiflow.hpms_fclass import flood_road_class_sophistication
 from resiflow.parameters import get_parameter
 
 
@@ -36,20 +37,71 @@ _TABLE_LEVEL_COLUMNS = {
 }
 
 
-def _thresholds_from_table(flood_type: str) -> dict[bool, dict[str, float]]:
-    """{is_major: {level: begins_at_cm}} for one flood type from the T20 table.
-
-    Only CURRENT rows are served; the loader has already dropped the coastal
-    PLACEHOLDER_DO_NOT_USE rows, so asking for coastal fails loud here. Levels
-    marked n/a in the table (surface caps at moderate) are simply absent.
-    """
+def _load_t20_table() -> pd.DataFrame:
     from resiflow.tables import load_table
 
-    table = load_table(
+    return load_table(
         get_parameter(
             "vulnerability", "damage_threshold_table", "T20_damage_level_depth_thresholds"
         )
     )
+
+
+_SOPHISTICATION_CLASSES = frozenset({"sophisticated", "simple", "ordinary"})
+
+
+def _table_uses_sophistication_scheme(table: pd.DataFrame) -> bool:
+    """Which road-class scheme the configured T20 table uses -- auto-detected
+    from its own road_class values, so the same use_table_damage_thresholds
+    flag + damage_threshold_table parameter select both the behavior and the
+    scheme (point damage_threshold_table at the US-candidate file to get the
+    van Ginkel/Li sophisticated/simple/ordinary scheme instead of the legacy
+    major/minor one -- no separate flag needed)."""
+    values = set(table["road_class"].astype(str).str.strip().str.lower())
+    return bool(_SOPHISTICATION_CLASSES & values)
+
+
+def _thresholds_from_table(flood_type: str, table: pd.DataFrame | None = None) -> dict:
+    """{road_class_key: {level: begins_at_cm}} for one flood type from the T20 table.
+
+    ``road_class_key`` is ``True``/``False`` (legacy major/minor scheme) or
+    ``"sophisticated"``/``"simple"``/``"ordinary"`` (van Ginkel/Li 3-way
+    scheme) depending on which table is configured -- see
+    _table_uses_sophistication_scheme. Only CURRENT (legacy scheme) or
+    CANDIDATE (3-way scheme) rows are served; coastal's placeholder status
+    in either table is never auto-loaded, so asking for coastal fails loud
+    here (the hardcoded non-table coastal path remains the only coastal
+    source -- see its own PLACEHOLDER comment below). Levels marked n/a in
+    the table (e.g. surface caps at moderate) are simply absent.
+    """
+    if table is None:
+        table = _load_t20_table()
+
+    if _table_uses_sophistication_scheme(table):
+        rows = table.loc[
+            (table["flood_type"].astype(str).str.strip() == flood_type)
+            & (table["status"].astype(str).str.strip() == "CANDIDATE")
+        ]
+        if rows.empty:
+            raise ValueError(
+                f"No usable (status=CANDIDATE) sophistication-scheme threshold rows for "
+                f"flood type {flood_type!r} in the T20 table -- coastal's status is "
+                "PLACEHOLDER_SUBSTITUTE_RIVER, not CANDIDATE, and is never auto-loaded."
+            )
+        out: dict[str, dict[str, float]] = {}
+        for _, row in rows.iterrows():
+            key = str(row["road_class"]).strip().lower()
+            thresholds: dict[str, float] = {}
+            for level in _TABLE_LEVELS:
+                raw = pd.to_numeric(pd.Series([row[_TABLE_LEVEL_COLUMNS[level]]]), errors="coerce").iloc[0]
+                if pd.notna(raw):
+                    thresholds[level] = float(raw)
+            out[key] = thresholds
+        missing = _SOPHISTICATION_CLASSES - set(out)
+        if missing:
+            raise ValueError(f"T20 table missing sophistication-scheme rows {missing} for {flood_type!r}.")
+        return out
+
     rows = table.loc[
         (table["flood_type"] == flood_type)
         & (table["status"].astype(str).str.startswith("CURRENT"))
@@ -59,10 +111,10 @@ def _thresholds_from_table(flood_type: str) -> dict[bool, dict[str, float]]:
             f"No usable damage-threshold rows for flood type {flood_type!r} in "
             "the T20 table (coastal rows are placeholders and are never loaded)."
         )
-    out: dict[bool, dict[str, float]] = {}
+    out = {}
     for _, row in rows.iterrows():
         is_major = str(row["road_class"]).strip().lower().startswith("major")
-        thresholds: dict[str, float] = {}
+        thresholds = {}
         for level in _TABLE_LEVELS:
             raw = pd.to_numeric(pd.Series([row[_TABLE_LEVEL_COLUMNS[level]]]), errors="coerce").iloc[0]
             if pd.notna(raw):
@@ -99,14 +151,39 @@ FAF_US_CLASSES = frozenset(
 MAJOR_FAF = frozenset({"motorway", "motorway_link", "trunk", "primary", "secondary"})
 
 
+def _is_major(road_classification: str | None, hpms_fclass) -> bool:
+    """Major/minor split: real hpms_fclass (F1-F3 major, F4-F7 minor,
+    docs/FLOOD_TABLE_REVIEW.md Section 1) when available; the legacy
+    name-based MAJOR_FAF set otherwise (synthetic/non-FAF5 networks with
+    no hpms_fclass column)."""
+    if hpms_fclass is not None and not (isinstance(hpms_fclass, float) and np.isnan(hpms_fclass)):
+        try:
+            return int(hpms_fclass) <= 3
+        except (TypeError, ValueError):
+            pass
+    rc_lower = ("" if road_classification is None else str(road_classification)).strip().lower()
+    return rc_lower in MAJOR_FAF
+
+
 def compute_damage_level_on_flooded_roads(
     fldType: str,
     road_classification: str,
     trunk_road: str,
     road_label: str,
     fldDepth: float,
+    *,
+    hpms_fclass=None,
+    nhs_designation=None,
 ) -> str:
-    """Determine categorical damage for FAF/US road classes from flood depth (m)."""
+    """Determine categorical damage for FAF/US road classes from flood depth (m).
+
+    ``hpms_fclass``/``nhs_designation`` are optional (keyword-only, default
+    None): real HPMS F_Class / NHS attributes (resiflow.hpms_fclass), used
+    when present to drive the major/minor split (or, when the configured
+    T20 table is the 3-way US-candidate one, the sophisticated/simple/
+    ordinary split) instead of the legacy name-based classifier. Absent on
+    non-FAF5 networks -- falls back to the legacy behavior unchanged.
+    """
     if fldType == "flood":
         fldType = "river"
     depth = float(fldDepth or 0.0) * 100.0  # cm
@@ -115,10 +192,17 @@ def compute_damage_level_on_flooded_roads(
         return "no"
 
     s = _damage_threshold_scale()
-    major = rc_lower in MAJOR_FAF
     if _use_table_damage_thresholds():
-        thresholds = _thresholds_from_table(fldType)[major]
+        table = _load_t20_table()
+        if _table_uses_sophistication_scheme(table):
+            key = flood_road_class_sophistication(
+                pd.Series([nhs_designation]), pd.Series([road_label])
+            ).iloc[0]
+        else:
+            key = _is_major(road_classification, hpms_fclass)
+        thresholds = _thresholds_from_table(fldType, table)[key]
         return _classify_from_thresholds(depth, thresholds, s)
+    major = _is_major(road_classification, hpms_fclass)
     if fldType == "surface":
         if major:
             if depth < 200 * s:
@@ -179,25 +263,60 @@ def compute_damage_level_on_flooded_roads(
     return "no"
 
 
+def _is_major_vectorized(road_classification: pd.Series, hpms_fclass: pd.Series | None) -> pd.Series:
+    """Vectorized counterpart of _is_major -- see its docstring."""
+    rc_lower = road_classification.fillna("").astype(str).str.strip().str.lower()
+    name_based = rc_lower.isin(MAJOR_FAF)
+    if hpms_fclass is None:
+        return name_based
+    fc = pd.to_numeric(hpms_fclass, errors="coerce")
+    has_fc = fc.notna()
+    out = name_based.copy()
+    out.loc[has_fc] = (fc.loc[has_fc] <= 3)
+    return out
+
+
 def compute_damage_levels_on_flooded_roads_vectorized(
     fldType: str,
     road_classification: pd.Series,
     trunk_road: pd.Series,
     road_label: pd.Series,
     fldDepth: pd.Series,
+    *,
+    hpms_fclass: pd.Series | None = None,
+    nhs_designation: pd.Series | None = None,
 ) -> pd.Series:
-    """Vectorized FAF/US flood categorical damage."""
+    """Vectorized FAF/US flood categorical damage.
+
+    ``hpms_fclass``/``nhs_designation`` -- see compute_damage_level_on_flooded_roads's
+    docstring (same optional real-attribute upgrade, vectorized).
+    """
     if fldType == "flood":
         fldType = "river"
     depth_cm = pd.to_numeric(fldDepth, errors="coerce").fillna(0.0) * 100.0
     rc_lower = road_classification.fillna("").astype(str).str.strip().str.lower()
     faf_mask = rc_lower.isin(FAF_US_CLASSES)
-    major_faf = rc_lower.isin(MAJOR_FAF)
+    major_faf = _is_major_vectorized(road_classification, hpms_fclass)
     result = pd.Series("no", index=rc_lower.index, dtype=object)
 
     s = _damage_threshold_scale()
     if _use_table_damage_thresholds():
-        for is_major, thresholds in _thresholds_from_table(fldType).items():
+        table = _load_t20_table()
+        if _table_uses_sophistication_scheme(table):
+            nhs_series = nhs_designation if nhs_designation is not None else pd.Series(
+                [None] * len(rc_lower), index=rc_lower.index
+            )
+            label_series = road_label if road_label is not None else pd.Series(
+                "", index=rc_lower.index
+            )
+            sophistication = flood_road_class_sophistication(nhs_series, label_series)
+            for key, thresholds in _thresholds_from_table(fldType, table).items():
+                mask = faf_mask & (sophistication == key)
+                for level in _TABLE_LEVELS:
+                    if level in thresholds:
+                        result.loc[mask & (depth_cm >= thresholds[level] * s)] = level
+            return result
+        for is_major, thresholds in _thresholds_from_table(fldType, table).items():
             mask = faf_mask & (major_faf if is_major else ~major_faf)
             for level in _TABLE_LEVELS:
                 if level in thresholds:

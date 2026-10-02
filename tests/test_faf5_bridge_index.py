@@ -63,6 +63,69 @@ def test_missing_trucktoll_raises():
         faf5_network.convert_faf5_links(links, filter_centroids=False)
 
 
+def _toy_faf5_links_harmonization() -> gpd.GeoDataFrame:
+    """One link per DIR/F_Class/Urban_Code/NHS scenario under test."""
+    return gpd.GeoDataFrame(
+        {
+            "ID": [1, 2, 3, 4, 5],
+            "LENGTH": [1.0] * 5,
+            "DIR": [0, 1, 0, 0, 0],  # 1: two-way; 2: one-way; 3-5: two-way
+            "Class": [11, 11, 14, 14, 41],  # 5: ferry (no fallback F-class)
+            "AB_Lanes": [2, 3, 2, 2, 1],
+            "BA_Lanes": [2, 0, 2, 2, 1],
+            "F_Class": [1.0, 1.0, None, 10.0, None],  # 3: null -> fallback; 4: out-of-range -> fallback
+            "Urban_Code": ["99999", "63217", "99998", None, "51445"],  # 1: rural; 4: missing -> rural
+            "NHS": [1.0, None, 7.0, None, None],
+            "TRUCKTOLL": [0.0] * 5,
+        },
+        geometry=[
+            LineString([(0, 0), (1000, 0)]),
+            LineString([(0, 0), (0, 1000)]),
+            LineString([(0, 0), (-1000, 0)]),
+            LineString([(0, 0), (0, -1000)]),
+            LineString([(100, 0), (1100, 0)]),
+        ],
+        crs="EPSG:9311",
+    )
+
+
+def test_lanes_sum_for_two_way_max_for_one_way():
+    result = faf5_network.convert_faf5_links(_toy_faf5_links_harmonization(), filter_centroids=False)
+    by_id = result.set_index("e_id")["lanes"]
+    assert by_id["1"] == 4  # DIR=0: AB(2) + BA(2)
+    assert by_id["2"] == 3  # DIR=1: AB(3) only, not max(3, 0)
+
+
+def test_urban_code_fix_handles_string_comparison_and_missing():
+    result = faf5_network.convert_faf5_links(_toy_faf5_links_harmonization(), filter_centroids=False)
+    by_id = result.set_index("e_id")["urban"]
+    assert by_id["1"] == 0  # "99999" rural
+    assert by_id["2"] == 1  # real urbanized-area code
+    assert by_id["3"] == 1  # "99998" small urban area -- still urban
+    assert by_id["4"] == 0  # missing Urban_Code -> defaults rural, not urban
+
+
+def test_hpms_fclass_real_value_and_fallback():
+    result = faf5_network.convert_faf5_links(_toy_faf5_links_harmonization(), filter_centroids=False)
+    by_id = result.set_index("e_id")["hpms_fclass"]
+    assert by_id["1"] == 1  # real F_Class
+    assert by_id["3"] == 3  # null F_Class, faf5_class=14 -> fallback F3
+    assert by_id["4"] == 3  # F_Class=10 (out of range) -> same fallback
+    assert pd.isna(by_id["5"])  # ferry: no fallback entry, stays null
+
+    tiers = result.set_index("e_id")["assignment_tier"]
+    assert tiers["1"] == "freeway"
+    assert tiers["3"] == "arterial"
+
+
+def test_nhs_designation_passthrough():
+    result = faf5_network.convert_faf5_links(_toy_faf5_links_harmonization(), filter_centroids=False)
+    by_id = result.set_index("e_id")["nhs_designation"]
+    assert by_id["1"] == 1
+    assert pd.isna(by_id["2"])
+    assert by_id["3"] == 7
+
+
 def test_hpms_tunnel_flags_and_road_label(tmp_path, monkeypatch):
     csv_path = tmp_path / "hpms_enriched.csv"
     pd.DataFrame(

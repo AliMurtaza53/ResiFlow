@@ -22,6 +22,7 @@ from __future__ import annotations
 import geopandas as gpd
 import pandas as pd
 from pathlib import Path
+from resiflow.hpms_fclass import assignment_tier_from_fclass, derive_hpms_fclass
 from resiflow.parameters import get_parameter
 
 # Road classification mapping: FAF5 Class -> coarse road_classification
@@ -577,23 +578,107 @@ def convert_faf5_links(
 
     print(f"  ✓ road_classification_coarse: {assignment_links['road_classification_coarse'].nunique()} types")
     print(f"  ✓ road_classification_detail: {assignment_links['road_classification_detail'].nunique()} types")
-    
-    # 6. Lanes - take maximum of both directions
+
+    # 5b. HPMS functional class (F_Class, raw FAF5 gdb field) + the derived
+    # T08/T08b assignment tier -- see resiflow.hpms_fclass for the real
+    # F_Class codes (1-7), the ~4.5%-of-links fallback-by-faf5_class rule,
+    # and docs/FLOOD_TABLE_REVIEW.md Section 1 ("Proposed FAF
+    # harmonization"), which this implements.
+    if 'F_Class' in faf5_links.columns:
+        assignment_links['hpms_fclass'] = derive_hpms_fclass(
+            faf5_links['F_Class'], faf5_links.get('Class')
+        )
+        assignment_links['assignment_tier'] = assignment_tier_from_fclass(
+            assignment_links['hpms_fclass']
+        )
+        n_fallback = int(
+            (~pd.to_numeric(faf5_links['F_Class'], errors='coerce').isin([1, 2, 3, 4, 5, 6, 7]))
+            .sum()
+        )
+        print(
+            f"  ✓ hpms_fclass: {assignment_links['hpms_fclass'].notna().sum()} of {len(assignment_links)} "
+            f"links classified ({n_fallback} via faf5_class fallback -- null/out-of-range F_Class)"
+        )
+    else:
+        assignment_links['hpms_fclass'] = pd.array([pd.NA] * len(assignment_links), dtype='Int64')
+        assignment_links['assignment_tier'] = pd.NA
+        print("  ⚠ hpms_fclass: raw FAF5 'F_Class' column not present -- every link unclassified")
+
+    # 5c. National Highway System designation (raw FAF5 'NHS' field, NOT a
+    # proxy) -- any non-null code (1/3/4/7/8/9/10/11/12 per the FAF5 Network
+    # Data Dictionary) means "on NHS in some capacity". Used by T20's
+    # sophisticated/simple/ordinary flood-damage-threshold scheme (see
+    # resiflow.hpms_fclass.flood_road_class_sophistication) instead of the
+    # F_SYSTEM/Interstate proxy the table's own header previously assumed
+    # was the only option.
+    if 'NHS' in faf5_links.columns:
+        assignment_links['nhs_designation'] = pd.to_numeric(
+            faf5_links['NHS'], errors='coerce'
+        ).astype('Int64')
+        n_nhs = int(assignment_links['nhs_designation'].notna().sum())
+        print(f"  ✓ nhs_designation: {n_nhs} of {len(assignment_links)} links on NHS")
+    else:
+        assignment_links['nhs_designation'] = pd.array([pd.NA] * len(assignment_links), dtype='Int64')
+        print("  ⚠ nhs_designation: raw FAF5 'NHS' column not present")
+
+    # 6. Lanes. One-way links (DIR==1): AB_Lanes alone, as before (BA_Lanes
+    # is the OTHER direction's separate one-way link elsewhere in the
+    # network on these). Two-way links (DIR==0): AB_Lanes + BA_Lanes --
+    # FAF5's own data dictionary defines AB_Lanes as "thru lanes in the
+    # direction of travel (or inventory direction on 2-way roads)" and
+    # BA_Lanes as "thru lanes in the non-inventory direction on 2-way
+    # roads", i.e. both serve ONE physical two-way link and should be
+    # summed for total pavement/capacity, not max()'d (which silently
+    # discarded one whole direction's lanes -- parameter_diff_final.xlsx
+    # audit item 8/FLOOD_TABLE_REVIEW.md Section 1: "lanes understates
+    # bidirectional links (DIR=0: 35% of links, including 81% of class 14)").
+    # DIR's documented range is {0,1} only, but the real geodatabase also
+    # has a small undocumented DIR==-1 share (confirmed via descriptive
+    # stats) -- treated the same as one-way (the existing, non-inflating
+    # behavior) rather than guessed at, and counted below so it's visible.
     if 'AB_Lanes' in faf5_links.columns and 'BA_Lanes' in faf5_links.columns:
-        assignment_links['lanes'] = faf5_links[['AB_Lanes', 'BA_Lanes']].max(axis=1)
+        ab = pd.to_numeric(faf5_links['AB_Lanes'], errors='coerce')
+        ba = pd.to_numeric(faf5_links['BA_Lanes'], errors='coerce')
+        if 'DIR' in faf5_links.columns:
+            dir_numeric = pd.to_numeric(faf5_links['DIR'], errors='coerce')
+            is_two_way = dir_numeric == 0
+            # dir_numeric.isin([0, 1]) is NaN-safe (unlike `!= 1`, which is
+            # True for NaN under plain float comparison) -- counts only
+            # real, present values outside {0,1} (e.g. the undocumented -1
+            # seen in the real geodatabase), not missing DIR.
+            n_other_dir = int((dir_numeric.notna() & ~dir_numeric.isin([0, 1])).sum())
+            if n_other_dir:
+                print(
+                    f"  ⚠ lanes: {n_other_dir} links have DIR outside the documented {{0,1}} "
+                    "range -- treated as one-way (AB_Lanes only), not summed"
+                )
+        else:
+            is_two_way = pd.Series(False, index=faf5_links.index)
+            print("  ⚠ lanes: no 'DIR' column -- cannot detect bidirectional links, treating all as one-way")
+        assignment_links['lanes'] = ab.where(~is_two_way.fillna(False), ab.add(ba, fill_value=0))
     elif 'AB_Lanes' in faf5_links.columns:
         assignment_links['lanes'] = faf5_links['AB_Lanes']
     else:
         assignment_links['lanes'] = DEFAULTS['lanes']
-    
+
     # Fill missing lanes with default
     assignment_links['lanes'] = assignment_links['lanes'].fillna(DEFAULTS['lanes']).astype(int)
     print(f"  ✓ lanes: {assignment_links['lanes'].min()} to {assignment_links['lanes'].max()}")
-    
-    # 7. Urban classification - based on Urban_Code
+
+    # 7. Urban classification - based on Urban_Code. FAF5 stores Urban_Code
+    # as a STRING (the data dictionary documents it as Character); comparing
+    # it against the bare integer 99999 is always False regardless of the
+    # real value, silently marking every link urban -- fixed by coercing to
+    # numeric first. 99998 ("small urban area" per the data dictionary) and
+    # any real Census urbanized-area code both correctly count as urban;
+    # only 99999 (rural) and genuinely missing Urban_Code default to rural.
     if 'Urban_Code' in faf5_links.columns:
-        # 99999 typically indicates rural areas in FAF5
-        assignment_links['urban'] = (faf5_links['Urban_Code'] != 99999).astype(int)
+        urban_code = pd.to_numeric(faf5_links['Urban_Code'], errors='coerce')
+        # NaN != 99999 evaluates True under plain float comparison (NaN is
+        # never equal to anything), so a bare `!= 99999` would silently
+        # mark genuinely-missing Urban_Code as urban -- explicit notna()
+        # guard instead, so missing really does default to rural as stated.
+        assignment_links['urban'] = ((urban_code != 99999) & urban_code.notna()).astype(int)
     else:
         assignment_links['urban'] = 0  # Default to rural
     print(f"  ✓ urban: {assignment_links['urban'].sum()} urban, {(~assignment_links['urban'].astype(bool)).sum()} rural")

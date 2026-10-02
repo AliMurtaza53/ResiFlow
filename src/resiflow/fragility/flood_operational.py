@@ -10,6 +10,24 @@ from resiflow.parameters import get_parameter
 _FLOOD_CLOSURE_THRESHOLD_DEFAULT = get_parameter(
     "hazard_disruption", "flood_closure_threshold_cm", 30
 )
+# Vehicle-class-specific closure thresholds (T19's own header: "cars xd=30,
+# heavy trucks xd=60 (Kramer et al. 2016)"). The scenario-level
+# closure_threshold (above, 30cm) already matches the passenger/car value
+# and continues to govern the shared assignment-stage max_speed/capacity
+# solve unchanged (ResiFlow runs one combined freight+passenger flow
+# through one network state -- see Script 4's overlay_combined_flows for
+# the existing "one shared solve, cost reported per mode" pattern this
+# follows). This constant is the ADDITIONAL truck-specific speed cap
+# (apply_max_speed_to_links's max_speed_truck output column) for freight
+# rerouting-cost reporting to consume instead of reusing the car-based
+# max_speed for trucks, which understates how long a flooded road stays
+# usable to higher-clearance trucks. v_ratio_xd15 (T19's third discretized
+# column) has no consumer anywhere in this project (confirmed via repo-wide
+# search) and is not wired to anything here -- vestigial, not a third
+# vehicle class ResiFlow models.
+_FLOOD_CLOSURE_THRESHOLD_TRUCK_DEFAULT = get_parameter(
+    "hazard_disruption", "flood_closure_threshold_truck_cm", 60
+)
 # Exponent p of the generalized speed-depth rule V = V_max * (1 - d/d_c)**p.
 # p=2 is the historical Pregnolato quadratic; p=1 the linear alternate.
 # SA seam (see resiflow.sa.curves.speed_depth); default keeps behavior
@@ -91,24 +109,9 @@ def compute_maximum_speed_on_flooded_roads(
     else:
         return 0.0  # mph
 
-def apply_max_speed_to_links(
-    road_links: pd.DataFrame,
-    *,
-    depth_key: int,
-    depth_col: str = "flood_depth_max",
-    free_flow_col: str = "free_flow_speeds",
-    out_col: str = "max_speed",
-) -> pd.DataFrame:
-    """Vectorized speed cap using the Script 2 closure rule (depth_key in cm)."""
-    out = road_links.copy()
-    if depth_col not in out.columns:
-        out[depth_col] = 0.0
-    out[depth_col] = out[depth_col].fillna(0.0)
-    if free_flow_col not in out.columns:
-        out[free_flow_col] = 50.0
-    out[free_flow_col] = out[free_flow_col].fillna(50.0)
-    flood_depth_cm = pd.to_numeric(out[depth_col], errors="coerce") * 100.0
-    free_flow_speed = pd.to_numeric(out[free_flow_col], errors="coerce")
+def _speed_cap_series(
+    flood_depth_cm: pd.Series, free_flow_speed: pd.Series, depth_key: int
+) -> np.ndarray:
     p = _SPEED_DEPTH_EXPONENT_DEFAULT
     if _use_table_speed_depth():
         reduced = free_flow_speed * _speed_depth_ratio_from_table(
@@ -121,5 +124,42 @@ def apply_max_speed_to_links(
         reduced = free_flow_speed * (
             (1.0 - flood_depth_cm / depth_key).clip(lower=0.0) ** p
         )
-    out[out_col] = np.where(flood_depth_cm < depth_key, reduced, 0.0)
+    return np.where(flood_depth_cm < depth_key, reduced, 0.0)
+
+
+def apply_max_speed_to_links(
+    road_links: pd.DataFrame,
+    *,
+    depth_key: int,
+    depth_col: str = "flood_depth_max",
+    free_flow_col: str = "free_flow_speeds",
+    out_col: str = "max_speed",
+    truck_depth_key: int | None = None,
+    truck_out_col: str = "max_speed_truck",
+) -> pd.DataFrame:
+    """Vectorized speed cap using the Script 2 closure rule (depth_key in cm).
+
+    ``out_col`` (default ``max_speed``) governs the shared assignment-stage
+    speed/capacity solve, unchanged -- same car/passenger closure threshold
+    as always. When ``truck_depth_key`` is given (e.g. T19's own 60cm
+    truck threshold, Kramer et al. 2016), an ADDITIONAL ``truck_out_col``
+    column is computed from the same depth/free-flow inputs at that higher
+    threshold -- for freight rerouting-cost reporting to consume instead of
+    reusing the car-based column, which would otherwise understate how
+    long a flooded road stays usable to higher-clearance trucks. See
+    _FLOOD_CLOSURE_THRESHOLD_TRUCK_DEFAULT's comment for the broader
+    one-shared-solve/per-mode-cost design this follows.
+    """
+    out = road_links.copy()
+    if depth_col not in out.columns:
+        out[depth_col] = 0.0
+    out[depth_col] = out[depth_col].fillna(0.0)
+    if free_flow_col not in out.columns:
+        out[free_flow_col] = 50.0
+    out[free_flow_col] = out[free_flow_col].fillna(50.0)
+    flood_depth_cm = pd.to_numeric(out[depth_col], errors="coerce") * 100.0
+    free_flow_speed = pd.to_numeric(out[free_flow_col], errors="coerce")
+    out[out_col] = _speed_cap_series(flood_depth_cm, free_flow_speed, depth_key)
+    if truck_depth_key is not None:
+        out[truck_out_col] = _speed_cap_series(flood_depth_cm, free_flow_speed, truck_depth_key)
     return out

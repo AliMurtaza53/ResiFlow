@@ -20,7 +20,7 @@ from resiflow.disruption.link_record import (
 from resiflow.fragility.earthquake_operational import apply_max_speed_to_links as apply_eq_max_speed
 from resiflow.fragility.flood_operational import apply_max_speed_to_links
 from resiflow.fragility.landslide_operational import apply_max_speed_to_links as apply_ls_max_speed
-from resiflow.fragility.snow_operational import apply_max_speed_to_links as apply_snow_max_speed
+from resiflow.fragility.winter_storm_speed import apply_max_speed_to_links as apply_winter_max_speed
 from resiflow.hazards.base import HazardEvent
 from resiflow.hazards.scenario_registry import HazardScenario
 from resiflow.disruption.snow import (
@@ -102,7 +102,12 @@ def build_flood_link_disruption(
     links["flood_depth_max"] = links["flood_depth_max"].fillna(0.0)
     links["free_flow_speeds"] = links["free_flow_speeds"].fillna(50.0)
 
-    links = apply_max_speed_to_links(links, depth_key=threshold)
+    from resiflow.parameters import get_parameter
+
+    truck_threshold = int(
+        get_parameter("hazard_disruption", "flood_closure_threshold_truck_cm", 60)
+    )
+    links = apply_max_speed_to_links(links, depth_key=threshold, truck_depth_key=truck_threshold)
     return apply_legacy_flood_columns(
         links,
         depth_key=threshold,
@@ -149,7 +154,10 @@ def build_snow_link_disruption(
     links = links.loc[:, ~links.columns.duplicated()]
     links["free_flow_speeds"] = links["free_flow_speeds"].fillna(50.0)
 
-    links = apply_snow_max_speed(links, snow_key_mm=threshold)
+    # ``threshold`` (snow_key_mm) no longer drives speed: the flood-shaped
+    # quadratic it parameterised was replaced by the T19-winter ratio curve
+    # (fragility/winter_storm_speed.py). Kept only as the scenario key fallback.
+    links = apply_winter_max_speed(links, depth_col="snow_depth_max_mm")
     return apply_legacy_snow_columns(
         links,
         snow_key_mm=threshold,
@@ -194,15 +202,9 @@ def build_earthquake_link_disruption(
     # fragility/cost, Sa(1.0s)-based) -- calculate_damage()'s flood-curve
     # path is only reached for hazard_type == "flood" now.
     #
-    # flood_depth_max is still set here (PGA(g) * 0.5, an arbitrary
-    # unit-matching multiplier, not a real depth-equivalent conversion) and
-    # is still LIVE, not vestigial: Script 4's residual-floodwater speed
-    # gates (day-2/day-3 recovery, "apply speed constraint to roads with
-    # flooddepth (2-6) metres") key off this same column for every hazard
-    # type, earthquake included. Whether a residual-floodwater-style speed
-    # constraint should apply to earthquake-damaged roads at all -- there's
-    # no floodwater to recede -- is an open methodological question, not
-    # resolved by this comment; flagging so it isn't mistaken for dead code.
+    # flood_depth_max is still set here (PGA(g) * 0.5) for flood-shaped legacy
+    # columns. Script 4 residual SPEED for earthquake no longer keys off these
+    # gates (T37 damage×day schedule); depth gates remain flood-only.
     out["flood_depth_max"] = out["intensity_primary"] * 0.5
     return out
 
@@ -242,10 +244,8 @@ def build_landslide_link_disruption(
     # since PGD is genuinely the shared mechanism, not a landslide-bespoke
     # curve, since HAZUS has no separate landslide module).
     #
-    # flood_depth_max (PGD mm / 1000, an arbitrary unit-matching conversion)
-    # is still LIVE, not vestigial -- see the same note in
-    # build_earthquake_link_disruption re: Script 4's residual-floodwater
-    # speed gates keying off this column for every hazard type.
+    # flood_depth_max (PGD mm / 1000) kept for legacy columns; Script 4
+    # residual SPEED for landslide uses T38, not depth gates.
     out["flood_depth_max"] = out["landslide_max_mm"] / 1000.0
     return out
 
@@ -261,10 +261,11 @@ def build_winter_storm_link_disruption(
     scenario_key: int | None = None,
 ) -> gpd.GeoDataFrame:
     from resiflow.disruption.winter_storm import features_with_winter_storm
-    from resiflow.fragility.winter_storm_operational import apply_max_speed_to_links as apply_ws_max_speed
+    from resiflow.hazards.winter_storm_clearance import add_clearance_columns
 
+    # ``closure_threshold`` (ice_key_mm) is accepted for caller compatibility but no
+    # longer drives speed -- see fragility/winter_storm_speed.py.
     path_key = int(scenario_key if scenario_key is not None else scenario_param)
-    ice_threshold = int(closure_threshold if closure_threshold is not None else path_key)
     links = features_with_winter_storm(road_links, intersections)
     cols_to_drop = [c for c in _ASSIGNMENT_STATE_COLS if c in links.columns]
     if cols_to_drop:
@@ -273,7 +274,7 @@ def build_winter_storm_link_disruption(
     links = links.merge(base_scenario_links[merge_cols], how="left", on="e_id")
     links = links.loc[:, ~links.columns.duplicated()]
     links["free_flow_speeds"] = links["free_flow_speeds"].fillna(50.0)
-    links = apply_ws_max_speed(links, ice_key_mm=ice_threshold)
+    links = apply_winter_max_speed(links, depth_col="winter_storm_max_mm")
     out = apply_legacy_intensity_columns(
         links,
         hazard_type="winter_storm",
@@ -282,6 +283,25 @@ def build_winter_storm_link_disruption(
         scenario_param=path_key,
         event_id=hazard_event.event_id,
     )
+    # T33 clearance rank (keyed on faf5_class, topology-inherited), T34 day_open,
+    # and the peak-day rank-5 closure flag (a flag, not a dynamic gate). Excluded
+    # classes (ferry 41 / centroid connector 50) stay open/unaffected: no damage
+    # level, and no speed restriction.
+    out = add_clearance_columns(out, depth_col="winter_storm_max_mm")
+    excluded = out["clearance_excluded"].to_numpy(dtype=bool)
+    out.loc[excluded, "max_speed"] = out.loc[excluded, "free_flow_speeds"]
+    # PARALLEL rate-based estimate (T19-ALT), only when the optional snowfall-rate raster was
+    # intersected. Adds the HCM bin, capacity factor, Hranac speed range, the T19 depth-proxy
+    # ratio and their difference as extra columns; max_speed above is NOT touched -- both
+    # estimates are output so they can be compared before either is chosen.
+    if "snowfall_rate_swe_in_hr_max" in out.columns:
+        from resiflow.hazards.winter_storm_rate import compare_rate_and_depth
+
+        out = compare_rate_and_depth(
+            out.assign(ffs_mph=out["free_flow_speeds"]),
+            depth_col="winter_storm_max_mm",
+            rate_col="snowfall_rate_swe_in_hr_max",
+        ).drop(columns="ffs_mph")
     # SHIM, NOT A REAL COST MODEL -- unlike earthquake/landslide (see
     # build_earthquake_link_disruption's comment above), this one is still
     # accurate: scripts/3_damage_analysis.py's hazard_type branch only

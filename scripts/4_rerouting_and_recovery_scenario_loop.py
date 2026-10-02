@@ -863,12 +863,25 @@ def main(
             road_links["road_label"] = road_links["road_label_y"].fillna(road_links["road_label_x"])
             road_links = road_links.drop(columns=["road_label_x", "road_label_y"])
 
-    # FAF data does not include road_label; create a default
+    # FAF data may omit road_label; derive from structure flags when present.
     if "road_label" not in road_links.columns:
-        road_links["road_label"] = "road"
-        if "road_bridge" in road_links.columns:
-            road_links.loc[road_links["road_bridge"].astype(str).str.lower() == "yes", "road_label"] = "bridge"
-    road_links["breakpoint_flows"] = map_tier_profile(road_links, flow_breakpoint_dict)
+        if "road_bridge" in road_links.columns or "road_tunnel" in road_links.columns:
+            from resiflow.preprocess.faf5_network import derive_road_label
+
+            road_links = derive_road_label(road_links)
+        else:
+            road_links["road_label"] = "road"
+    # Per-link breakpoint (e.g. a real T08b join carried over from Script 1's
+    # road_links output -- resiflow.networks.t08b_profile) takes priority
+    # over the flat per-tier dict here too, same as road_revised.py's
+    # edge_initial_speed_func -- otherwise this unconditional overwrite
+    # would silently discard it on every rerouting pass.
+    if "flow_breakpoint_plph" in road_links.columns:
+        road_links["breakpoint_flows"] = pd.to_numeric(
+            road_links["flow_breakpoint_plph"], errors="coerce"
+        ).fillna(map_tier_profile(road_links, flow_breakpoint_dict))
+    else:
+        road_links["breakpoint_flows"] = map_tier_profile(road_links, flow_breakpoint_dict)
     # SA seam: same breakpoint-flow scale as edge_initial_speed_func (Script 1),
     # so the factor moves both assignment passes coherently. Default 1.0.
     _breakpoint_scale = float(get_parameter("assignment", "breakpoint_scale", 1.0))
@@ -1296,31 +1309,94 @@ def main(
 
             logging.info("Updating road speed limits...")
             func.update_edge_speed(road_links, inplace=True)
-            # SA seam: residual-floodwater depth gates (m) controlling which
-            # links keep the speed constraint as the water recedes. Defaults
-            # equal the historical literals (2 m / 6 m); one Morris factor
-            # scales both gates coherently via `_scales: recovery.residual_depth_gates_m`.
-            _gates = get_parameter(
-                "recovery", "residual_depth_gates_m", {"intermediate": 2.0, "deep": 6.0}
-            )
-            gate_intermediate = float(_gates.get("intermediate", 2.0))
-            gate_deep = float(_gates.get("deep", 6.0))
-            if event_day == 1:  # apply speed constraint to every road
-                road_links["acc_speed"] = road_links[["acc_speed", "max_speed"]].min(axis=1)
-            if (
-                event_day == 2
-            ):  # only apply speed constraint to roads with flooddepth (2-6) meters
-                mask = (road_links["flood_depth_max"] >= gate_intermediate) & (
-                    road_links["flood_depth_max"] < gate_deep
+            # Residual SPEED after day-0 disruption.
+            # Flood: T27-style depth gates on flood_depth_max (recession metaphor).
+            # Earthquake / landslide: T37/T38 damage×day speed_factor (HAZUS Table 7-4
+            # minor/moderate); flood_depth_max gating does not apply (fake depths
+            # almost never hit 2–6 m). extensive/severe stay on T26 capacity.
+            _hazard = "flood"
+            if "hazard_type" in road_links.columns:
+                _ht = road_links["hazard_type"].dropna()
+                if len(_ht):
+                    _hazard = str(_ht.iloc[0]).strip().lower()
+            if _hazard in ("earthquake", "landslide"):
+                from resiflow.tables import residual_speed_factor
+
+                _scenario = str(
+                    get_parameter("recovery", "table_recovery_scenario", "average")
                 )
-                road_links.loc[mask, "acc_speed"] = road_links.loc[
-                    mask, ["acc_speed", "max_speed"]
-                ].min(axis=1)
-            if event_day == 3:  # only for roads > 6 meters
-                mask = road_links["flood_depth_max"] >= gate_deep
-                road_links.loc[mask, "acc_speed"] = road_links.loc[
-                    mask, ["acc_speed", "max_speed"]
-                ].min(axis=1)
+                free = pd.to_numeric(
+                    road_links["free_flow_speeds"]
+                    if "free_flow_speeds" in road_links.columns
+                    else road_links["acc_speed"],
+                    errors="coerce",
+                )
+                dmg = (
+                    road_links["damage_level_max"]
+                    .fillna("no")
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                )
+                is_bridge = pd.Series(False, index=road_links.index)
+                if "road_label" in road_links.columns:
+                    is_bridge = is_bridge | road_links["road_label"].astype(
+                        str
+                    ).str.strip().str.lower().eq("bridge")
+                if "road_bridge" in road_links.columns:
+                    is_bridge = is_bridge | road_links["road_bridge"].astype(
+                        str
+                    ).str.strip().str.lower().eq("yes")
+                # Cache factor by (asset, damage_level) — table interp is pure in day
+                factor_cache: dict[tuple[str, str], float] = {}
+                caps = free.to_numpy(dtype=float).copy()
+                for i, (lvl, bridge) in enumerate(zip(dmg.tolist(), is_bridge.tolist())):
+                    if lvl in ("no", "none"):
+                        continue
+                    asset = "bridge" if bridge else "road"
+                    key = (asset, lvl)
+                    if key not in factor_cache:
+                        factor_cache[key] = residual_speed_factor(
+                            hazard=_hazard,
+                            asset=asset,
+                            damage_level=lvl,
+                            event_day=event_day,
+                            scenario=_scenario,
+                        )
+                    factor = factor_cache[key]
+                    if factor < 1.0 and np.isfinite(caps[i]):
+                        caps[i] = caps[i] * factor
+                road_links["acc_speed"] = np.minimum(
+                    pd.to_numeric(road_links["acc_speed"], errors="coerce").to_numpy(
+                        dtype=float
+                    ),
+                    caps,
+                )
+            else:
+                # SA seam: residual-floodwater depth gates (m). Defaults 2 m / 6 m.
+                _gates = get_parameter(
+                    "recovery",
+                    "residual_depth_gates_m",
+                    {"intermediate": 2.0, "deep": 6.0},
+                )
+                gate_intermediate = float(_gates.get("intermediate", 2.0))
+                gate_deep = float(_gates.get("deep", 6.0))
+                if event_day == 1:  # apply speed constraint to every road
+                    road_links["acc_speed"] = road_links[
+                        ["acc_speed", "max_speed"]
+                    ].min(axis=1)
+                if event_day == 2:
+                    mask = (road_links["flood_depth_max"] >= gate_intermediate) & (
+                        road_links["flood_depth_max"] < gate_deep
+                    )
+                    road_links.loc[mask, "acc_speed"] = road_links.loc[
+                        mask, ["acc_speed", "max_speed"]
+                    ].min(axis=1)
+                if event_day == 3:
+                    mask = road_links["flood_depth_max"] >= gate_deep
+                    road_links.loc[mask, "acc_speed"] = road_links.loc[
+                        mask, ["acc_speed", "max_speed"]
+                    ].min(axis=1)
 
             # create network (time-consuming when updating network edge index)
             logging.info("Creating igraph network...")

@@ -1,0 +1,38 @@
+# T08b - US CANDIDATE facility x area-type capacity/speed/congestion table.,,,,,,,,,
+# STATUS: SOURCED (local_access excepted). Verified directly against Exhibit 128 image (p.183) -,,,,,,,,,
+# all freeway/arterial/collector rows confirmed exact match, INCLUDING the previously-flagged,,,,,,,,
+# "missing" Collector Rural Multilane row, now confirmed: 45 mph, 1900 pc/h/ln.,,,,,,
+#,,,,,,,,,
+# NEW, NOT YET APPLIED - POPULATION-SIZE ADJUSTMENT: Exhibit 128's own notes state this table is,,,,,,,,
+# built for a metro area >250,000 population; Downtown/Urban/Suburban arterial and collector values,,,,,,,,
+# should be reduced 8% for smaller metro/urban areas. Not applied in this file - needs a join to,,,,,,,,,
+# this project's urban-area-size classification (same HPMS Small Urban/Small Urbanized/Large,,,,,,,,,
+# Urbanized/Major Urbanized tiers already used in T24) to determine which rows get the 8% cut.,,,,,,,,,
+# Freeway and all Rural rows are unaffected (no population caveat stated for them).,,,,,,,,,
+#,,,,,,,,,
+# NEW, OPTIONAL - g/C RESCALING: exhibit notes state arterial/collector capacity scales linearly,,,,,,,,
+# with g/C: adjusted = table_capacity x (local_g/C / table_g/C). Only relevant if link-level signal,,,,,,,,,
+# timing data is available; not applied here.,,,,,,,,,
+#,,,,,,,,,
+# EXCLUDED ON PURPOSE: 90%/80% HCM capacity columns (regional truck/peaking derate, not a,,,,,,,,
+# congestion breakpoint - see Exhibit 128 footnote and Case Study 3, p.255).,,,,,,,,
+# Q_bp = 0.85 x HCM capacity (planning assumption, not cited). congestion_slope derived from BPR,,,,,,,,
+# linearization at a=0.15 uniform: slope = free_flow_speed / (1.15 x hcm_capacity_pc_per_lane_hr).,,,,,,,,,
+# Arterial Downtown=Urban=860 > Suburban=780 is real (g/C 0.45 vs 0.41), not an error.,,,,,,,,
+# local_access: no NCHRP 825 table exists; retained from intern's prior value, unsourced.,,,,,,,,
+facility_type,area_type,lane_category,free_flow_speed_mph,hcm_capacity_pc_per_lane_hr,flow_breakpoint_Qbp_pc_per_lane_hr,congestion_slope_mph_per_pcu,source_exhibit,source_page,status
+freeway,Downtown,NA,55,2250,1912,0.02126,Exhibit 128,183,SOURCED
+freeway,Urban,NA,60,2300,1955,0.02268,Exhibit 128,183,SOURCED
+freeway,Suburban,NA,65,2350,1998,0.02405,Exhibit 128,183,SOURCED
+freeway,Rural,NA,70,2400,2040,0.02536,Exhibit 128,183,SOURCED
+arterial,Downtown,NA,25,860,731,0.02528,Exhibit 128,183,SOURCED
+arterial,Urban,NA,35,860,731,0.03539,Exhibit 128,183,SOURCED
+arterial,Suburban,NA,45,780,663,0.05017,Exhibit 128,183,SOURCED
+arterial,Rural,Multilane,55,2100,1785,0.02277,Exhibit 128,183,SOURCED
+arterial,Rural,Two-lane,55,1600,1360,0.02989,Exhibit 128,183,SOURCED
+collector,Downtown,NA,25,780,663,0.02787,Exhibit 128,183,SOURCED
+collector,Urban,NA,30,780,663,0.03344,Exhibit 128,183,SOURCED
+collector,Suburban,NA,35,700,595,0.04348,Exhibit 128,183,SOURCED
+collector,Rural,Multilane,45,1900,1615,0.02059,Exhibit 128,183,SOURCED
+collector,Rural,Two-lane,45,1600,1360,0.02446,Exhibit 128,183,SOURCED
+local_access,NA,NA,30,550,468,0.04743,Analyst default - NOT in NCHRP 825,n/a,UNSOURCED_DEFAULT

@@ -1,0 +1,44 @@
+# T20 - Depth (cm) at which each damage level BEGINS, by flood type and road class.
+# Levels: no < minor < moderate < extensive < severe.
+#
+# CORRECTION from prior version: surface rows were left on the old 2-class (major/minor)
+# CURRENT placeholder while river was restored to van Ginkel's 3-class scheme - an inconsistency
+# not a deliberate choice. Li et al. (2026) SI Table S6 provides a full, sourced SURFACE column
+# for all three classes, parallel to the RIVER column already used - now applied the same way.
+# River rows are unchanged from the prior version.
+#
+# CLASS BASIS: van Ginkel's sophisticated/simple split is street-lighting-presence (electronic
+# signalling); Li et al. relabel it as tunnel-presence. Neither attribute was used as the
+# classifier when this table was first drafted - tunnels were thought too rare (0.083% of
+# links) to do any work and lighting data wasn't available, so sophisticated/simple both
+# resolved identically off the NHS/Interstate proxy alone. RESOLVED 2026-10-02: now classified
+# from resiflow.hpms_fclass.flood_road_class_sophistication using the real FAF5 NHS field
+# (not a proxy) plus real NTI-matched tunnel presence (road_label=='tunnel') from the enriched
+# FAF5 parquet -- sophisticated = on NHS + tunnel; simple = on NHS, no tunnel; ordinary =
+# non-NHS arterial/collector (A-primary and B equivalent).
+#
+# NOTE ON CAPPING: sophisticated surface and sophisticated river both cap at extensive (no severe
+# band in the source); simple and ordinary SURFACE curves cap even lower, at moderate - all
+# sourced directly from Table S6, not an error or inconsistency to fix.
+# NOTE ON ORDINARY/RIVER: no no-damage floor in the source table for river - any depth > 0 is
+# already minor, matching this file's prior river-minor convention (tertiary/local). This does
+# NOT hold for ordinary/surface, which does have a no floor (<100cm) per the source - the two
+# flood types are genuinely structured differently in Table S6, not just relabeled copies.
+#
+# COASTAL: still PLACEHOLDER, now restructured to mirror the river table's 3 classes (previously
+# a mismatched 2-class major/minor placeholder left over from before river was restored to 3
+# classes). Each coastal row below is a direct, unsourced substitution of its corresponding RIVER
+# class - neither van Ginkel nor Li et al. model coastal/storm-surge flooding at all (van Ginkel
+# explicitly scopes to river floods only, >500 km2 catchments). Flagged for update once a real
+# storm-surge-specific damage source is found; do not treat coastal rows as equivalent in
+# confidence to the surface/river rows above them.
+flood_type,road_class,status,no_below_cm,minor_from_cm,moderate_from_cm,extensive_from_cm,severe_from_cm,source,us_proxy_basis
+surface,sophisticated,CANDIDATE,100,100,200,600,n/a,Li et al. 2026 SI Table S6 Surface column caps at extensive sourced,US proxy: F_SYSTEM Interstate/NHS with tunnel per van Ginkel/Li labeling
+surface,simple,CANDIDATE,200,200,600,n/a,n/a,Li et al. 2026 SI Table S6 Surface column caps at moderate sourced,US proxy: F_SYSTEM Interstate/NHS without tunnel per van Ginkel/Li labeling
+surface,ordinary,CANDIDATE,100,100,600,n/a,n/a,Li et al. 2026 SI Table S6 Surface column caps at moderate sourced,US proxy: non-NHS arterial/collector
+river,sophisticated,CANDIDATE,0,50,200,600,n/a,Li et al. 2026 SI Table S6 River column (discretization of van Ginkel 2021 Table 2) caps at extensive sourced,US proxy: F_SYSTEM Interstate/NHS with tunnel per van Ginkel/Li labeling
+river,simple,CANDIDATE,0,50,100,200,600,Li et al. 2026 SI Table S6 River column,US proxy: F_SYSTEM Interstate/NHS without tunnel per van Ginkel/Li labeling
+river,ordinary,CANDIDATE,0,0,50,200,600,Li et al. 2026 SI Table S6 River column minor from any depth>0 matches existing minor-road convention,US proxy: non-NHS arterial/collector
+coastal,sophisticated,PLACEHOLDER_SUBSTITUTE_RIVER,0,50,200,600,n/a,TEMP: substituting river/sophisticated thresholds. Not in van Ginkel or Li et al. Needs real storm-surge source - UPDATE LATER,US proxy: F_SYSTEM Interstate/NHS with tunnel per van Ginkel/Li labeling
+coastal,simple,PLACEHOLDER_SUBSTITUTE_RIVER,0,50,100,200,600,TEMP: substituting river/simple thresholds. Not in van Ginkel or Li et al. Needs real storm-surge source - UPDATE LATER,US proxy: F_SYSTEM Interstate/NHS without tunnel per van Ginkel/Li labeling
+coastal,ordinary,PLACEHOLDER_SUBSTITUTE_RIVER,0,0,50,200,600,TEMP: substituting river/ordinary thresholds. Not in van Ginkel or Li et al. Needs real storm-surge source - UPDATE LATER,US proxy: non-NHS arterial/collector

@@ -26,7 +26,9 @@
     "congestion_scale": 1.0,
     "effective_hours_per_day": 24,
     "use_table_tier_values": false,
-    "tier_table": "T08_assignment_tiers_UK_current"
+    "tier_table": "T08_assignment_tiers_UK_current",
+    "_comment_t08b": "use_table_t08b switches Script 1's road_links init from T08's flat per-tier dict to a real per-link join against T08b_facility_area_capacity_speed_US_candidate.csv (NCHRP 825 Exhibit 128) -- facility_type/area_type/lane_category derived per link from hpms_fclass/urban/lanes, see resiflow.networks.t08b_profile. Attaches flow_cap_plph/flow_breakpoint_plph/congestion_factor, which edge_init/edge_initial_speed_func/update_edge_speed already prefer over the tier dict when present. Downtown/Suburban area_type split and the 8%-small-metro-population adjustment are both deferred (collapsed to a single Urban row) -- no urbanized-area-size crosswalk exists in this project yet.",
+    "use_table_t08b": false
   },
 
   "cost_time": {
@@ -62,7 +64,7 @@
       "ogv": {"a": 17.41, "b": 680.18},
       "psv": {"a": 53.67, "b": 1223.40}
     },
-    "_comment_tables": "use_table_* flags (default false = current formula behavior) switch road_revised.compute_costs_for_links to linear interpolation of the discretized parameters/tables CSVs; *_table names select UK-current vs US-candidate files (US candidates carry APPROXIMATE_VERIFY status).",
+    "_comment_tables": "use_table_* flags (default false = formula path). Wave-1 VOC sealed Li-like: time (A-3 VOT) + fuel-only (T04_avg_fuel_VOC) + toll; T05 non-fuel is OUT_OF_SCOPE (see T05_nonfuel_OUT_OF_SCOPE.csv). Keep use_table_nonfuel_curve=false; do not point at ATRI T05.",
     "use_table_fuel_curve": false,
     "fuel_curve_table": "T04_fuel_consumption_speed_UK_TAG_current",
     "use_table_nonfuel_curve": false,
@@ -78,23 +80,26 @@
     "faf5_default_lanes": 2,
     "faf5_default_avg_toll_cost": 0.0,
     "faf5_default_meters_per_lane": 3.66,
-    "_comment_bridge_index": "nbi_bridge_index_path: output of scripts/build_nbi_bridge_index.py. Locational flag only (road_bridge / bridge_fraction); costing uses structure_length_m + deck_width_m. Null/non-positive length or deck -> match excluded. Prefer enrichment/faf5_road_links_bridge_tunnel_patched.gpq as the working network until production is swapped. NTAD NBI via load_ntad_bridge_gdb.py.",
+    "_comment_bridge_index": "nbi_bridge_index_path: output of scripts/build_nbi_bridge_index.py. Locational flag only (road_bridge / bridge_fraction); costing uses structure_length_m + deck_width_m. Null/non-positive length or deck → match excluded. Prefer Desktop/.../enrichment/faf5_road_links_bridge_tunnel_patched.gpq as the working network until production is swapped. NTAD NBI via load_ntad_bridge_gdb.py.",
     "nbi_bridge_index_path": null,
-    "_comment_nti_tunnel_index": "nti_tunnel_index_path: e_id-keyed parquet from build_nti_tunnel_index.py. Locational flag (road_tunnel / tunnel_fraction); costing uses tunnel_length_m. Null/non-positive length -> excluded. Prefer over HPMS STRUCTURE_TYPE.",
+    "_comment_nti_tunnel_index": "nti_tunnel_index_path: e_id-keyed parquet from build_nti_tunnel_index.py. Locational flag (road_tunnel / tunnel_fraction); costing uses tunnel_length_m. Null/non-positive length → excluded. Prefer over HPMS STRUCTURE_TYPE.",
     "nti_tunnel_index_path": null,
     "_comment_hpms_lrs": "hpms_lrs_enriched_csv is the CSV from scripts/hpms_to_faf_lrs_transfer.py. QA / terrain / toll-presence; STRUCTURE_TYPE=2 is only a tunnel fallback when nti_tunnel_index_path is unset.",
     "hpms_lrs_enriched_csv": null
   },
 
   "hazard_disruption": {
-    "_comment": "speed_depth_exponent is p in V = V_max*(1 - d/d_c)**p (fragility/flood_operational.py); p=2 reproduces the historical Pregnolato quadratic, p=1 the linear alternate.",
+    "_comment": "speed_depth_exponent is p in V = V_max*(1 - d/d_c)**p (fragility/flood_operational.py); p=2 reproduces the historical Pregnolato quadratic, p=1 the linear alternate. damage_state_operational_table = T36 HAZUS day-1 functionality factors for earthquake/landslide (forked bridge|road); replaces prior hardcoded 1/0.85/0.5/0/0 PLACEHOLDER.",
     "flood_closure_threshold_cm": 30,
+    "_comment_truck_threshold": "flood_closure_threshold_truck_cm (T19's own header: cars xd=30, heavy trucks xd=60, Kramer et al. 2016) drives an ADDITIONAL max_speed_truck column (apply_max_speed_to_links) alongside the passenger-threshold max_speed above -- the shared assignment-stage speed/capacity solve still uses the car threshold unchanged; max_speed_truck is for freight-specific rerouting-cost reporting to consume (not yet wired into Script 4's freight cost stream -- see docs/FLOOD_TABLE_REVIEW.md).",
+    "flood_closure_threshold_truck_cm": 60,
     "earthquake_script3_depth_scale": 0.5,
     "landslide_script3_depth_scale": 0.001,
     "winter_storm_script3_depth_scale": 0.001,
     "speed_depth_exponent": 2.0,
     "use_table_speed_depth": true,
-    "speed_depth_table": "T19_speed_depth_curve_discretized"
+    "speed_depth_table": "T19_speed_depth_curve_discretized",
+    "damage_state_operational_table": "T36_damage_state_operational_factors"
   },
 
   "vulnerability": {
@@ -120,14 +125,16 @@
   },
 
   "recovery": {
-    "_comment": "Script 4 residual-floodwater depth gates (m): day-2 speed constraint applies to links with intermediate <= depth < deep, day-3 to depth >= deep. Historical literals 2 m / 6 m. Scale both coherently with one Morris factor via `_scales: recovery.residual_depth_gates_m`.",
+    "_comment": "Flood: residual_depth_gates_m (T27 recession). Earthquake/landslide: T37/T38 residual speed by damage×day (HAZUS Table 7-4); Script 4 branches on hazard_type — do not use flood_depth_max gates for EQ/LS. table_recovery_scenario also selects T26 capacity and T37/T38 speed scenarios.",
     "residual_depth_gates_m": {
       "intermediate": 2.0,
       "deep": 6.0
     },
     "use_table_recovery_design": false,
     "recovery_design_table": "T26_recovery_design_current",
-    "table_recovery_scenario": "average"
+    "table_recovery_scenario": "average",
+    "earthquake_residual_speed_table": "T37_earthquake_residual_speed_schedule",
+    "landslide_residual_speed_table": "T38_landslide_residual_speed_schedule"
   },
 
   "testbed_synthetic_hazards": {

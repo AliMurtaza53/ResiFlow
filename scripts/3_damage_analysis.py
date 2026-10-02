@@ -122,6 +122,7 @@ def compute_damage_fraction(
     road_label: str,
     flood_depth: float,
     damage_curves: Dict,
+    nhs_designation=None,
 ) -> Tuple[str, float, str, float]:
     """Compute the damage fraction for a road asset based on its classification,
     label, and flood depth.
@@ -138,6 +139,17 @@ def compute_damage_fraction(
         The depth of floodwater on the road asset in meters.
     damage_curves : Dict
         A dictionary containing damage curves for different road and flow conditions.
+    nhs_designation : optional
+        Real FAF5 NHS field value (resiflow.hpms_fclass), non-null meaning
+        "on NHS". When present, selects the curve family by van Ginkel's own
+        sophisticated/simple/ordinary scheme (C1/C2 = NHS + tunnel, C3/C4 =
+        NHS no tunnel, C5/C6 = non-NHS) instead of the legacy name/trunk_road
+        "major road" proxy -- docs/FLOOD_TABLE_REVIEW.md Section 4, item 3:
+        the legacy proxy put FAF5 Class 14 (70% of network length) on C3/C4
+        when van Ginkel/T22 intend "other roads" (primary and below) on
+        C5/C6, because "major by name" and "on the real NHS" are not the
+        same set. Falls back to the legacy proxy when nhs_designation is
+        None (non-FAF5 networks with no NHS attribute).
 
     Returns
     -------
@@ -148,22 +160,30 @@ def compute_damage_fraction(
         - The second damage curve label (e.g., "C2", "C4", or "C6").
         - The computed damage fraction from the second curve.
     """
+    if nhs_designation is not None:
+        from resiflow.hpms_fclass import flood_road_class_sophistication
 
-    major = _is_major_road(road_classification, trunk_road)
-    if road_label == "tunnel" and major:
-        C1_damage_fraction = damage_curves["C1"].damage_fraction(flood_depth)
-        C2_damage_fraction = damage_curves["C2"].damage_fraction(flood_depth)
-        return ("C1", C1_damage_fraction, "C2", C2_damage_fraction)
-
-    if road_label != "tunnel" and major:
-        C3_damage_fraction = damage_curves["C3"].damage_fraction(flood_depth)
-        C4_damage_fraction = damage_curves["C4"].damage_fraction(flood_depth)
-        return ("C3", C3_damage_fraction, "C4", C4_damage_fraction)
-
+        sophistication = flood_road_class_sophistication(
+            pd.Series([nhs_designation]), pd.Series([road_label])
+        ).iloc[0]
+        curve_pair = {
+            "sophisticated": ("C1", "C2"),
+            "simple": ("C3", "C4"),
+            "ordinary": ("C5", "C6"),
+        }[sophistication]
     else:
-        C5_damage_fraction = damage_curves["C5"].damage_fraction(flood_depth)
-        C6_damage_fraction = damage_curves["C6"].damage_fraction(flood_depth)
-        return ("C5", C5_damage_fraction, "C6", C6_damage_fraction)
+        major = _is_major_road(road_classification, trunk_road)
+        if road_label == "tunnel" and major:
+            curve_pair = ("C1", "C2")
+        elif road_label != "tunnel" and major:
+            curve_pair = ("C3", "C4")
+        else:
+            curve_pair = ("C5", "C6")
+
+    c1, c2 = curve_pair
+    damage_fraction1 = damage_curves[c1].damage_fraction(flood_depth)
+    damage_fraction2 = damage_curves[c2].damage_fraction(flood_depth)
+    return (c1, damage_fraction1, c2, damage_fraction2)
 
 
 def compute_damage_values(
@@ -401,6 +421,7 @@ def calculate_damage(
             row.road_label,
             row[f"flood_depth_{flood_type}"],
             damage_curves,
+            nhs_designation=getattr(row, "nhs_designation", None),
         )
 
         structure_length_m = getattr(row, "structure_length_m", None)
@@ -587,6 +608,16 @@ def format_intersections(
     # Asset geometry from inventory (NBI/NTI); required for bridge/tunnel costing.
     asset_cols = []
     for col in ("structure_length_m", "tunnel_length_m", "tunnel_fraction", "bridge_fraction"):
+        if col in rl.columns:
+            asset_cols.append(col)
+
+    # hpms_fclass/nhs_designation (resiflow.hpms_fclass): real HPMS F_Class +
+    # NHS attributes -- compute_damage_fraction()'s nhs_designation arg uses
+    # these to pick the C1-C6 family via van Ginkel's own sophisticated/
+    # simple/ordinary scheme instead of the legacy name-based "major road"
+    # proxy. Optional -- absent on non-FAF5/legacy networks, same pattern as
+    # the asset_cols above.
+    for col in ("hpms_fclass", "nhs_designation"):
         if col in rl.columns:
             asset_cols.append(col)
 

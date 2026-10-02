@@ -19,6 +19,7 @@ from resiflow.demand import (
     passenger_od_disabled,
 )
 from resiflow.networks import load_assignment_profiles, normalize_network_links
+from resiflow.parameters import get_parameter
 import resiflow.road_revised as func
 
 import logging
@@ -109,6 +110,29 @@ def main(
         raise FileNotFoundError("Could not find faf5_road_links.gpq in standard or toy input paths")
     road_link_file = gpd.read_parquet(road_links_path)
     road_link_file = normalize_network_links(road_link_file, params_root=str(params_root))
+
+    # T08b (NCHRP 825 Exhibit 128, facility x area-type x lane-category) --
+    # a real per-link join, not a flat per-tier dict (see
+    # resiflow.networks.t08b_profile's module docstring for why T08's
+    # existing machinery can't represent it). Off by default; when on,
+    # attaches flow_cap_plph/flow_breakpoint_plph/congestion_factor
+    # per-link, which edge_init/edge_initial_speed_func/update_edge_speed
+    # already prefer over the flat tier dict when present.
+    if get_parameter("assignment", "use_table_t08b", False):
+        from resiflow.networks.t08b_profile import compute_t08b_link_profile
+
+        t08b_profile, n_matched = compute_t08b_link_profile(road_link_file, params_root=str(params_root))
+        logging.info(
+            "T08b per-link profile: %d of %d links matched a real (facility_type, "
+            "area_type, lane_category) row",
+            n_matched,
+            len(road_link_file),
+        )
+        road_link_file = road_link_file.merge(
+            t08b_profile[["e_id", "flow_cap_plph", "flow_breakpoint_plph", "congestion_factor"]],
+            on="e_id",
+            how="left",
+        )
 
     demand_result = load_assignment_demand(base_path, demand_spec_from_env(base_path))
     od_node_2021 = demand_result.assignment_od.copy()

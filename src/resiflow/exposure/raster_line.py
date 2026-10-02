@@ -159,7 +159,14 @@ def intersect_features_with_raster(
     logging.info(f"Intersecting features with raster {raster_key}...")
 
     # Keep only columns needed downstream to reduce split/copy overhead substantially
-    required_cols = ["e_id", "road_classification", "trunk_road", "road_label", "geometry"]
+    required_cols = [
+        "e_id", "road_classification", "trunk_road", "road_label", "geometry",
+        # hpms_fclass/nhs_designation: real HPMS F_Class + NHS fields (see
+        # resiflow.hpms_fclass) -- feed flood_categorical.py's major/minor
+        # and sophisticated/simple/ordinary classifiers. Optional (absent
+        # on non-FAF5/legacy networks), hence the present_cols filter below.
+        "hpms_fclass", "nhs_designation",
+    ]
     present_cols = [c for c in required_cols if c in features.columns]
     features_min = features[present_cols].copy()
 
@@ -168,6 +175,10 @@ def intersect_features_with_raster(
         features_min["trunk_road"] = None
     if "road_label" not in features_min.columns:
         features_min["road_label"] = None
+    if "hpms_fclass" not in features_min.columns:
+        features_min["hpms_fclass"] = None
+    if "nhs_designation" not in features_min.columns:
+        features_min["nhs_designation"] = None
 
     # Avoid pandas extension/Arrow string dtypes that can interact badly with
     # snail's row-wise splitting on large datasets.

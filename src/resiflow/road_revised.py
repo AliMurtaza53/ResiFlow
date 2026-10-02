@@ -517,7 +517,23 @@ def edge_initial_speed_func(
         )
 
     road_links["initial_flow_speeds"] = road_links["free_flow_speeds"]
-    road_links["breakpoint_flows"] = map_tier_profile(road_links, flow_breakpoint_dict)
+    # Per-link breakpoint (e.g. from a real 3-key T08b join -- see
+    # resiflow.networks.t08b_profile) takes priority over the flat
+    # per-tier dict, same pattern edge_init already uses for flow_cap_plph
+    # and update_edge_speed uses for congestion_factor. NOT multiplied by
+    # lanes here, matching the existing tier-dict path's own behavior
+    # (map_tier_profile's result is assigned straight into breakpoint_flows
+    # with no lanes scaling either, unlike acc_capacity's explicit
+    # `* lanes`) -- both T08's flow_breakpoint_pc_per_lane_hr and T08b's
+    # flow_breakpoint_Qbp_pc_per_lane_hr are per-lane by name, so this is a
+    # pre-existing simplification carried through unchanged, not introduced
+    # here; flagged rather than silently inherited.
+    if "flow_breakpoint_plph" in road_links.columns:
+        road_links["breakpoint_flows"] = pd.to_numeric(
+            road_links["flow_breakpoint_plph"], errors="coerce"
+        ).fillna(map_tier_profile(road_links, flow_breakpoint_dict))
+    else:
+        road_links["breakpoint_flows"] = map_tier_profile(road_links, flow_breakpoint_dict)
 
     # SA seam: breakpoint-flow scale (default 1.0 = historical behavior).
     breakpoint_scale = float(get_parameter("assignment", "breakpoint_scale", 1.0))
