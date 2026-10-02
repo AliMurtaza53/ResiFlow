@@ -679,8 +679,17 @@ def convert_faf5_links(
         # mark genuinely-missing Urban_Code as urban -- explicit notna()
         # guard instead, so missing really does default to rural as stated.
         assignment_links['urban'] = ((urban_code != 99999) & urban_code.notna()).astype(int)
+        # Raw code, zero-padded string, kept alongside the binary `urban`
+        # flag -- resiflow.census_urban_area joins this against the real
+        # Census 2010 Urban Area population list (T39) for the HPMS/HERS
+        # urban-size tier (Small Urban/Small Urbanized/Large Urbanized/
+        # Major Urbanized) T08b and T24/CP25 both need. NaN stays NaN
+        # (not coerced to a sentinel) so "no Urban_Code at all" is
+        # distinguishable from the real 99999 rural sentinel downstream.
+        assignment_links['urban_code'] = urban_code.astype('Int64').astype(str).str.zfill(5).mask(urban_code.isna())
     else:
         assignment_links['urban'] = 0  # Default to rural
+        assignment_links['urban_code'] = pd.NA
     print(f"  ✓ urban: {assignment_links['urban'].sum()} urban, {(~assignment_links['urban'].astype(bool)).sum()} rural")
     
     # 8. Average width - estimated from lanes

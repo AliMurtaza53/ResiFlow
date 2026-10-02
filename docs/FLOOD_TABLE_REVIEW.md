@@ -9,7 +9,64 @@ Legend: **FIX** = clear defect, **CONFIRM** = needs your decision or a source ch
 
 ---
 
-## Resolved, 2026-10-02
+## Resolved, 2026-10-02 (2): Census urban-area population crosswalk
+
+Closes the recurring blocker from the first 2026-10-02 pass below: T08b's
+own unapplied 8% small-metro adjustment and T24/CP25's Small Urban/Small
+Urbanized/Large Urbanized/Major Urbanized tiers both needed an
+urbanized-area-size crosswalk this project didn't have.
+
+- **New `T39_census_urban_area_population_2010.csv`** -- real U.S. Census
+  Bureau 2010 Urban Area population list
+  (https://www2.census.gov/geo/docs/reference/ua/ua_list_all.xls, raw copy
+  kept at `parameters/tables/raw/census_2010_ua_list_all.xls`), built by
+  `scripts/prepare_census_urban_area_population.py`. **Vintage confirmed,
+  not assumed**: all 503 distinct real Urban_Code values in the national
+  FAF5 network match a 2010 UACE code exactly (0 unmatched) -- spot-checked
+  against real population figures (63217 = New York--Newark, 18,351,295;
+  51445 = Los Angeles--Long Beach--Anaheim, 12,150,996; etc., not just a
+  format match).
+- **`hpms_urban_size_tier`** thresholds are quoted verbatim from FHWA's
+  HERS/C&P Report (23rd Edition, Appendix A, p.A-3 -- fetched and read
+  directly, not from memory): small_urban 5,000-49,999; small_urbanized
+  50,000-200,000; large_urbanized >200,000-1,000,000; major_urbanized
+  >1,000,000 -- rural below 5,000 (a real, FHWA-documented floor; confirmed
+  zero FAF5 links actually hit this edge case, since FAF5 routes every
+  small-urban link through its own generic 99998 sentinel rather than a
+  specific small-urban-cluster code).
+- **`nchrp825_population_gt_250k`** is a separate column for T08b's own,
+  independent >250,000 cutoff (NOT derived from the HERS tiers -- a
+  different source, kept distinct rather than conflated).
+- **New `resiflow/census_urban_area.py`** joins FAF5's raw `Urban_Code`
+  (now also carried through `convert_faf5_links`, alongside the existing
+  binary `urban` flag) against T39, handling both sentinels explicitly
+  (`99998` -> `small_urban`, no population; `99999`/missing -> `rural`, no
+  population -- never a fabricated figure).
+- **T08b's 8% small-metro adjustment is now live**
+  (`resiflow.networks.t08b_profile._apply_small_metro_adjustment`):
+  capacity is cut 8% for Downtown/Urban/Suburban arterial/collector links
+  in metro areas at or under 250,000 population, with
+  `flow_breakpoint_Qbp_pc_per_lane_hr` and `congestion_slope_mph_per_pcu`
+  re-derived from the adjusted capacity using T08b's own documented
+  formulas (`Q_bp = 0.85 x capacity`; `slope = free_flow_speed / (1.15 x
+  capacity)`) so the three stay internally consistent, not independently
+  guessed at. T08b's own CSV is untouched (still Exhibit 128's literal
+  published values) -- the cut is applied at join time only. Real result
+  on the harmonized national network: **58,266 links (12.0%) get the
+  cut** -- 34.8% of the urban arterial/collector links the adjustment is
+  scoped to. Freeway and Rural rows are untouched, confirmed.
+- **Still open**: the Downtown/Urban/Suburban *sub-split itself* (as
+  opposed to the population-size adjustment, which doesn't need it).
+  Population size cannot distinguish a CBD link from a suburban-fringe
+  link in the same metro -- that needs real land-use/CBD-distance data
+  this project doesn't have; T08b's "Urban" row stays a documented
+  approximation covering all three. T24/CP25 is not wired to consume T39
+  yet (T24 remains out of scope for this pass, per the first 2026-10-02
+  entry below) but the crosswalk is ready for it.
+
+---
+
+## Resolved, 2026-10-02 (1)
 
 Implemented against your direct decisions. Real-data numbers below are from
 re-running `convert_faf5_links()` against the actual raw FAF5 geodatabase

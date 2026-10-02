@@ -30,6 +30,7 @@ dependencies = [
     "shapely",
     "snkit",
     "tqdm",
+    "xlrd",
 ]
 
 [project.optional-dependencies]

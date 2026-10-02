@@ -71,3 +71,56 @@ def test_missing_hpms_fclass_column_raises():
     links = pd.DataFrame({"e_id": ["x"], "urban": [0], "lanes": [2]})
     with pytest.raises(KeyError, match="hpms_fclass"):
         derive_t08b_join_keys(links)
+
+
+# Real T39 (Census 2010 Urban Area population) rows, confirmed via
+# tests/test_census_urban_area.py and manual lookup against the live
+# parameters/tables/T39_census_urban_area_population_2010.csv:
+#   00199 Aberdeen--Bel Air South--Bel Air North, MD -- population 213,751
+#     (> 200k "Urbanized Area" but <= NCHRP 825's own 250k small-metro cutoff)
+#   00766 Akron, OH -- population 569,499 (> 250k)
+_SMALL_METRO_UACE = "00199"
+_LARGE_METRO_UACE = "00766"
+
+
+def _toy_links_with_urban_code() -> pd.DataFrame:
+    return pd.DataFrame(
+        {
+            "e_id": ["small_metro_arterial", "large_metro_arterial", "small_metro_freeway"],
+            "hpms_fclass": pd.array([4, 4, 1], dtype="Int64"),
+            "urban": [1, 1, 1],
+            "lanes": [2, 2, 4],
+            "urban_code": [_SMALL_METRO_UACE, _LARGE_METRO_UACE, _SMALL_METRO_UACE],
+        }
+    )
+
+
+def test_small_metro_adjustment_cuts_capacity_8_percent_for_arterial():
+    profile, _ = compute_t08b_link_profile(_toy_links_with_urban_code())
+    by_id = profile.set_index("e_id")
+    # arterial, Urban, NA, real (unadjusted) row -> 35 mph, 860 pc/h/ln
+    unadjusted_capacity = 860.0
+    small = by_id.loc["small_metro_arterial"]
+    large = by_id.loc["large_metro_arterial"]
+    assert small["flow_cap_plph"] == pytest.approx(unadjusted_capacity * 0.92)
+    assert large["flow_cap_plph"] == pytest.approx(unadjusted_capacity)  # >250k: untouched
+    # breakpoint/slope re-derived from the adjusted capacity using T08b's
+    # own documented formulas, not independently guessed.
+    assert small["flow_breakpoint_plph"] == pytest.approx(0.85 * small["flow_cap_plph"])
+    assert small["congestion_factor"] == pytest.approx(
+        small["free_flow_speed_t08b"] / (1.15 * small["flow_cap_plph"])
+    )
+
+
+def test_small_metro_adjustment_does_not_touch_freeway():
+    profile, _ = compute_t08b_link_profile(_toy_links_with_urban_code())
+    by_id = profile.set_index("e_id")
+    # freeway, Urban, NA -> 60 mph, 2300 pc/h/ln, untouched even in a small metro
+    assert by_id.loc["small_metro_freeway", "flow_cap_plph"] == pytest.approx(2300.0)
+
+
+def test_small_metro_adjustment_skipped_without_urban_code_column():
+    # No urban_code at all on this network -- adjustment must not fabricate
+    # a population it doesn't have; capacity stays at T08b's raw value.
+    profile, _ = compute_t08b_link_profile(_toy_links())
+    assert profile.set_index("e_id").loc["freeway_urban", "flow_cap_plph"] == pytest.approx(2300.0)

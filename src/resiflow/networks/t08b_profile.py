@@ -91,6 +91,58 @@ def derive_t08b_join_keys(road_links: pd.DataFrame) -> pd.DataFrame:
     )
 
 
+# NCHRP 825 Exhibit 128's own stated adjustment (T08b's header): Downtown/
+# Urban/Suburban arterial and collector values -- i.e. every row this
+# module's collapsed "Urban" area_type can represent -- get reduced 8% in
+# metro areas at or under 250,000 population; freeway, Rural, and
+# local_access rows are explicitly unaffected.
+_SMALL_METRO_ADJUSTABLE_TIERS = frozenset({"arterial", "collector"})
+_SMALL_METRO_CAPACITY_SCALE = 0.92
+
+
+def _apply_small_metro_adjustment(
+    merged: pd.DataFrame, keys: pd.DataFrame, road_links: pd.DataFrame, *, params_root=None
+) -> pd.DataFrame:
+    """Re-derive flow_cap_plph/flow_breakpoint_plph/congestion_factor for
+    small-metro Downtown/Urban/Suburban arterial/collector rows, using
+    T08b's own documented formulas (Q_bp = 0.85 x capacity; congestion_
+    slope = free_flow_speed / (1.15 x capacity)) so the three stay
+    internally consistent after the capacity cut, not just independently
+    guessed at. Skipped (not fabricated) when ``urban_code`` isn't on the
+    network at all -- real population can't be determined without it.
+    """
+    if "urban_code" not in road_links.columns:
+        return merged
+
+    from resiflow.census_urban_area import urban_area_profile
+
+    # Positional alignment throughout (merge() resets the index) -- see
+    # this function's own comment at the call site for why.
+    profile = urban_area_profile(road_links["urban_code"]).reset_index(drop=True)
+    small_metro = (profile["nchrp825_population_gt_250k"] == False).to_numpy()  # noqa: E712
+    applies = (
+        keys["facility_type"].isin(_SMALL_METRO_ADJUSTABLE_TIERS).to_numpy()
+        & (keys["area_type"] == "Urban").to_numpy()
+        & small_metro
+    )
+
+    out = merged.copy()
+    # T08b's own capacity/breakpoint columns are int64 (whole pc/h/ln
+    # counts) until now -- the 8% cut produces fractional values, so these
+    # three columns become float from here on (explicit astype, not an
+    # implicit/fragile upcast-on-assignment).
+    out["hcm_capacity_pc_per_lane_hr"] = out["hcm_capacity_pc_per_lane_hr"].astype(float)
+    out["flow_breakpoint_Qbp_pc_per_lane_hr"] = out["flow_breakpoint_Qbp_pc_per_lane_hr"].astype(float)
+    out["congestion_slope_mph_per_pcu"] = out["congestion_slope_mph_per_pcu"].astype(float)
+    capacity = pd.to_numeric(out["hcm_capacity_pc_per_lane_hr"], errors="coerce")
+    free_flow = pd.to_numeric(out["free_flow_speed_mph"], errors="coerce")
+    adjusted_capacity = capacity * _SMALL_METRO_CAPACITY_SCALE
+    out.loc[applies, "hcm_capacity_pc_per_lane_hr"] = adjusted_capacity[applies]
+    out.loc[applies, "flow_breakpoint_Qbp_pc_per_lane_hr"] = (0.85 * adjusted_capacity)[applies]
+    out.loc[applies, "congestion_slope_mph_per_pcu"] = (free_flow / (1.15 * adjusted_capacity))[applies]
+    return out
+
+
 def compute_t08b_link_profile(
     road_links: pd.DataFrame,
     *,
@@ -103,7 +155,11 @@ def compute_t08b_link_profile(
     Links whose derived key doesn't match any T08b row (e.g. missing/null
     hpms_fclass) get NaN in all four output columns -- callers must keep
     their existing tier-dict fallback for those, never invent a value.
-    Returns ``(profile_df, n_matched)``.
+    When ``road_links`` carries ``urban_code`` (resiflow.preprocess.
+    faf5_network's raw FAF5 Urban_Code passthrough), also applies NCHRP
+    825's own unapplied 8% small-metro-population adjustment (see
+    _apply_small_metro_adjustment) before returning. Returns
+    ``(profile_df, n_matched)``.
     """
     from resiflow.tables import load_table
 
@@ -113,11 +169,10 @@ def compute_t08b_link_profile(
     table["area_type"] = table["area_type"].fillna("NA").astype(str)
 
     keys = derive_t08b_join_keys(road_links)
-    merged = keys.merge(
-        table[["facility_type", "area_type", "lane_category", *_T08B_COLUMN_MAP]],
-        on=["facility_type", "area_type", "lane_category"],
-        how="left",
-    )
+    join_cols = ["facility_type", "area_type", "lane_category"]
+    source_cols = list(_T08B_COLUMN_MAP)
+    merged = keys.merge(table[[*join_cols, *source_cols]], on=join_cols, how="left")
+    merged = _apply_small_metro_adjustment(merged, keys, road_links, params_root=params_root)
     merged = merged.rename(columns=_T08B_COLUMN_MAP)
     n_matched = int(merged["flow_cap_plph"].notna().sum())
     return merged[["e_id", *_T08B_COLUMN_MAP.values()]], n_matched
