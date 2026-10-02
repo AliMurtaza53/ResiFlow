@@ -166,6 +166,55 @@ def test_apply_tunnel_index_sets_fraction():
     assert pd.isna(out.loc[out["e_id"] == "b", "tunnel_length_m"].iloc[0])
 
 
+def test_apply_tunnel_index_excludes_zero_length():
+    links = gpd.GeoDataFrame(
+        {
+            "e_id": ["a"],
+            "length": [1000.0],
+            "road_bridge": ["no"],
+        },
+        geometry=[LineString([(0, 0), (1000, 0)])],
+        crs="EPSG:9311",
+    )
+    idx = pd.DataFrame({"e_id": ["a"], "tunnel_length_m": [0.0]})
+    out = faf5_network.apply_tunnel_index(links, idx)
+    assert out.iloc[0]["road_tunnel"] == "no"
+    assert pd.isna(out.iloc[0]["tunnel_length_m"])
+
+
+def test_apply_bridge_index_sets_fraction_and_excludes_bad_geometry():
+    links = gpd.GeoDataFrame(
+        {
+            "e_id": ["1", "2", "3"],
+            "length": [1000.0, 2000.0, 500.0],
+            "averageWidth": [7.0, 7.0, 7.0],
+            "road_tunnel": ["no", "no", "no"],
+        },
+        geometry=[
+            LineString([(0, 0), (1000, 0)]),
+            LineString([(0, 0), (2000, 0)]),
+            LineString([(0, 100), (500, 100)]),
+        ],
+        crs="EPSG:9311",
+    )
+    idx = pd.DataFrame(
+        {
+            "e_id": ["1", "2", "3"],
+            "deck_width_m": [12.5, 0.0, 10.0],  # 2: zero deck → exclude
+            "structure_length_m": [40.0, 50.0, float("nan")],  # 3: null length → exclude
+        }
+    )
+    out = faf5_network.apply_bridge_index(links, idx)
+    row1 = out.loc[out["e_id"] == "1"].iloc[0]
+    assert row1["road_bridge"] == "yes"
+    assert row1["structure_length_m"] == pytest.approx(40.0)
+    assert row1["bridge_fraction"] == pytest.approx(0.04)
+    assert row1["averageWidth"] == pytest.approx(12.5)
+    assert out.loc[out["e_id"] == "2", "road_bridge"].iloc[0] == "no"
+    assert out.loc[out["e_id"] == "3", "road_bridge"].iloc[0] == "no"
+    assert pd.isna(out.loc[out["e_id"] == "2", "bridge_fraction"].iloc[0])
+
+
 def test_no_bridge_index_configured_defaults_to_no(capsys):
     result = faf5_network.convert_faf5_links(_toy_faf5_links(), filter_centroids=False)
     assert (result["road_bridge"] == "no").all()
@@ -198,6 +247,8 @@ def test_bridge_index_flags_matched_links_and_overrides_width(tmp_path, monkeypa
     assert bridge_row["road_bridge"] == "yes"
     assert bridge_row["averageWidth"] == pytest.approx(12.5)
     assert bridge_row["structure_length_m"] == pytest.approx(40.0)
+    # toy FAF LENGTH=1 mile ≈ 1609.34 m → fraction 40/1609.34
+    assert bridge_row["bridge_fraction"] == pytest.approx(40.0 / 1609.34, rel=1e-3)
 
     non_bridge = result.loc[result["e_id"] != "1"]
     assert (non_bridge["road_bridge"] == "no").all()

@@ -107,51 +107,60 @@ def attach_faf5_class(links: pd.DataFrame, raw_id_class: pd.DataFrame) -> pd.Dat
 
 
 def apply_bridge_index(links: gpd.GeoDataFrame, bridge_index: pd.DataFrame) -> gpd.GeoDataFrame:
-    """Set road_bridge/averageWidth from a precomputed NBI bridge index.
+    """Attach NBI existence + asset geometry onto FAF links.
 
-    Single source of truth for the bridge-wiring logic, called both from
-    convert_faf5_links() (a fresh conversion from the raw FAF5 geodatabase)
-    and from scripts/patch_faf5_bridge_attributes.py (patching the two
-    affected columns onto an already-converted faf5_road_links.gpq, used
-    when the raw source geodatabase isn't available for reconversion) --
-    kept as one function so the two paths can never silently diverge.
+    Sets ``road_bridge``, NBI ``averageWidth`` (deck), ``structure_length_m``,
+    and ``bridge_fraction = min(1, structure_length_m / link.length)``.
+
+    FAF join is locational only (nearest structure within tolerance): a yes
+    flag means a bridge is near the link, not that the full FAF edge is a
+    bridge span. Costing must use ``structure_length_m`` / deck width, not
+    full link length.
+
+    Matches with missing or non-positive ``structure_length_m`` or
+    ``deck_width_m`` (NBI 0 = not recorded) are excluded — not flagged as
+    bridges and not given fraction/length attrs.
     """
+    for col in ("e_id", "deck_width_m", "structure_length_m"):
+        if col not in bridge_index.columns:
+            raise KeyError(
+                f"bridge_index missing required column {col!r} "
+                "(rebuild with scripts/build_nbi_bridge_index.py)"
+            )
+    if "length" not in links.columns:
+        raise KeyError("links missing required column 'length' (meters)")
+
     links = links.copy()
     bridge_index = bridge_index.copy()
     bridge_index["e_id"] = bridge_index["e_id"].astype(str)
     links["e_id"] = links["e_id"].astype(str)
 
-    matched_ids = set(bridge_index["e_id"])
-    is_bridge = links["e_id"].isin(matched_ids)
+    by_id = bridge_index.set_index("e_id")
+    struct = pd.to_numeric(links["e_id"].map(by_id["structure_length_m"]), errors="coerce")
+    deck = pd.to_numeric(links["e_id"].map(by_id["deck_width_m"]), errors="coerce")
+    # NBI 0 = not recorded (same convention as download_nbi_bridges._clean_deck_width)
+    struct = struct.mask(struct <= 0)
+    deck = deck.mask(deck <= 0)
+
+    matched = links["e_id"].isin(set(bridge_index["e_id"]))
+    valid = matched & struct.notna() & deck.notna()
+    n_excluded = int((matched & ~valid).sum())
+
     if "road_bridge" not in links.columns:
         links["road_bridge"] = "no"
-    links.loc[is_bridge, "road_bridge"] = "yes"
+    links["road_bridge"] = "no"
+    links.loc[valid, "road_bridge"] = "yes"
 
-    # NBI's surveyed deck width is a real measurement; prefer it over the
-    # lanes x lane-width estimate for links it actually covers (that
-    # estimate omits shoulders and understates bridge deck area --
-    # parameter_diff_final.xlsx item 34).
-    deck_width_by_e_id = bridge_index.set_index("e_id")["deck_width_m"]
-    overridden_width = links["e_id"].map(deck_width_by_e_id)
+    links["structure_length_m"] = struct.where(valid)
+    link_len = pd.to_numeric(links["length"], errors="coerce")
+    frac = (struct / link_len).where(link_len > 0)
+    links["bridge_fraction"] = frac.clip(upper=1.0).where(valid)
+
     if "averageWidth" in links.columns:
-        links["averageWidth"] = overridden_width.fillna(links["averageWidth"])
+        links.loc[valid, "averageWidth"] = deck.loc[valid]
     else:
-        links["averageWidth"] = overridden_width
+        links["averageWidth"] = deck.where(valid)
 
-    # NBI structure length (asset attribute) — used for bridge deck-area costing
-    # instead of the (often much longer) FAF link length.
-    if "structure_length_m" in bridge_index.columns:
-        links["structure_length_m"] = links["e_id"].map(
-            bridge_index.set_index("e_id")["structure_length_m"]
-        )
-
-    # HAZUS bridge-classification fields (added 2026-08-20; see
-    # scripts/build_nbi_bridge_index.py's "dominant structure" comment for
-    # how these are chosen when multiple structures map to one e_id).
-    # NaN/absent for non-bridge links and for bridges the index doesn't
-    # carry these columns for (e.g. an older index built before this field
-    # set existed) -- src/resiflow/hazards/hazus_bridge.py must handle
-    # missing values, not assume every road_bridge=='yes' link has them.
     hazus_cols = [
         "year_built",
         "main_unit_spans",
@@ -160,13 +169,18 @@ def apply_bridge_index(links: gpd.GeoDataFrame, bridge_index: pd.DataFrame) -> g
         "structure_kind_code",
         "structure_type_code",
     ]
-    bridge_index_by_e_id = bridge_index.set_index("e_id")
     for col in hazus_cols:
-        if col in bridge_index_by_e_id.columns:
-            links[col] = links["e_id"].map(bridge_index_by_e_id[col])
-    if "state" in bridge_index_by_e_id.columns:
-        links["bridge_state"] = links["e_id"].map(bridge_index_by_e_id["state"])
+        if col in by_id.columns:
+            mapped = links["e_id"].map(by_id[col])
+            links[col] = mapped.where(valid)
+    if "state" in by_id.columns:
+        links["bridge_state"] = links["e_id"].map(by_id["state"]).where(valid)
 
+    if n_excluded:
+        print(
+            f"  WARNING bridge index: excluded {n_excluded} matched e_id(s) with "
+            "null/non-positive structure_length_m or deck_width_m"
+        )
     return links
 
 
@@ -190,9 +204,13 @@ def apply_tunnel_index(links: gpd.GeoDataFrame, tunnel_index: pd.DataFrame) -> g
     """Attach NTI existence + asset length onto FAF links.
 
     Sets ``road_tunnel``, ``tunnel_length_m`` (from NTI), and
-    ``tunnel_fraction = min(1, tunnel_length_m / link.length)`` for costing.
-    FAF join only asserts presence on the network; NTI length is the asset
-    measure used in damage formulas.
+    ``tunnel_fraction = min(1, tunnel_length_m / link.length)``.
+
+    FAF join is locational only (portal nearest-link): a yes flag means a
+    tunnel is associated with the link, not that the full FAF edge is tunnel.
+    Costing must use ``tunnel_length_m``, not full link length.
+
+    Matches with missing or non-positive ``tunnel_length_m`` are excluded.
     """
     if "e_id" not in tunnel_index.columns:
         raise KeyError("tunnel_index missing required column 'e_id'")
@@ -207,16 +225,26 @@ def apply_tunnel_index(links: gpd.GeoDataFrame, tunnel_index: pd.DataFrame) -> g
     links = apply_tunnel_flags(links, tunnel_index["e_id"])
     by_id = tunnel_index.copy()
     by_id["e_id"] = by_id["e_id"].astype(str)
-    length_by = by_id.set_index("e_id")["tunnel_length_m"]
-    links["tunnel_length_m"] = links["e_id"].astype(str).map(length_by)
-    link_len = pd.to_numeric(links["length"], errors="coerce")
-    tun_len = pd.to_numeric(links["tunnel_length_m"], errors="coerce")
-    frac = (tun_len / link_len).where(link_len > 0)
-    links["tunnel_fraction"] = frac.clip(upper=1.0)
-    # Non-tunnel links: explicit nulls, not invented zeros
+    tun_len = pd.to_numeric(
+        links["e_id"].astype(str).map(by_id.set_index("e_id")["tunnel_length_m"]),
+        errors="coerce",
+    )
+    tun_len = tun_len.mask(tun_len <= 0)
     is_tun = links["road_tunnel"].astype(str).str.lower().eq("yes")
-    links.loc[~is_tun, "tunnel_length_m"] = pd.NA
-    links.loc[~is_tun, "tunnel_fraction"] = pd.NA
+    valid = is_tun & tun_len.notna()
+    n_excluded = int((is_tun & ~valid).sum())
+    links.loc[~valid, "road_tunnel"] = "no"
+
+    links["tunnel_length_m"] = tun_len.where(valid)
+    link_len = pd.to_numeric(links["length"], errors="coerce")
+    frac = (tun_len / link_len).where(link_len > 0)
+    links["tunnel_fraction"] = frac.clip(upper=1.0).where(valid)
+
+    if n_excluded:
+        print(
+            f"  WARNING tunnel index: excluded {n_excluded} matched e_id(s) with "
+            "null/non-positive tunnel_length_m"
+        )
     return links
 
 

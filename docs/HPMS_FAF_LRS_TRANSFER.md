@@ -85,7 +85,20 @@ Local dry-run artifacts (not production swap):
 `Desktop/data/faf5_data/network_data/enrichment/`
 (`faf5_road_links_bridge_tunnel_patched.gpq`, indices, `structure_coverage_compare.json`).
 
-On bridge∩tunnel conflicts, patch requires explicit `--on-conflict prefer_tunnel|prefer_bridge` (default: error). Dry-run used `prefer_tunnel` and wrote `bridge_tunnel_conflicts.csv`.
+On bridge∩tunnel conflicts, patch defaults to `--on-conflict prefer_tunnel`
+(same as `derive_road_label` / `convert_faf5_links`). Pass `error` or
+`prefer_bridge` explicitly when reviewing. Dry-run wrote
+`bridge_tunnel_conflicts.csv`.
+
+**Locational flags (not facility span):** `road_bridge` / `road_tunnel` /
+`road_label` mean an NBI/NTI feature is associated with the FAF edge
+(nearest within tolerance), not that the whole edge is a bridge or tunnel.
+Use `structure_length_m` / `tunnel_length_m` and `bridge_fraction` /
+`tunnel_fraction` for asset geometry. Matches with null or non-positive
+inventory length or deck width are excluded. Coverage metrics:
+`scripts/publish_bridge_tunnel_coverage_metrics.py`. See
+`docs/BRIDGE_TUNNEL_JOIN_REVIEW.md`. Splitting long FAF edges into true
+bridge/road sub-segments is deferred.
 
 ## Related context (not this branch)
 

@@ -586,7 +586,7 @@ def format_intersections(
 
     # Asset geometry from inventory (NBI/NTI); required for bridge/tunnel costing.
     asset_cols = []
-    for col in ("structure_length_m", "tunnel_length_m", "tunnel_fraction"):
+    for col in ("structure_length_m", "tunnel_length_m", "tunnel_fraction", "bridge_fraction"):
         if col in rl.columns:
             asset_cols.append(col)
 
