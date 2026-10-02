@@ -168,6 +168,46 @@ companion table if this file is meant to be the durable reference.
 
 ---
 
+## 9. Match-quality QA (facility class / name / competitor)
+
+Script: `scripts/diagnose_nbi_faf_bridge_matches.py` (outputs under
+`enrichment/bridge_match_qa/`). Re-runs nearest-within-100 m at **structure**
+level and scores:
+
+1. NBI Item 26 functional class → coarse tier vs FAF `faf5_class` /
+   `road_classification`
+2. `FACILITY_CARRIED` token / route-number overlap with FAF `Road_Name`
+3. Ramp flag vs `motorway_link`
+4. Among suspects (tier jump ≥2, ramp disagree, or named miss): whether
+   another FAF link within 100 m scores better (class/name/ramp); bearing
+   delta between primary and alt link as an overpass proxy (≥60°)
+
+**Key results on the local enrichment NBI + FAF (2026-10-02):**
+
+| Metric | Value |
+|--------|------:|
+| Matched structures (≤100 m) | 238,038 of 623,790 |
+| Median match distance | 3.0 m |
+| Same coarse tier | **47.6%** |
+| Tier jump ≥3 | **12.4%** (29,568) |
+| NBI collector/local → FAF interstate/freeway/ramp | **8.1%** (19,224) |
+| Ramp flag agrees with motorway_link | **95.0%** (11,887 disagree) |
+| Both sides named; name/route hit rate | 91% named; **59.5%** hit |
+| Suspects with a better competitor in 100 m | **40.6%** of those checked (5,252 / 12,944) |
+| Better alt ∩ crossing-like (≥60° bearing Δ) | **2,616** (20.2% of checked suspects) |
+
+Largest class-mismatch cells (underclass attaching to FAF major links):
+collector→principal_arterial 21,847; local→principal_arterial 10,163;
+collector→interstate 6,946; local→interstate 6,165; collector/local→freeway
+~4,700 combined. Soft caveat: FAF class 14 merges arterial + major collector.
+
+Interpretation: proximity is tight, but facility agreement is weak — the
+overpass / non-FAF-facility failure mode is real and common. Name matching
+helps when `Road_Name` is populated; competitor search often finds a better
+FAF link for ~2/5 of checked suspects, and about half of those better alts
+are geometrically crossing-like (bearing Δ ≥ 60°). Geometry split /
+class-gated matching remains deferred.
+
 ## Suggested order
 
 1. ~~Add `bridge_fraction`~~ **Done** in `apply_bridge_index` (mirrors
@@ -181,5 +221,7 @@ companion table if this file is meant to be the durable reference.
    non-positive `structure_length_m` / `deck_width_m` / `tunnel_length_m`
    → exclude match (not flagged). Publish metrics via
    `scripts/publish_bridge_tunnel_coverage_metrics.py`.
-5. Deferred: split long FAF edges into bridge/road sub-segments so
+5. ~~Match-quality QA (class / name / competitor)~~ **Done** — see §9;
+   gating the join on these signals is still open.
+6. Deferred: split long FAF edges into bridge/road sub-segments so
    `road_label` is geometry-true rather than locational.
