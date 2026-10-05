@@ -207,6 +207,18 @@ def apply_tunnel_index(links: gpd.GeoDataFrame, tunnel_index: pd.DataFrame) -> g
     Sets ``road_tunnel``, ``tunnel_length_m`` (from NTI), and
     ``tunnel_fraction = min(1, tunnel_length_m / link.length)``.
 
+    Also carries through, where present on ``tunnel_index`` (see
+    scripts/build_nti_tunnel_index.py), the real bore-level geometry needed
+    for Rostami et al. tunnel costing (resiflow.hazards.tunnel_cost):
+    ``tunnel_bores`` (bore count, from matched-NTI-record count),
+    ``tunnel_length_m_min`` (shortest matched bore, for an unequal-bore-
+    length flag), ``tunnel_lanes_total`` (summed across bores), and
+    ``tunnel_roadway_width_m`` (mean curb-to-curb width across bores,
+    already in real meters -- see load_ntad_tunnel_gpkg.py's feet->meter
+    fix). All optional: absent on an index built before these columns
+    existed, in which case the Rostami module falls back to its own
+    lane-count-based geometry estimate.
+
     FAF join is locational only (portal nearest-link): a yes flag means a
     tunnel is associated with the link, not that the full FAF edge is tunnel.
     Costing must use ``tunnel_length_m``, not full link length.
@@ -240,6 +252,18 @@ def apply_tunnel_index(links: gpd.GeoDataFrame, tunnel_index: pd.DataFrame) -> g
     link_len = pd.to_numeric(links["length"], errors="coerce")
     frac = (tun_len / link_len).where(link_len > 0)
     links["tunnel_fraction"] = frac.clip(upper=1.0).where(valid)
+
+    by_id_indexed = by_id.set_index("e_id")
+    for src_col, dst_col in (
+        ("n_tunnels", "tunnel_bores"),
+        ("tunnel_length_m_min", "tunnel_length_m_min"),
+        ("lanes_total", "tunnel_lanes_total"),
+        ("roadway_width_m", "tunnel_roadway_width_m"),
+    ):
+        if src_col in by_id_indexed.columns:
+            links[dst_col] = pd.to_numeric(
+                links["e_id"].astype(str).map(by_id_indexed[src_col]), errors="coerce"
+            ).where(valid)
 
     if n_excluded:
         print(

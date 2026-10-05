@@ -9,6 +9,90 @@ Legend: **FIX** = clear defect, **CONFIRM** = needs your decision or a source ch
 
 ---
 
+## Resolved, 2026-10-05: Real sourced costs for roads (T24 CP25), bridges (T30), tunnels (Rostami et al.)
+
+Per your explicit decisions: T22 stays on `damage_ratio_road_flood.xlsx`
+(Van Ginkel-based, unchanged); roads now cost via T24 CP25; bridges via
+T30; tunnels via the Rostami et al. (2013) method you specified in
+`docs/BRDIGE_COSTS.md`. All wired behind a new
+`vulnerability.use_sourced_asset_costs` flag (default **False** -- same
+SA-seam convention as every other real-table swap this project has made;
+the legacy `damage_cost_road_flood.xlsx`-based path is unchanged and stays
+the default until you flip it) in `scripts/3_damage_analysis.py`'s new
+`calculate_damage_sourced()`.
+
+- **T22**: confirmed the real xlsx (and the T22 CSV alternative) both
+  produce bare `C1`..`C6` columns -- `create_damage_curves()`'s old
+  `Interstate`/`US Route`/`State Route`/`Local` name-translation path never
+  actually matched either real source (it silently fell through to a
+  positional fallback that happened to work by coincidence); simplified to
+  require `C1`-`C6` directly, and fixed the CI/toy fixtures
+  (`tests/toy_pipeline_fixtures.py`, `tests/sioux_falls_fixtures.py`) that
+  *were* relying on the old named columns to use real `C1`-`C6` instead.
+- **T24 CP25 (roads)**: new `resiflow.networks.cp25_road_cost` joins on
+  `region` (your own `urban` flag) x `functional_class` (real HPMS names,
+  matches `hpms_fclass` 1-7 exactly) x `subcategory_or_terrain`. Urban side
+  joins T39/`resiflow.census_urban_area` for real population tier --
+  **99.95% real match rate** (360,512/360,684 road links nationally).
+  Rural side has no reliable per-link terrain source yet (HPMS LRS
+  `Terrain_Type` matches only ~22% of national miles and isn't merged into
+  production `road_links`) -- every rural link uses a flagged `Rolling`
+  default until real terrain is wired; **CONFIRM** whether that's
+  acceptable or whether wiring the 22%-coverage real terrain now is worth
+  it. `improvement_type` is fixed to `Total Reconstruct Existing Lane`
+  (analyst default -- T24 has no "flood repair" row; this is the "repair in
+  kind, no added capacity" choice) -- **CONFIRM**.
+- **T30 (bridges)**: new `resiflow.hazards.bridge_cost_t30` joins state
+  (NBI's own per-bridge FIPS code, falling back to FAF5's `STATE`) x
+  NHS/non-NHS -- **100% real match rate** (122,514/122,514 bridges
+  nationally). The $/ft2 replacement cost is scaled by the discrete HAZUS
+  6.1 Table 11-10 damage-state ratio, the *same* ratio this pipeline
+  already uses for earthquake bridges, instead of a second
+  independently-invented bridge damage scheme. **CONFIRM**: T30's own
+  source citation for `cost_used_for_2024_estimate_usd_per_ft2` isn't
+  documented (methodology resembles the standard state-DOT/ARTBA
+  poor-bridge-cost approach, including the industry-standard 68%-rehab
+  convention, but this wasn't independently verified against a named
+  source) -- flagged in the table's own header.
+- **Tunnels (Rostami et al.)**: new `resiflow.hazards.tunnel_cost`
+  implements `docs/BRDIGE_COSTS.md`'s spec exactly, reproducing its own
+  worked example ($78.67M for 1km/2-lane/1-bore default geometry) to the
+  dollar. Direct damage reuses the same discrete HAZUS tunnel ratio used
+  for bridges, per the spec's own step 5. Resolves for **all 401 real
+  highway tunnels** nationally, 0 errors; total implied construction value
+  **$16.3 billion (2008 USD)** across the inventory.
+  - **Real bug found and fixed while wiring this**: NTI's `tunnel_length_g1`
+    and `roadway_width_curb_to_curb_g3` fields are in **feet**, not meters
+    -- confirmed empirically against 5 real named tunnels (Eisenhower,
+    Holland, Lincoln, Hampton Roads, Fort McHenry) whose raw values matched
+    their real published lengths *in feet* exactly, while
+    `scripts/load_ntad_tunnel_gpkg.py` was loading them unconverted under a
+    `_m` column name. Fixed with the `0.3048` conversion `docs/BRDIGE_COSTS.md`
+    itself calls for. National mean `tunnel_length_m` dropped from an
+    implausible 1,675m to a plausible 453m after the fix (max dropped from
+    17,112m -- longer than any real US highway tunnel -- to 4,054m, matching
+    the longest real tunnels in the inventory).
+  - **Second bug found and fixed**: `scripts/build_nti_tunnel_index.py` was
+    summing tunnel length across all NTI records matched to one FAF5 link
+    (double-counting a multi-bore tunnel as if its bores were end-to-end);
+    per the spec's own step 2 ("grouped NTI records use longest-bore
+    length"), switched to `max()`, and added the bore count/lane-count/
+    width fields the Rostami model needs (`tunnel_bores`,
+    `tunnel_lanes_total`, `tunnel_roadway_width_m`, `tunnel_length_m_min`
+    for an unequal-bore-length flag) -- none of these were being carried
+    through to `road_links` before.
+
+**Still open / needs your input:**
+1. Rural terrain default (`Rolling`, flagged) vs. wiring the real
+   22%-coverage HPMS terrain now.
+2. T24's `Total Reconstruct Existing Lane` improvement-type choice for
+   flood repair costing.
+3. T30's unconfirmed source citation.
+4. The new pathway is off by default (`use_sourced_asset_costs: false`) --
+   confirm you want it flipped on, or left as an available option for now.
+
+---
+
 ## Resolved, 2026-10-02 (2): Census urban-area population crosswalk
 
 Closes the recurring blocker from the first 2026-10-02 pass below: T08b's

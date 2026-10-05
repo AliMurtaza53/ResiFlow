@@ -50,6 +50,40 @@ def test_build_tunnel_index_flags_nearest_link(tmp_path):
     assert (index["road_tunnel"] == "yes").all()
 
 
+def test_build_tunnel_index_uses_longest_bore_not_sum(tmp_path):
+    """Two bores at the same portal must not have their lengths summed --
+    docs/BRDIGE_COSTS.md step 2: 'Grouped NTI records use longest-bore length.'
+    A naive sum() would double the real tunnel length for a 2-bore tunnel."""
+    links = gpd.GeoDataFrame(
+        {"e_id": ["a"]},
+        geometry=[LineString([(0, 0), (1000, 0)])],
+        crs="EPSG:9311",
+    )
+    links_path = tmp_path / "links.gpq"
+    links.to_parquet(links_path)
+
+    mid_a = gpd.GeoSeries([Point(500, 0)], crs="EPSG:9311").to_crs("EPSG:4326").iloc[0]
+    nti = pd.DataFrame(
+        {
+            "tunnel_number": ["BORE1", "BORE2"],
+            "latitude": [mid_a.y, mid_a.y],
+            "longitude": [mid_a.x, mid_a.x],
+            "tunnel_length_m": [900.0, 880.0],
+            "roadway_width_m": [9.0, 9.0],
+            "lanes": [2, 2],
+        }
+    )
+    nti_path = tmp_path / "nti.parquet"
+    nti.to_parquet(nti_path)
+
+    index, _ = build_tunnel_index(nti_path, links_path, max_distance_m=100.0)
+    row = index.iloc[0]
+    assert row["n_tunnels"] == 2
+    assert row["tunnel_length_m"] == pytest.approx(900.0)
+    assert row["tunnel_length_m_min"] == pytest.approx(880.0)
+    assert row["lanes_total"] == 4
+
+
 def test_load_ntad_tunnels_from_gpkg(tmp_path):
     gdf = gpd.GeoDataFrame(
         {
@@ -76,3 +110,7 @@ def test_load_ntad_tunnels_from_gpkg(tmp_path):
     assert len(df) == 1
     assert df.iloc[0]["tunnel_number"] == "T9"
     assert df.iloc[0]["latitude"] == pytest.approx(38.9)
+    # NTI coding-guide G.1/G.3 are feet; must come back converted to real
+    # meters (0.3048 m/ft), not the raw feet value under a "_m" name.
+    assert df.iloc[0]["tunnel_length_m"] == pytest.approx(200.0 * 0.3048)
+    assert df.iloc[0]["roadway_width_m"] == pytest.approx(12.0 * 0.3048)

@@ -247,13 +247,23 @@ def write_recovery_table(toy_data_dir: Path) -> None:
 
 
 def write_damage_workbooks(toy_data_dir: Path) -> None:
+    # Bare C1..C6, matching the real production schema (van Ginkel/Li
+    # sophistication scheme -- see create_damage_curves()'s own docstring
+    # in scripts/3_damage_analysis.py) instead of made-up road-name columns
+    # that don't correspond to anything in the real damage_ratio_road_flood
+    # .xlsx or T22. C1/C2 (sophisticated), C3/C4 (simple), C5/C6 (ordinary)
+    # reuse the toy pipeline's previous Interstate/US Route/State
+    # Route/Local magnitudes 1:1 so existing numeric expectations elsewhere
+    # in the toy pipeline are unaffected.
     ratio = pd.DataFrame(
         {
             "intensity": [0.0, 0.25, 0.5, 1.0],
-            "Interstate": [0.0, 0.1, 0.3, 0.6],
-            "US Route": [0.0, 0.1, 0.25, 0.5],
-            "State Route": [0.0, 0.08, 0.2, 0.45],
-            "Local": [0.0, 0.05, 0.15, 0.35],
+            "C1": [0.0, 0.1, 0.3, 0.6],
+            "C2": [0.0, 0.1, 0.3, 0.6],
+            "C3": [0.0, 0.1, 0.25, 0.5],
+            "C4": [0.0, 0.1, 0.25, 0.5],
+            "C5": [0.0, 0.08, 0.2, 0.45],
+            "C6": [0.0, 0.05, 0.15, 0.35],
         }
     )
     roads = pd.DataFrame(

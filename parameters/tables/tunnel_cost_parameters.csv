@@ -1,0 +1,6 @@
+model_id,application,excavation,cost_form,intercept,length_coefficient,size_coefficient,length_unit,size_unit,output_unit,base_price_date,assumed_lane_width_m,assumed_extra_clear_width_m,assumed_lining_m_per_side,source_doi,source_table
+highway_conventional,highway,conventional,log10,1.51,1.02,0.374,km,excavated_span_m,million_USD,2008-12,3.6576,2.4384,0.5,10.1016/j.tust.2012.08.002,9
+subway_conventional,subway,conventional,log10,1.10,0.933,0.614,km,excavated_diameter_m,million_USD,2008-12,,,,10.1016/j.tust.2012.08.002,9
+subway_mixed,subway,mixed,log10,1.47,0.760,0.527,km,excavated_diameter_m,million_USD,2008-12,,,,10.1016/j.tust.2012.08.002,9
+subway_hard_rock_mechanized,subway,hard_rock_mechanized,linear,-97.2,11.7,28.3,km,excavated_diameter_m,million_USD,2008-12,,,,10.1016/j.tust.2012.08.002,9
+subway_soft_ground_mechanized,subway,soft_ground_mechanized,log10,1.23,1.05,0.636,km,excavated_diameter_m,million_USD,2008-12,,,,10.1016/j.tust.2012.08.002,9

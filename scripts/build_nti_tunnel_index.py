@@ -73,13 +73,29 @@ def build_tunnel_index(
 
     matched = matched.dropna(subset=["e_id"])
     agg_kwargs: dict = {
+        # n_tunnels doubles as the physical bore count: real NTI records are
+        # one row per bore (e.g. the Eisenhower/Johnson complex is 2 rows at
+        # the same portal location, each its own bore) -- see
+        # docs/BRDIGE_COSTS.md step 2.
         "n_tunnels": ("tunnel_number", "count"),
         "match_distance_m_max": ("match_distance_m", "max"),
     }
     if "tunnel_length_m" in matched.columns:
-        agg_kwargs["tunnel_length_m"] = ("tunnel_length_m", "sum")
+        # docs/BRDIGE_COSTS.md step 2: "Grouped NTI records use longest-bore
+        # length" -- max(), NOT sum(), or a 2-bore tunnel's length would be
+        # double-counted as if the bores were end-to-end rather than
+        # parallel. min() is also kept so a caller can flag unequal bore
+        # lengths (spec: "assume equal lengths and flag this" when per-bore
+        # lengths aren't separately knowable).
+        agg_kwargs["tunnel_length_m"] = ("tunnel_length_m", "max")
+        agg_kwargs["tunnel_length_m_min"] = ("tunnel_length_m", "min")
     if "roadway_width_m" in matched.columns:
         agg_kwargs["roadway_width_m"] = ("roadway_width_m", "mean")
+    if "lanes" in matched.columns:
+        # Total lanes across all matched bores at this link -- the spec's
+        # "divide total lanes by bore count" (step 2) needs the sum, not a
+        # per-record value.
+        agg_kwargs["lanes_total"] = ("lanes", "sum")
     index = matched.groupby("e_id").agg(**agg_kwargs).reset_index()
     index["road_tunnel"] = "yes"
     stats["distinct_links_flagged_as_tunnel"] = len(index)

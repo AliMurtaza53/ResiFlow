@@ -143,13 +143,18 @@ def _graded_depths(edge_ids: list[str]) -> dict[str, float]:
 
 def write_sioux_falls_damage_workbooks(toy_data_dir: Path) -> None:
     """Scaled damage curves so direct damage stays in plausible testbed ranges."""
+    # Bare C1..C6 (real production schema -- see
+    # scripts/3_damage_analysis.py's create_damage_curves() docstring),
+    # reusing the old Interstate/US Route/State Route/Local magnitudes 1:1.
     ratio = pd.DataFrame(
         {
             "intensity": [0.0, 0.25, 0.5, 1.0],
-            "Interstate": [0.0, 0.1, 0.3, 0.6],
-            "US Route": [0.0, 0.1, 0.25, 0.5],
-            "State Route": [0.0, 0.08, 0.2, 0.45],
-            "Local": [0.0, 0.05, 0.15, 0.35],
+            "C1": [0.0, 0.1, 0.3, 0.6],
+            "C2": [0.0, 0.1, 0.3, 0.6],
+            "C3": [0.0, 0.1, 0.25, 0.5],
+            "C4": [0.0, 0.1, 0.25, 0.5],
+            "C5": [0.0, 0.08, 0.2, 0.45],
+            "C6": [0.0, 0.05, 0.15, 0.35],
         }
     )
     # ``m_lt8_urb`` already exists; ``asingle_urb`` / ``bsingle_urb`` are the keys

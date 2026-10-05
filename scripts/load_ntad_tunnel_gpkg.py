@@ -36,6 +36,21 @@ def load_ntad_tunnels(
         lat = lat.fillna(cent.y)
         lon = lon.fillna(cent.x)
 
+    # NTI coding-guide items G.1 (tunnel length) and G.3 (roadway width,
+    # curb-to-curb) are recorded in FEET, not meters -- confirmed empirically
+    # (not assumed) against 5 real named tunnels in this exact file before
+    # the fix: Eisenhower/Johnson Tunnel (CO) raw G.1 ~8856/8959 matches the
+    # real published length in FEET (1.7 mi tunnel, two bores of slightly
+    # different length) while the real length in meters is ~2700; Holland
+    # Tunnel (NJ/NY) raw G.1 8556 matches its real 8,558 ft length exactly
+    # (real meters ~2600); Lincoln Tunnel center tube raw G.1 8216 matches
+    # its real 8,216 ft length exactly. Likewise raw G.3 20.0/28.8 ft for
+    # Holland/Eisenhower are plausible curb-to-curb widths for 2-lane bores;
+    # as meters they would be implausibly wide (66/94 ft). Converted to real
+    # meters here (0.3048 m/ft) so this column matches its name and the rest
+    # of the codebase's meter convention -- see docs/BRDIGE_COSTS.md step 2
+    # ("NTI length G.1 is feet; convert using 0.3048 / 1000").
+    _FT_TO_M = 0.3048
     df = pd.DataFrame(
         {
             "tunnel_number": gdf["tunnel_number_i1"].astype(str).str.strip(),
@@ -43,10 +58,11 @@ def load_ntad_tunnels(
             "state": gdf["state_code_i3"].astype(str).str.strip(),
             "latitude": lat,
             "longitude": lon,
-            "tunnel_length_m": pd.to_numeric(gdf.get("tunnel_length_g1"), errors="coerce"),
+            "tunnel_length_m": pd.to_numeric(gdf.get("tunnel_length_g1"), errors="coerce") * _FT_TO_M,
             "roadway_width_m": pd.to_numeric(
                 gdf.get("roadway_width_curb_to_curb_g3"), errors="coerce"
-            ),
+            )
+            * _FT_TO_M,
             "lanes": pd.to_numeric(gdf.get("total_number_of_lanes_a3"), errors="coerce"),
             "year_built": pd.to_numeric(gdf.get("year_built_a1"), errors="coerce"),
             "service_in_tunnel": pd.to_numeric(

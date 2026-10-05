@@ -55,64 +55,48 @@ def _load_damage_ratio_table(table_name: str) -> pd.DataFrame:
 
 
 def create_damage_curves(damage_ratio_df: pd.DataFrame) -> Dict:
-    """Create a dictionary of piecewise linear damage curves for various road
-    classifications and flow conditions based on damage ratio data.
+    """Create a dictionary of piecewise linear damage curves for the real
+    van Ginkel/Li et al. road categories, from a damage_ratio_road_flood.xlsx
+    -shaped frame (bare ``C1``..``C6`` columns, ``intensity`` in meters).
 
     Parameters
     ----------
     damage_ratio_df: pd.DataFrame
-        A sample of flood depths and their corresponding road flood damage ratios.
+        A sample of flood depths and their corresponding road flood damage
+        ratios, with columns ``intensity``, ``C1``, ``C2``, ``C3``, ``C4``,
+        ``C5``, ``C6`` -- both of this project's real sources already
+        produce exactly this shape: the xlsx itself, read directly, and
+        ``_load_damage_ratio_table()`` for the T22 CSV alternative (which
+        renames its own verbose column names down to bare C1..C6 for
+        exactly this reason).
 
     Returns
     -------
     Dict
-        A dictionary containing damage curves for different road and flow conditions.
+        ``{"C1": curve, ..., "C6": curve}``.
 
-    Notes:
-    C1: motorways & trunk roads, sophisiticated accessories, low flow
-    C2: motorways & trunk roads, sophisiticated accessories, high flow
-    C3: motorways & trunk roads, non sophisticated accessories, low flow
-    C4: motorways & trunk roads, non sophisticated accessories, high flow
-    C5: other roads, low flow
-    C6: other roads, high flow
+    Notes (van Ginkel/Li sophistication scheme -- see
+    resiflow.hpms_fclass.flood_road_class_sophistication, which selects
+    the active pair per link from real NHS + tunnel-presence data):
+    C1: sophisticated (NHS + tunnel), low flow
+    C2: sophisticated (NHS + tunnel), high flow
+    C3: simple (NHS, no tunnel), low flow
+    C4: simple (NHS, no tunnel), high flow
+    C5: ordinary (not on NHS), low flow
+    C6: ordinary (not on NHS), high flow
     """
+    keys = ("C1", "C2", "C3", "C4", "C5", "C6")
+    missing = [k for k in keys if k not in damage_ratio_df.columns]
+    if missing:
+        raise ValueError(
+            f"damage_ratio_df is missing required column(s) {missing}; expected "
+            f"bare {keys} (plus 'intensity') -- got {list(damage_ratio_df.columns)}"
+        )
 
-    # Build curves from every available damage column (all except intensity)
-    cols = [c for c in damage_ratio_df.columns if c != "intensity"]
-    curve_by_col = {}
-    for col in cols:
-        damage_ratios = damage_ratio_df[["intensity", col]].copy()
-        damage_ratios.rename(columns={col: "damage"}, inplace=True)
-        curve_by_col[col] = damages.PiecewiseLinearDamageCurve(damage_ratios)
-
-    damage_curve_dict = defaultdict()
-    keys = ["C1", "C2", "C3", "C4", "C5", "C6"]
-
-    # Preferred mapping for toy/US lookup tables
-    preferred_order = [
-        "Interstate",   # C1
-        "Interstate",   # C2
-        "US Route",     # C3
-        "US Route",     # C4
-        "State Route",  # C5
-        "Local",        # C6
-    ]
-
-    # Fallback sequence if preferred labels are not present
-    fallback_cols = list(curve_by_col.keys())
-    if not fallback_cols:
-        raise ValueError("No damage curve columns were found in damage_ratio_df")
-
-    for idx, key in enumerate(keys):
-        preferred_col = preferred_order[idx]
-        if preferred_col in curve_by_col:
-            damage_curve_dict[key] = curve_by_col[preferred_col]
-        elif idx < len(fallback_cols):
-            damage_curve_dict[key] = curve_by_col[fallback_cols[idx]]
-        else:
-            # Reuse the last available curve if fewer than 6 columns exist
-            damage_curve_dict[key] = curve_by_col[fallback_cols[-1]]
-
+    damage_curve_dict = {}
+    for key in keys:
+        damage_ratios = damage_ratio_df[["intensity", key]].rename(columns={key: "damage"})
+        damage_curve_dict[key] = damages.PiecewiseLinearDamageCurve(damage_ratios)
     return damage_curve_dict
 
 
@@ -486,6 +470,191 @@ def calculate_damage(
     return disrupted_links
 
 
+def calculate_damage_sourced(disrupted_links: pd.DataFrame, damage_curves: Dict) -> pd.DataFrame:
+    """Flood direct-damage using real sourced unit costs instead of the
+    ungitted damage_cost_road_flood.xlsx workbook.
+
+    Gated behind ``vulnerability.use_sourced_asset_costs`` (default False
+    -- the legacy ``calculate_damage()`` path above is unchanged and stays
+    the default, same SA-seam convention as every other real-table swap in
+    this project, e.g. ``assignment.use_table_t08b``).
+
+    - Roads: T24 CP25 reconstruction cost ($/lane-mile, real HPMS
+      functional-class/region/terrain-or-urban-tier join -- see
+      resiflow.networks.cp25_road_cost) x lane-miles x the SAME continuous
+      van Ginkel C1-C6 damage FRACTION already used by the legacy path
+      (damage_ratio_road_flood.xlsx is unchanged, per this project's own
+      instruction -- only the $ magnitude's source changed).
+    - Bridges: T30 replacement cost ($/ft2 by state x NHS/non-NHS -- see
+      resiflow.hazards.bridge_cost_t30) x deck area x a discrete HAZUS
+      damage-state ratio (Table 11-10), keyed by this link's own flood
+      damage_level. Bridges never used the continuous fraction curve
+      (that's a road-surface model); this mirrors the EXACT ratio table
+      the earthquake pathway already uses for the same bridges, so flood
+      and earthquake bridge costing are now internally consistent instead
+      of using two independently-invented schemes for the same asset.
+    - Tunnels: Rostami et al. (2013) construction value (see
+      resiflow.hazards.tunnel_cost) x the same discrete HAZUS tunnel ratio,
+      per docs/BRDIGE_COSTS.md step 5 ("reuse the existing damage model
+      only if it applies to tunnels").
+
+    Produces ``direct_damage_mean_usd``/``direct_damage_mean_musd`` (summed
+    across surface + river, matching damage_aggregation's own summing
+    convention for the legacy path) rather than the legacy path's full
+    C1..C6 matrix -- this is a new, independent output shape, not a
+    drop-in replacement for the legacy CSV columns.
+    """
+    required_columns = {"flood_depth_surface", "flood_depth_river"}
+    missing_columns = required_columns - set(disrupted_links.columns)
+    assert not missing_columns, f"Missing required columns: {missing_columns}"
+
+    from resiflow.hazards.bridge_cost_t30 import (
+        bridge_direct_damage_usd,
+        bridge_replacement_value_usd,
+        bridge_unit_cost_usd_per_sqft,
+    )
+    from resiflow.hazards.tunnel_cost import (
+        construction_value_usd,
+        derive_tunnel_geometry,
+        tunnel_direct_damage_usd,
+    )
+    from resiflow.networks.cp25_road_cost import cp25_road_cost_usd_per_lane_mile
+    from resiflow.tables import load_table
+    from resiflow.us_states import state_name_from_fips_or_usps
+
+    out = disrupted_links.reset_index(drop=True).copy()
+    flood_types = ["surface", "river"]
+    _METERS_PER_MILE = 1609.344
+
+    is_road = out["road_label"] == "road"
+    is_bridge = out["road_label"] == "bridge"
+    is_tunnel = out["road_label"] == "tunnel"
+
+    # --- Roads: vectorized T24 CP25 $/lane-mile join ---
+    road_cost_per_lane_mile = pd.Series(np.nan, index=out.index)
+    if is_road.any():
+        road_cost_per_lane_mile.loc[is_road] = cp25_road_cost_usd_per_lane_mile(
+            hpms_fclass=out.loc[is_road, "hpms_fclass"],
+            urban=out.loc[is_road, "urban"],
+            urban_size_tier=out.loc[is_road].get(
+                "hpms_urban_size_tier", pd.Series(index=out.loc[is_road].index)
+            ),
+        ).to_numpy()
+    lane_miles = (
+        pd.to_numeric(out["length"], errors="coerce") / _METERS_PER_MILE
+    ) * pd.to_numeric(out["lanes"], errors="coerce")
+
+    # --- Bridges: vectorized T30 $/ft2 join + replacement value ---
+    bridge_replacement_value = pd.Series(np.nan, index=out.index)
+    if is_bridge.any():
+        bridge_idx = out.index[is_bridge]
+        fips = out.loc[bridge_idx].get("bridge_state", pd.Series(index=bridge_idx, dtype=object))
+        usps = out.loc[bridge_idx].get("STATE", pd.Series(index=bridge_idx, dtype=object))
+        state_name = state_name_from_fips_or_usps(fips, usps)
+        on_nhs = out.loc[bridge_idx, "nhs_designation"].notna() if "nhs_designation" in out.columns else pd.Series(False, index=bridge_idx)
+        # bridge_unit_cost_usd_per_sqft() merges internally, which resets the
+        # index to a fresh RangeIndex -- re-index onto bridge_idx positionally
+        # (same merge-resets-index discipline as networks/t08b_profile.py)
+        # before using it in index-aligned arithmetic below.
+        unit_cost = pd.Series(
+            bridge_unit_cost_usd_per_sqft(state_name, on_nhs).to_numpy(), index=bridge_idx
+        )
+        bridge_replacement_value.loc[bridge_idx] = bridge_replacement_value_usd(
+            out.loc[bridge_idx, "averageWidth"], out.loc[bridge_idx, "structure_length_m"], unit_cost
+        ).to_numpy()
+
+    # --- Tunnels: per-asset Rostami et al. construction value (rare -- loop is fine) ---
+    tunnel_construction_value = pd.Series(np.nan, index=out.index)
+    tunnel_flags: dict = {}
+    if is_tunnel.any():
+        tcp = load_table("tunnel_cost_parameters")
+        hwy_params = tcp.loc[
+            (tcp["application"] == "highway") & (tcp["excavation"] == "conventional")
+        ].iloc[0]
+        for idx in out.index[is_tunnel]:
+            row = out.loc[idx]
+            n_bores = row.get("tunnel_bores")
+            # `or 1` is unsafe here: NaN is truthy in Python, so it would
+            # NOT replace a NaN bore count -- explicit isnan check instead.
+            if n_bores is None or pd.isna(n_bores):
+                n_bores = 1
+            try:
+                geometry = derive_tunnel_geometry(
+                    physical_asset_id=str(row.get("e_id", idx)),
+                    tunnel_length_m=row.get("tunnel_length_m"),
+                    tunnel_length_m_min=row.get("tunnel_length_m_min"),
+                    n_bores=n_bores,
+                    lanes_total=row.get("tunnel_lanes_total"),
+                    roadway_width_m=row.get("tunnel_roadway_width_m"),
+                    params=hwy_params,
+                )
+                result = construction_value_usd(geometry, params_table=tcp)
+                tunnel_construction_value.loc[idx] = result["construction_value_usd"]
+                tunnel_flags[idx] = result["assumption_flags"]
+            except ValueError as exc:
+                tunnel_flags[idx] = f"COST_UNAVAILABLE: {exc}"
+
+    out["direct_damage_mean_usd"] = 0.0
+    out["tunnel_cost_assumption_flags"] = pd.Series(tunnel_flags, dtype=object)
+
+    for flood_type in flood_types:
+        depth = out[f"flood_depth_{flood_type}"]
+        damage_level = out[f"damage_level_{flood_type}"]
+
+        if is_road.any():
+            road_idx = out.index[is_road]
+            # Average the low-flow/high-flow curve pair's fraction (C1&C2,
+            # C3&C4, or C5&C6), matching damage_aggregation.py's own
+            # consolidated_row_damage_musd combination convention for the
+            # legacy path, rather than inventing a different rule here.
+            fractions = []
+            for idx in road_idx:
+                row = out.loc[idx]
+                _, frac1, _, frac2 = compute_damage_fraction(
+                    row.get("road_classification"),
+                    row.get("trunk_road"),
+                    "road",
+                    depth.loc[idx],
+                    damage_curves,
+                    nhs_designation=row.get("nhs_designation"),
+                )
+                fractions.append(float(np.mean([frac1, frac2])))
+            road_damage = (
+                road_cost_per_lane_mile.loc[road_idx]
+                * lane_miles.loc[road_idx]
+                * pd.Series(fractions, index=road_idx)
+            )
+            out.loc[road_idx, "direct_damage_mean_usd"] += road_damage.fillna(0.0)
+
+        if is_bridge.any():
+            bridge_idx = out.index[is_bridge]
+            # `or 0.0` is unsafe here: NaN is truthy in Python, so it would
+            # NOT replace a NaN damage value -- explicit isnan check instead
+            # (same footgun documented in hazus_bridge.py's own helpers).
+            bridge_values = []
+            for idx in bridge_idx:
+                value = bridge_direct_damage_usd(
+                    bridge_replacement_value.loc[idx],
+                    damage_level.loc[idx],
+                    num_spans=out.loc[idx].get("main_unit_spans"),
+                )
+                bridge_values.append(0.0 if pd.isna(value) else value)
+            out.loc[bridge_idx, "direct_damage_mean_usd"] += bridge_values
+
+        if is_tunnel.any():
+            tunnel_idx = out.index[is_tunnel]
+            out.loc[tunnel_idx, "direct_damage_mean_usd"] += [
+                tunnel_direct_damage_usd(tunnel_construction_value.loc[idx], damage_level.loc[idx])
+                if not pd.isna(tunnel_construction_value.loc[idx])
+                else 0.0
+                for idx in tunnel_idx
+            ]
+
+    out["direct_damage_mean_usd"] = pd.to_numeric(out["direct_damage_mean_usd"], errors="coerce").fillna(0.0)
+    out["direct_damage_mean_musd"] = out["direct_damage_mean_usd"] / 1_000_000.0
+    return out
+
+
 def format_intersections(
     intersections: pd.DataFrame,
     road_links: gpd.GeoDataFrame,
@@ -621,6 +790,18 @@ def format_intersections(
         if col in rl.columns:
             asset_cols.append(col)
 
+    # Sourced-cost columns (calculate_damage_sourced(), gated behind
+    # vulnerability.use_sourced_asset_costs): T24 CP25 road costing needs
+    # urban-size tier + state; T30 bridge costing needs state; Rostami
+    # tunnel costing needs real bore geometry (see faf5_network.py's
+    # apply_tunnel_index()). All optional -- same pattern as above.
+    for col in (
+        "hpms_urban_size_tier", "STATE",
+        "tunnel_bores", "tunnel_length_m_min", "tunnel_lanes_total", "tunnel_roadway_width_m",
+    ):
+        if col in rl.columns:
+            asset_cols.append(col)
+
     intersections_gp = intersections_gp.merge(
         rl[
             [
@@ -736,6 +917,18 @@ def main():
     if faf5_links_path is None:
         raise FileNotFoundError("Could not find faf5_road_links.gpq under soge_clusters")
     road_links = gpd.read_parquet(faf5_links_path)
+
+    use_sourced_asset_costs = get_parameter("vulnerability", "use_sourced_asset_costs", False)
+    if use_sourced_asset_costs and "urban_code" in road_links.columns:
+        # T24 CP25's Urban subcategory needs the real Census urban-size tier
+        # (resiflow.census_urban_area) -- computed once here, not per-row in
+        # calculate_damage_sourced().
+        from resiflow.census_urban_area import urban_area_profile
+
+        profile = urban_area_profile(road_links["urban_code"]).reset_index(drop=True)
+        road_links = road_links.reset_index(drop=True)
+        road_links["hpms_urban_size_tier"] = profile["hpms_urban_size_tier"]
+
     xls = pd.ExcelFile(damage_cost_path)
     available_sheets = set(xls.sheet_names)
 
@@ -976,6 +1169,15 @@ def main():
             )
             intersections_with_damage = intersections_with_damage[
                 intersections_with_damage["direct_damage_mean_musd"] > 0
+            ].reset_index(drop=True)
+        elif hazard_type == "flood" and use_sourced_asset_costs:
+            # Real sourced unit costs (T24 CP25 roads, T30 bridges, Rostami
+            # et al. tunnels) instead of the ungitted damage_cost_road_flood
+            # .xlsx workbook -- see calculate_damage_sourced()'s own
+            # docstring. damage_ratio_road_flood.xlsx (T22) is unchanged.
+            intersections_with_damage = calculate_damage_sourced(intersections, damage_curves)
+            intersections_with_damage = intersections_with_damage[
+                intersections_with_damage["direct_damage_mean_usd"] > 0
             ].reset_index(drop=True)
         else:
             # run damage analysis

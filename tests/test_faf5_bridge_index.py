@@ -245,6 +245,46 @@ def test_apply_tunnel_index_excludes_zero_length():
     assert pd.isna(out.iloc[0]["tunnel_length_m"])
 
 
+def test_apply_tunnel_index_carries_through_bore_geometry():
+    links = gpd.GeoDataFrame(
+        {
+            "e_id": ["a"],
+            "length": [1000.0],
+            "road_bridge": ["no"],
+        },
+        geometry=[LineString([(0, 0), (1000, 0)])],
+        crs="EPSG:9311",
+    )
+    idx = pd.DataFrame(
+        {
+            "e_id": ["a"],
+            "tunnel_length_m": [900.0],
+            "n_tunnels": [2],
+            "tunnel_length_m_min": [880.0],
+            "lanes_total": [4],
+            "roadway_width_m": [9.0],
+        }
+    )
+    out = faf5_network.apply_tunnel_index(links, idx)
+    row = out.iloc[0]
+    assert row["tunnel_bores"] == 2
+    assert row["tunnel_length_m_min"] == pytest.approx(880.0)
+    assert row["tunnel_lanes_total"] == 4
+    assert row["tunnel_roadway_width_m"] == pytest.approx(9.0)
+
+
+def test_apply_tunnel_index_bore_geometry_optional():
+    """An index built before bore-geometry columns existed must not error."""
+    links = gpd.GeoDataFrame(
+        {"e_id": ["a"], "length": [1000.0], "road_bridge": ["no"]},
+        geometry=[LineString([(0, 0), (1000, 0)])],
+        crs="EPSG:9311",
+    )
+    idx = pd.DataFrame({"e_id": ["a"], "tunnel_length_m": [200.0]})
+    out = faf5_network.apply_tunnel_index(links, idx)
+    assert "tunnel_bores" not in out.columns
+
+
 def test_apply_bridge_index_sets_fraction_and_excludes_bad_geometry():
     links = gpd.GeoDataFrame(
         {
