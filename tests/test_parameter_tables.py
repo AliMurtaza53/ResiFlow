@@ -214,29 +214,44 @@ def test_t20_table_mode_refuses_coastal(monkeypatch, tmp_path):
         fc.compute_damage_level_on_flooded_roads("coastal", "motorway", "", "road", 1.0)
 
 
-def test_t04_t05_table_costs_match_formula_at_grid_speed(monkeypatch, tmp_path):
+def test_t04_table_fuel_cost_matches_formula_at_grid_speed(monkeypatch, tmp_path):
     from resiflow.road_revised import compute_costs_for_links
 
-    # one link traversed at exactly 50 km/h (a T04/T05 grid speed)
+    # one link traversed at exactly 50 km/h (a T04 grid speed). Both calls
+    # below are fuel-only (use_table_nonfuel_curve stays false in both --
+    # see test_nonfuel_curve_is_opt_in_not_default below for FIX
+    # 2026-10-09: operating_cost used to always include a real, nonzero
+    # hardcoded non-fuel cost regardless of this flag, contrary to this
+    # project's own Wave-1 fuel-only scope).
     frame = pd.DataFrame({"time_hr": [1.0], "length_mile": [50.0 / 1.60934]})
     baseline = compute_costs_for_links(frame.copy(), "ogv", inplace=False)
 
-    _enable(
-        monkeypatch,
-        tmp_path,
-        {
-            "cost_operating": {
-                "use_table_fuel_curve": True,
-                "use_table_nonfuel_curve": True,
-            }
-        },
-    )
+    _enable(monkeypatch, tmp_path, {"cost_operating": {"use_table_fuel_curve": True}})
     tabled = compute_costs_for_links(frame.copy(), "ogv", inplace=False)
-    # tables are 2-4 dp discretizations of the same curves
+    # table is a 2-4 dp discretization of the same fuel curve
     assert tabled["operating_cost"].iloc[0] == pytest.approx(
         baseline["operating_cost"].iloc[0], abs=0.05
     )
     assert tabled["time_cost"].iloc[0] == baseline["time_cost"].iloc[0]
+
+
+def test_nonfuel_curve_is_opt_in_not_default(monkeypatch, tmp_path):
+    """FIX 2026-10-09: use_table_nonfuel_curve=false must mean "no non-fuel
+    cost" (this project's documented Wave-1 fuel-only scope), not "use the
+    hardcoded non-fuel formula instead of the table" -- the bug this
+    project had before: operating_cost always included a real, nonzero
+    non-fuel component (cons.NON_FUEL_PENCE_PER_KM) regardless of the flag."""
+    from resiflow.road_revised import compute_costs_for_links
+
+    frame = pd.DataFrame({"time_hr": [1.0], "length_mile": [50.0 / 1.60934]})
+    fuel_only = compute_costs_for_links(frame.copy(), "ogv", inplace=False)
+
+    _enable(monkeypatch, tmp_path, {"cost_operating": {"use_table_nonfuel_curve": True}})
+    with_nonfuel = compute_costs_for_links(frame.copy(), "ogv", inplace=False)
+
+    # Turning non-fuel ON must increase cost relative to the fuel-only
+    # default -- if it didn't, the flag would be a no-op again.
+    assert with_nonfuel["operating_cost"].iloc[0] > fuel_only["operating_cost"].iloc[0]
 
 
 # ---------------------------------------------------------------------------

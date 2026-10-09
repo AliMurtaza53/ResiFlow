@@ -320,6 +320,24 @@ def compute_costs_for_links(
         )
         FC = L * fuel_price  # USD per km (fuel component)
 
+        # FIX 2026-10-09: this project's own documented Wave-1 scope is
+        # fuel-only -- "Li-like constant fuel-only; ... T05 non-fuel is
+        # OUT_OF_SCOPE" (manifest.csv's T04/T05 rows); "Wave-1 sealed: Li
+        # fuel-only + A-3 VOT; no non-fuel VOC (ATRI would double-count
+        # capital vs A-3)" (unified_parameters.json's cost_operating
+        # comment). use_table_nonfuel_curve=false was meant to mean "no
+        # non-fuel cost", but this function's own `else` branch always
+        # added a REAL, nonzero hardcoded non-fuel cost
+        # (cons.NON_FUEL_PENCE_PER_KM, e.g. car: (8.74 + 239.77/v)/100 USD/
+        # km) regardless of that flag -- the flag only ever chose the
+        # non-fuel cost's SOURCE (table vs. formula), never whether to
+        # include it. At a typical 60 km/h this hardcoded non-fuel term
+        # (~$0.127/km for a car) was LARGER than the fuel cost itself
+        # (~$0.087/km) -- silently roughly doubling every operating cost
+        # in the model, contrary to the project's own stated scope.
+        # Operating cost is now fuel-only unless use_table_nonfuel_curve
+        # is explicitly turned on (an intentional future opt-in, not the
+        # default), matching "track time, fuel, tolls" exactly.
         if get_parameter("cost_operating", "use_table_nonfuel_curve", False):
             from resiflow.tables import interpolate, load_table
 
@@ -336,10 +354,9 @@ def compute_costs_for_links(
                 f"nonfuel_pence_per_km_{vehicle_type}",
                 axis_column="speed_kmh",
             )  # per km (UK-legacy pence/km)
+            NFC = NFC / 100.0  # per km (currency labeling unresolved; see constants)
         else:
-            a1, b1 = tuple(cons.NON_FUEL_PENCE_PER_KM[vehicle_type].values())
-            NFC = a1 + b1 / np.maximum(v_kmph, eps)  # per km (UK-legacy pence/km)
-        NFC = NFC / 100.0  # per km (currency labeling unresolved; see constants)
+            NFC = 0.0  # Wave-1 scope: fuel-only (see FIX comment above)
 
         operate_cost_per_km = FC + NFC
         operate_cost = operate_cost_per_km * distance_km  # USD (vector)

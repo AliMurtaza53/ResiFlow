@@ -1387,6 +1387,61 @@ def main(
                     ),
                     caps,
                 )
+            elif _hazard == "winter_storm" and "day_open" in road_links.columns:
+                # T35-driven post-reopening residual speed (replaces the
+                # flood-shim depth gates below for winter_storm specifically
+                # -- fixed 2026-10-08, see docs/FLOOD_TABLE_REVIEW.md). T33/
+                # T34's clearance_rank/day_open are already computed at
+                # disruption build time (disruption/build.py's
+                # build_winter_storm_link_disruption() ->
+                # winter_storm_clearance.add_clearance_columns()); T35 turns
+                # day_open + the current event_day into a per-link capacity/
+                # speed factor via the real FHWA Road Weather Management
+                # Program post-plow recovery curve.
+                from resiflow.hazards.winter_storm_clearance import (
+                    residual_speed_factor_winter_storm,
+                )
+                from resiflow.hpms_fclass import damage_threshold_major_from_fclass
+
+                dmg = (
+                    road_links["damage_level_max"]
+                    .fillna("no")
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                )
+                damaged = ~dmg.isin(("no", "none"))
+                if "hpms_fclass" in road_links.columns:
+                    is_major = damage_threshold_major_from_fclass(
+                        pd.to_numeric(road_links["hpms_fclass"], errors="coerce")
+                    ).fillna(False)
+                else:
+                    # No real F_Class on this network (non-FAF5) -- default
+                    # to the slower (minor-road) recovery curve rather than
+                    # guessing a link is major.
+                    is_major = pd.Series(False, index=road_links.index)
+                factor = residual_speed_factor_winter_storm(
+                    event_day, road_links["day_open"], is_major
+                )
+                free = pd.to_numeric(
+                    road_links["free_flow_speeds"]
+                    if "free_flow_speeds" in road_links.columns
+                    else road_links["acc_speed"],
+                    errors="coerce",
+                )
+                # Same pattern as the earthquake/landslide branch above: the
+                # hazard factor caps free-flow speed; np.minimum against the
+                # already-congestion-adjusted acc_speed means congestion can
+                # still push a link below that cap, never above it.
+                caps = free.to_numpy(dtype=float).copy()
+                apply_mask = (damaged & (factor < 1.0)).to_numpy()
+                caps[apply_mask] = caps[apply_mask] * factor.to_numpy()[apply_mask]
+                road_links["acc_speed"] = np.minimum(
+                    pd.to_numeric(road_links["acc_speed"], errors="coerce").to_numpy(
+                        dtype=float
+                    ),
+                    caps,
+                )
             else:
                 # T27-driven residual-floodwater speed-restriction schedule
                 # (parameters/tables/T27_speed_restriction_schedule.csv).

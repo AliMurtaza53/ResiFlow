@@ -127,8 +127,15 @@ def network_spec(name: str) -> ToyNetworkSpec:
             reroute_gain_edge="e_mid",
             expected_disrupted_flow_freight=100.0,
             expected_disrupted_flow_passenger=30.0,
-            expected_rerouting_cost_freight=282.46644854237013,
-            expected_rerouting_cost_passenger=84.73993456271103,
+            # Updated 2026-10-09: road_revised.compute_costs_for_links() no
+            # longer silently includes a non-fuel operating cost by default
+            # (FIX -- operating_cost used to always add cons.NON_FUEL_PENCE_
+            # PER_KM regardless of use_table_nonfuel_curve, contrary to this
+            # project's own documented fuel-only Wave-1 scope; "track time,
+            # fuel, tolls" means exactly those three now). Values re-derived
+            # by running this exact toy pipeline after the fix.
+            expected_rerouting_cost_freight=235.52636645945228,
+            expected_rerouting_cost_passenger=70.65790993783567,
             expected_reroute_flow_freight=18.461538461538463,
             expected_reroute_flow_passenger=5.538461538461537,
             origin_node="n1",
@@ -145,8 +152,10 @@ def network_spec(name: str) -> ToyNetworkSpec:
             reroute_gain_edge="e_13",
             expected_disrupted_flow_freight=12.0,
             expected_disrupted_flow_passenger=13.0,
-            expected_rerouting_cost_freight=41.77047695468973,
-            expected_rerouting_cost_passenger=45.25135003424721,
+            # Updated 2026-10-09: same fuel-only cost fix as three_parallel
+            # above.
+            expected_rerouting_cost_freight=46.8734421994394,
+            expected_rerouting_cost_passenger=50.77956238272601,
             expected_reroute_flow_freight=11.52,
             expected_reroute_flow_passenger=12.48,
             origin_node="n1",

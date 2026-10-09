@@ -9,6 +9,108 @@ Legend: **FIX** = clear defect, **CONFIRM** = needs your decision or a source ch
 
 ---
 
+## Resolved + audit, 2026-10-09: T35 wired; fuel-only cost bug fixed; all 4 hazards x 3 costs reviewed
+
+### T35 wired (winter storm residual speed)
+
+T35 is winter storm's equivalent of T37/T38 (earthquake/landslide residual
+speed) and T27 (flood residual speed) -- the piece that turns "when does a
+closed link become passable again, and how fast" into a day-by-day speed
+cap in Script 4. It was sitting unwired (confirmed in yesterday's audit).
+
+- Fixed T35's own CSV first: a quoted comment line and an unquoted trailing
+  "formula note" row were both corrupting its own parse (the same recurring
+  CSV-quoting bug as T08b/T20/T27 before it) -- confirmed via direct
+  `pd.read_csv`, same as those earlier fixes.
+- New `resiflow.hazards.winter_storm_clearance.residual_speed_factor_winter_storm()`:
+  turns T34's real `day_open` (already computed at disruption-build time by
+  `add_clearance_columns()` -- this part was already wired) plus the
+  current `event_day` into a per-link speed factor from T35's real
+  FHWA-sourced post-plow recovery curve. Major/minor uses this project's
+  one canonical split (`hpms_fclass.damage_threshold_major_from_fclass`,
+  F1-F3 major) for consistency with flood/T20, rather than inventing a
+  winter-storm-specific one (T33 has no literal "road_class" column
+  despite T35's own header comment implying one).
+- Wired into Script 4 as a new `elif _hazard == "winter_storm"` branch,
+  parallel to the existing earthquake/landslide (T37/T38) and flood (T27)
+  branches -- **replacing** the flood-shim depth gates winter_storm was
+  silently falling through to before (T27's depth thresholds on a fake
+  "flood_depth_max" repackaged from snow/ice depth -- a real, pre-existing
+  gap, now closed for this half of winter storm's model; Script 3's
+  *damage*-cost shim for winter storm is separate and still open, see
+  below).
+
+### Real bug found and fixed: "fuel" cost wasn't fuel-only
+
+While confirming the "track time, fuel, tolls" requirement, found that
+`road_revised.compute_costs_for_links()` -- the one function all operating
+cost in this project runs through, baseline and every hazard's rerouting
+alike -- was **always** adding a real, nonzero non-fuel operating cost
+(`cons.NON_FUEL_PENCE_PER_KM`, e.g. for a car: `(8.74 + 239.77/v_kmph)/100`
+USD/km) on top of fuel, regardless of `use_table_nonfuel_curve`. That flag
+was only ever supposed to choose non-fuel cost's *source* (table vs.
+formula) -- there was no path that actually produced zero non-fuel cost --
+directly contradicting this project's own documented Wave-1 scope
+("Li-like constant **fuel-only**"; "no non-fuel VOC" -- manifest.csv's T04/
+T05 rows and unified_parameters.json's own `cost_operating` comment). At a
+typical 60 km/h for a car, this hardcoded non-fuel term (~$0.127/km) was
+*larger* than the fuel cost itself (~$0.087/km) -- silently more than
+doubling "operating cost" everywhere in the model.
+
+Fixed: `use_table_nonfuel_curve=false` (the default) now means what it
+always should have -- fuel-only, non-fuel cost is exactly 0. The table-based
+opt-in path is unchanged and still available if ever switched on. This
+changes real $ outputs project-wide (baseline flows and every hazard's
+rerouting cost all run through this one function) -- re-derived and
+updated the toy pipeline tests' own hardcoded expected-cost constants
+against the corrected values rather than leaving them stale.
+
+### All 4 hazard types x 3 costs (damage, rerouting, isolation): reviewed
+
+| Hazard | Damage cost | Rerouting cost (speed/capacity input) | Isolation cost |
+|---|---|---|---|
+| Flood | REAL -- `damage_ratio_road_flood.xlsx`/`damage_cost_road_flood.xlsx` (default), or T22/T24 CP25/T30/Rostami tunnel (NHCCI-harmonized, behind `use_sourced_asset_costs`, off by default) | REAL -- T19 (speed-depth) + T27 (residual speed, now table-driven) + T26 (capacity recovery; data-bundle default on, bridge/road-split table off by default) | REAL |
+| Earthquake | REAL -- HAZUS 6.1 Sa(1.0s)/PGD via `hazus_bridge.py` for bridges; T31 liquefaction-PGD for roads, but **regional-only** (8 CUSEC states -- pre-existing, documented limitation, not new) | REAL -- T37 (residual speed) + T36 (day-1 operational factor) + T26 | REAL |
+| Landslide | REAL -- HAZUS PGD via `hazus_bridge.py`, bridges and roads both | REAL -- T38 + T36 + T26 | REAL |
+| Winter storm | **SHIM** -- `use_table_winter_storm_cost` defaults false, so damage still prices via the flood-shim (ice/snow depth repackaged as a fake flood depth; previously confirmed 150-1000x off real estimates). T32's real DOT-regression cost model exists, tested, and is ready -- same "available, not yet the default" pattern as every other real-table swap this project has made | **REAL as of today** -- T33 (clearance rank) + T34 (day_open) + T35 (now wired) | REAL |
+
+Rerouting cost's three tracked components (time/fuel/toll) are computed by
+one shared, hazard-agnostic function (`network_flow_model()` ->
+`compute_costs_for_links()`), so the fuel-only fix above and the "three
+components tracked, saved as separate columns" confirmation below both
+apply uniformly to all four hazards, not just flood:
+`rerouting_cost_{mode}_s{scenario}_day{event_day}.csv` already carries
+`rer_time`, `rer_operate` (now fuel-only), and `rer_toll` as separate
+columns alongside the combined `rerouting_cost` -- this was already true
+before today, just verified. Isolation cost (`isolation_usd_per_day` x
+VOT) is computed the same single, hazard-agnostic way for all four --
+confirmed via code search that `hazard_type` is referenced exactly once in
+the whole of Script 4 (the speed/capacity branch above), nowhere near the
+isolation-cost computation.
+
+**Urgent, found while wiring T35 -- `HEAD` is currently broken for
+winter_storm:** the already-committed `disruption/build.py` imports
+`resiflow.fragility.winter_storm_speed` and
+`resiflow.hazards.winter_storm_rate` -- neither has ever been committed
+(confirmed via `git ls-files`; both are untracked in the working tree,
+alongside a committed-but-now-deleted `winter_storm_operational.py` that
+`winter_storm_speed.py` appears to replace). A fresh clone of this branch
+cannot run the winter_storm disruption path at all -- `ModuleNotFoundError`
+on import. This isn't something today's work caused; it's concurrent
+in-progress work on this same branch that hasn't been committed yet.
+`winter_storm_clearance.py` (this section's own T35 work, also previously
+untracked) is committed alongside today's changes since Script 4 now
+depends on it directly and it's complete/tested; the other two files are
+left for whoever is mid-refactor on them to commit, or **CONFIRM** you
+want me to commit them as-is.
+
+**Still open:** winter storm's damage-cost shim (flag exists, default
+off -- a decision for you, same as every other such flag); T31's
+regional-only earthquake road liquefaction coverage (pre-existing,
+documented, not addressed today).
+
+---
+
 ## Audit, 2026-10-08 (3): all parameter JSONs + every table under parameters/tables/
 
 Project-wide, not flood-only (this doc's own scope line above is the
