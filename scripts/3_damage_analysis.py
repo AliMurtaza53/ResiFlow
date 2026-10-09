@@ -567,10 +567,16 @@ def calculate_damage_sourced(disrupted_links: pd.DataFrame, damage_curves: Dict)
     tunnel_construction_value = pd.Series(np.nan, index=out.index)
     tunnel_flags: dict = {}
     if is_tunnel.any():
+        from resiflow.hazards.tunnel_cost import default_escalation_factor as tunnel_escalation_factor
+
         tcp = load_table("tunnel_cost_parameters")
         hwy_params = tcp.loc[
             (tcp["application"] == "highway") & (tcp["excavation"] == "conventional")
         ].iloc[0]
+        # NHCCI 2008 Q4 -> latest available quarter (DECISION 2026-10-08,
+        # docs/FLOOD_TABLE_REVIEW.md): harmonizes tunnel costs onto the same
+        # dollar-year as T24/T30 instead of leaving three different years.
+        tunnel_escalation = tunnel_escalation_factor()
         for idx in out.index[is_tunnel]:
             row = out.loc[idx]
             n_bores = row.get("tunnel_bores")
@@ -588,7 +594,9 @@ def calculate_damage_sourced(disrupted_links: pd.DataFrame, damage_curves: Dict)
                     roadway_width_m=row.get("tunnel_roadway_width_m"),
                     params=hwy_params,
                 )
-                result = construction_value_usd(geometry, params_table=tcp)
+                result = construction_value_usd(
+                    geometry, params_table=tcp, escalation_factor=tunnel_escalation
+                )
                 tunnel_construction_value.loc[idx] = result["construction_value_usd"]
                 tunnel_flags[idx] = result["assumption_flags"]
             except ValueError as exc:

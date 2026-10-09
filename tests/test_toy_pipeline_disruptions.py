@@ -107,8 +107,8 @@ def _assert_pipeline_outputs(tmp_path, env, spec) -> None:
         spec.expected_rerouting_cost_passenger
     )
 
-    freight_post = _edge_flows(reroute_out / "edge_flows_freight_s1_day1.gpq")
-    passenger_post = _edge_flows(reroute_out / "edge_flows_passenger_s1_day1.gpq")
+    freight_post = _edge_flows(reroute_out / "edge_flows_freight_s1_day0.gpq")
+    passenger_post = _edge_flows(reroute_out / "edge_flows_passenger_s1_day0.gpq")
 
     assert _flow_on_edge(freight_post, spec.reroute_gain_edge) == pytest.approx(
         spec.expected_reroute_flow_freight
@@ -159,7 +159,7 @@ def _assert_pipeline_outputs(tmp_path, env, spec) -> None:
     # would have caught: previously freight alone AND passenger alone could
     # each reach the edge's full capacity, silently double-booking it).
     detour_capacity = pd.read_parquet(
-        reroute_out / "edge_flows_freight_s1_day1.gpq"
+        reroute_out / "edge_flows_freight_s1_day0.gpq"
     ).set_index("e_id").loc[spec.reroute_gain_edge, "acc_capacity"]
     combined_detour_flow = _flow_on_edge(
         freight_post, spec.reroute_gain_edge

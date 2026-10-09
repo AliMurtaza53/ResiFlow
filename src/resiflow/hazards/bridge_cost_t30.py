@@ -19,6 +19,19 @@ _SQM_TO_SQFT = 10.763910417
 
 _TABLE_NAME = "T30_bridge_replacement_unit_costs_US"
 
+# T30's own published dollar year.
+_T30_BASE_YEAR, _T30_BASE_QUARTER = 2024, 4
+
+
+def default_escalation_factor(params_root=None) -> float:
+    """NHCCI escalation from T30's 2024 USD to the latest available NHCCI
+    quarter -- see resiflow.nhcci. DECISION 2026-10-08
+    (docs/FLOOD_TABLE_REVIEW.md): harmonizes T24/T30/tunnel costs, which
+    were otherwise three different dollar-years, onto one common basis."""
+    from resiflow.nhcci import escalation_factor
+
+    return escalation_factor(_T30_BASE_YEAR, _T30_BASE_QUARTER, params_root=params_root)
+
 
 def load_t30(params_root=None) -> pd.DataFrame:
     from resiflow.tables import load_table
@@ -28,16 +41,28 @@ def load_t30(params_root=None) -> pd.DataFrame:
 
 
 def bridge_unit_cost_usd_per_sqft(
-    state_name: pd.Series, on_nhs: pd.Series, *, params_root=None
+    state_name: pd.Series,
+    on_nhs: pd.Series,
+    *,
+    escalation_factor: float | None = None,
+    params_root=None,
 ) -> pd.Series:
     """Join real T30 rows on (state name, NHS|non-NHS). Unmatched (e.g. a
     Canadian/Mexican cross-border FAF5 link, or a state name T30 doesn't
-    carry) comes back as NaN -- never a fabricated national-average cost."""
+    carry) comes back as NaN -- never a fabricated national-average cost.
+
+    ``escalation_factor`` multiplies the table's own 2024 USD onto a common
+    dollar-year with T24/tunnel costing. Defaults to
+    :func:`default_escalation_factor` (NHCCI, 2024 Q4 -> latest available
+    quarter); pass 1.0 for the table's literal, unescalated 2024 USD values.
+    """
+    if escalation_factor is None:
+        escalation_factor = default_escalation_factor(params_root=params_root)
     t30 = load_t30(params_root=params_root)
     bridge_class = pd.Series(on_nhs).map({True: "NHS", False: "non-NHS"})
     key = pd.DataFrame({"state": state_name, "bridge_class": bridge_class})
     merged = key.merge(t30, on=["state", "bridge_class"], how="left")
-    return merged["cost_used_for_2024_estimate_usd_per_ft2"]
+    return merged["cost_used_for_2024_estimate_usd_per_ft2"] * escalation_factor
 
 
 def bridge_replacement_value_usd(

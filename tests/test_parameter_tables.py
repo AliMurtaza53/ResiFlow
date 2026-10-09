@@ -133,7 +133,7 @@ def test_default_runs_never_load_tables(monkeypatch):
     assert levels.tolist() == ["moderate", "minor"]
 
     profiles = load_assignment_profiles(params_root=REPO_ROOT / "parameters")
-    assert profiles["flow_cap_plph"]["freeway"] == 2400
+    assert profiles["flow_cap_plph"]["freeway"] == 2350
 
 
 # ---------------------------------------------------------------------------
@@ -146,8 +146,15 @@ def test_t08_table_profiles_match_assignment_profiles_json(monkeypatch, tmp_path
     baseline = load_assignment_profiles(params_root=REPO_ROOT / "parameters")
     _enable(monkeypatch, tmp_path, {"assignment": {"use_table_tier_values": True}})
     from_table = load_assignment_profiles(params_root=REPO_ROOT / "parameters")
-    # T08a is a verbatim discretization of assignment_profiles.json
-    assert from_table == baseline
+    # T08_assignment_tiers_US_candidate.csv's real flow_cap/free_flow_speed
+    # drive assignment_profiles.json's own default values (DECISION
+    # 2026-10-08, see docs/FLOOD_TABLE_REVIEW.md); flow_breakpoint/
+    # congestion_factor are independently DERIVED by both paths via the
+    # same NCHRP 825 formula, so they agree to float precision, not
+    # bit-for-bit (assignment_profiles.json stores a rounded constant).
+    for profile_name, tiers in baseline.items():
+        for tier, value in tiers.items():
+            assert from_table[profile_name][tier] == pytest.approx(value, rel=1e-3)
 
 
 def test_t19_table_speed_depth_matches_formula_at_grid(monkeypatch, tmp_path):

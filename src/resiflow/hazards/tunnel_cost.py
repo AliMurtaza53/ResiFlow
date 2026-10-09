@@ -38,6 +38,23 @@ import pandas as pd
 
 _FT_TO_M = 0.3048
 
+# Rostami et al.'s own published dollar year (the model's base_price_date).
+_TUNNEL_BASE_YEAR, _TUNNEL_BASE_QUARTER = 2008, 4
+
+
+def default_escalation_factor(params_root=None) -> float:
+    """NHCCI escalation from the Rostami et al. model's December 2008 USD
+    to the latest available NHCCI quarter -- see resiflow.nhcci. DECISION
+    2026-10-08 (docs/FLOOD_TABLE_REVIEW.md): harmonizes T24/T30/tunnel
+    costs, which were otherwise three different dollar-years, onto one
+    common basis. Pass this (or 1.0 for the literal December 2008 USD) as
+    ``construction_value_usd``'s own ``escalation_factor`` argument -- that
+    function stays a pure, no-invented-default calculation per
+    docs/BRDIGE_COSTS.md's own instruction."""
+    from resiflow.nhcci import escalation_factor
+
+    return escalation_factor(_TUNNEL_BASE_YEAR, _TUNNEL_BASE_QUARTER, params_root=params_root)
+
 
 @dataclass(frozen=True)
 class TunnelGeometry:

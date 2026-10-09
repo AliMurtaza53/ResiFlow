@@ -542,22 +542,37 @@ def load_scenarios(base_path: Path) -> Tuple[Dict, Dict]:
 
     Default: the data bundle's ``tables/recovery design_updated.csv`` (current
     behavior). With ``recovery.use_table_recovery_design`` enabled, the
-    day-by-day rates are derived instead from the step-wise T26 design table
-    in ``parameters/tables`` for the scenario named by
-    ``recovery.table_recovery_scenario`` (fast/average/slow); T26 does not
-    distinguish bridges from ordinary roads, so both dicts share the schedule.
+    day-by-day rates are derived instead from separate real bridge/road T26
+    design tables (fixed 2026-10-08 -- see
+    docs/FLOOD_TABLE_REVIEW.md: bridges recover on a genuinely different,
+    longer, NCHRP-WOD-390-anchored timeline than ordinary roads; the old
+    single-table path silently gave bridges the road schedule).
+    ``recovery.table_recovery_scenario`` (fast/average/slow) selects the
+    scenario in both tables.
     """
     if get_parameter("recovery", "use_table_recovery_design", False):
-        from resiflow.tables import recovery_schedule_from_table
+        from resiflow.tables import recovery_schedule_from_bridge_and_road_tables
 
-        recovery_dict, event_days = recovery_schedule_from_table(
-            get_parameter(
-                "recovery", "recovery_design_table", "T26_recovery_design_current"
-            ),
-            str(get_parameter("recovery", "table_recovery_scenario", "average")),
+        scenario = str(get_parameter("recovery", "table_recovery_scenario", "average"))
+        bridge_recovery_dict_raw, road_recovery_dict_raw, event_days = (
+            recovery_schedule_from_bridge_and_road_tables(
+                get_parameter(
+                    "recovery",
+                    "recovery_bridge_design_table",
+                    "T26_recovery_schedule_US_candidate_bridges",
+                ),
+                get_parameter(
+                    "recovery", "recovery_design_table", "T26_recovery_design_current"
+                ),
+                scenario,
+            )
         )
-        bridge_recovery_dict = defaultdict(list, {k: list(v) for k, v in recovery_dict.items()})
-        road_recovery_dict = defaultdict(list, {k: list(v) for k, v in recovery_dict.items()})
+        bridge_recovery_dict = defaultdict(
+            list, {k: list(v) for k, v in bridge_recovery_dict_raw.items()}
+        )
+        road_recovery_dict = defaultdict(
+            list, {k: list(v) for k, v in road_recovery_dict_raw.items()}
+        )
         scenarios = [1] * len(event_days)  # matches the bundle's scenario=1 reuse
         return (bridge_recovery_dict, road_recovery_dict, scenarios, event_days)
 
@@ -1373,7 +1388,24 @@ def main(
                     caps,
                 )
             else:
-                # SA seam: residual-floodwater depth gates (m). Defaults 2 m / 6 m.
+                # T27-driven residual-floodwater speed-restriction schedule
+                # (parameters/tables/T27_speed_restriction_schedule.csv).
+                # Depth THRESHOLDS stay the existing SA seam (defaults
+                # 2 m / 6 m); the DAY RANGE each tier is active for is read
+                # from T27 itself (resiflow.tables.flood_residual_speed_gate)
+                # rather than hardcoded -- fixed 2026-10-08: the previous
+                # `if event_day == 1/2/3` never matched this project's real
+                # recovery-schedule checkpoints (0, 7, 14, 30, 60, 90), so
+                # this restriction was dead code in every real run. T27 also
+                # fixed an inconsistency in the old hardcoded version: a
+                # severely (deep) flooded segment used to get NO restriction
+                # at all on the intermediate-tier day, because that day's
+                # mask explicitly excluded depth >= the deep gate; T27's
+                # schedule is cumulative (its "> 2 m" tier also covers deep
+                # segments), so a deep segment now stays gated continuously
+                # until the deep-only tier's own day range ends.
+                from resiflow.tables import flood_residual_speed_gate
+
                 _gates = get_parameter(
                     "recovery",
                     "residual_depth_gates_m",
@@ -1381,22 +1413,22 @@ def main(
                 )
                 gate_intermediate = float(_gates.get("intermediate", 2.0))
                 gate_deep = float(_gates.get("deep", 6.0))
-                if event_day == 1:  # apply speed constraint to every road
+                gate_tier = flood_residual_speed_gate(event_day)
+                if gate_tier == "all":
                     road_links["acc_speed"] = road_links[
                         ["acc_speed", "max_speed"]
                     ].min(axis=1)
-                if event_day == 2:
-                    mask = (road_links["flood_depth_max"] >= gate_intermediate) & (
-                        road_links["flood_depth_max"] < gate_deep
-                    )
+                elif gate_tier == "intermediate_and_deep":
+                    mask = road_links["flood_depth_max"] > gate_intermediate
                     road_links.loc[mask, "acc_speed"] = road_links.loc[
                         mask, ["acc_speed", "max_speed"]
                     ].min(axis=1)
-                if event_day == 3:
-                    mask = road_links["flood_depth_max"] >= gate_deep
+                elif gate_tier == "deep_only":
+                    mask = road_links["flood_depth_max"] > gate_deep
                     road_links.loc[mask, "acc_speed"] = road_links.loc[
                         mask, ["acc_speed", "max_speed"]
                     ].min(axis=1)
+                # gate_tier == "none": fully restored, no restriction.
 
             # create network (time-consuming when updating network edge index)
             logging.info("Creating igraph network...")

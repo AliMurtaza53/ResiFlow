@@ -1,0 +1,17 @@
+# T26 BRIDGES - Step-wise recovery of BRIDGE capacity (US re-anchored), separate from T26_recovery_design_current.csv's road schedule.
+# Converted from parameters/tables/T26_recovery_schedule_US_candidate_bridges.xlsx (sheets Assumptions/Sources/T26_final) 2026-10-08 -- same schema as T26_recovery_design_current.csv.
+# Capacity steps: 0% -> capacity_50pct_day -> capacity_100pct_day (100%). minor_moderate: unchanged, 0 days, no capacity loss -- outside this re-anchoring's scope.
+# Fast scenario: unchanged (~60 days) -- no new evidence contradicting the original estimate (ABC/incentive-contracting precedent, e.g. I-85 Atlanta rebuilt in 43 days, 2017).
+# Average scenario: re-anchored to the Hurricane Harvey / I-69 South bridge case in NCHRP Web-Only Document 390 (2024) -- 182 days, severe scour, reported "ahead of schedule".
+# Slow scenario: re-anchored to the years-tail in NCHRP WOD 390 Figure B-14 -- ~14% of 21 DOTs surveyed report years-scale full restoration; N=13 (partial) / N=21 (full capacity) survey sample, not damage-level-disaggregated.
+# Internal 50%/100% timing fractions within each scenario are preserved from the original (Li et al. 2026-derived) candidate.
+# Sources: NCHRP Web-Only Document 390 (2024), "Guide for Response Planning, Assessment, and Rapid Restoration of Bridges After Extreme Events"; NCHRP Research Report 1098 (2024), same guide.
+# Consumed by resiflow.tables.recovery_schedule_from_table via Script 4's load_scenarios() bridge/road split -- see recovery.recovery_bridge_design_table / recovery.use_table_recovery_design.
+damage_level,recovery_scenario,total_recovery_days,capacity_50pct_day,capacity_100pct_day,basis
+minor_moderate,all,0,none,none,Unchanged -- no capacity loss
+extensive,fast,60,30,45,Unchanged (ABC / incentive-contracting precedent -- e.g. I-85 Atlanta)
+extensive,average,180,98,147,NCHRP WOD 390 -- Harvey / I-69 case (182d severe scour -- reported ahead of schedule)
+extensive,slow,365,205,342,NCHRP WOD 390 Fig. B-14 -- about 14 pct of 21 DOTs report years-scale full restoration
+severe,fast,60,45,60,Unchanged
+severe,average,180,147,180,NCHRP WOD 390 -- Harvey / I-69 case
+severe,slow,365,342,365,NCHRP WOD 390 Fig. B-14 -- years-tail

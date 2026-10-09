@@ -51,6 +51,30 @@ def test_normalize_faf5_links_writes_tiers_and_legacy_label() -> None:
     assert out.loc[2, "damage_profile"] == "minor_road"
 
 
+def test_normalize_preserves_real_assignment_tier_over_name_mapping() -> None:
+    """Regression test (docs/FLOOD_TABLE_REVIEW.md Section 4 item 9): FAF5
+    links already carry a real, hpms_fclass-derived assignment_tier
+    (resiflow.hpms_fclass.assignment_tier_from_fclass) that differentiates
+    within a single road_classification name (e.g. two "primary" links can
+    be a real arterial vs. a real collector). normalize_network_links()
+    must not clobber that with the name-based JSON mapping, which collapses
+    every "primary" link to "arterial" regardless of its real F_Class."""
+    links = pd.DataFrame(
+        {
+            "e_id": ["1", "2", "3"],
+            "road_classification": ["primary", "primary", "motorway"],
+            # Two "primary" links with genuinely different real tiers --
+            # the JSON mapping alone could never produce this distinction.
+            "assignment_tier": ["arterial", "collector", None],
+        }
+    )
+    out = normalize_network_links(links, source="faf5", params_root=str(PARAMETERS))
+    assert out.loc[0, "assignment_tier"] == "arterial"
+    assert out.loc[1, "assignment_tier"] == "collector"  # preserved, not overwritten to "arterial"
+    assert out.loc[2, "assignment_tier"] == "freeway"  # missing -> filled from JSON mapping
+    assert out.loc[1, "combined_label"] == TIER_TO_LEGACY_COMBINED["collector"]
+
+
 def test_normalize_osm_links_from_highway_column() -> None:
     links = pd.DataFrame(
         {
@@ -65,9 +89,11 @@ def test_normalize_osm_links_from_highway_column() -> None:
 
 
 def test_load_assignment_profiles_from_bundled_json() -> None:
+    # Real US T08 tier values (DECISION 2026-10-08, see
+    # docs/FLOOD_TABLE_REVIEW.md) -- was the UK-relabeled 2400/0.05.
     profiles = load_assignment_profiles(PARAMETERS)
-    assert profiles["flow_cap_plph"]["freeway"] == 2400
-    assert profiles["congestion_factor"]["collector"] == 0.05
+    assert profiles["flow_cap_plph"]["freeway"] == 2350
+    assert profiles["congestion_factor"]["collector"] == pytest.approx(0.04969)
 
 
 def test_load_assignment_profiles_legacy_fallback(tmp_path: Path) -> None:

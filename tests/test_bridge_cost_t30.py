@@ -9,6 +9,7 @@ from resiflow.hazards.bridge_cost_t30 import (
     bridge_direct_damage_usd,
     bridge_replacement_value_usd,
     bridge_unit_cost_usd_per_sqft,
+    default_escalation_factor,
     load_t30,
 )
 from resiflow.us_states import state_name_from_fips_or_usps
@@ -31,7 +32,7 @@ def test_fips_preferred_over_usps():
 def test_unit_cost_join_real_known_values():
     state_name = pd.Series(["California", "California"])
     on_nhs = pd.Series([True, False])
-    costs = bridge_unit_cost_usd_per_sqft(state_name, on_nhs)
+    costs = bridge_unit_cost_usd_per_sqft(state_name, on_nhs, escalation_factor=1.0)
     assert costs.iloc[0] == pytest.approx(465)
     assert costs.iloc[1] == pytest.approx(483)
 
@@ -39,8 +40,16 @@ def test_unit_cost_join_real_known_values():
 def test_unit_cost_join_unmatched_state_is_nan_not_fabricated():
     state_name = pd.Series(["Ontario"])  # Canadian province, not in T30
     on_nhs = pd.Series([True])
-    costs = bridge_unit_cost_usd_per_sqft(state_name, on_nhs)
+    costs = bridge_unit_cost_usd_per_sqft(state_name, on_nhs, escalation_factor=1.0)
     assert costs.isna().all()
+
+
+def test_default_escalation_applies_nhcci_2024_to_latest():
+    state_name = pd.Series(["California"])
+    on_nhs = pd.Series([True])
+    with_default = bridge_unit_cost_usd_per_sqft(state_name, on_nhs)
+    raw = bridge_unit_cost_usd_per_sqft(state_name, on_nhs, escalation_factor=1.0)
+    assert with_default.iloc[0] == pytest.approx(raw.iloc[0] * default_escalation_factor())
 
 
 def test_replacement_value_area_times_unit_cost():

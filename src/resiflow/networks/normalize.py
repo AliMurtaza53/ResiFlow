@@ -75,7 +75,25 @@ def normalize_network_links(
     mapping: dict[str, Any] | None = None,
     params_root: str | None = None,
 ) -> pd.DataFrame:
-    """Add network_source, network_class, assignment_tier, damage_profile, combined_label."""
+    """Add network_source, network_class, assignment_tier, damage_profile, combined_label.
+
+    ``assignment_tier``/``damage_profile`` are only FILLED from the name-based
+    ``network_mapping.<source>.json`` where the link doesn't already carry a
+    real value. FAF5 links converted via
+    ``resiflow.preprocess.faf5_network.convert_faf5_links`` already carry a
+    real ``assignment_tier`` derived from HPMS ``F_Class``
+    (``resiflow.hpms_fclass.assignment_tier_from_fclass``: F1/F2->freeway,
+    F3/F4->arterial, F5/F6->collector, F7->local_access) -- a real,
+    per-link-differentiated value. Until 2026-10-08 this function
+    unconditionally OVERWROTE that real value with the name-based mapping
+    (every FAF5 ``primary`` link -> "arterial" regardless of whether its
+    real F_Class was actually a principal arterial, minor arterial, or
+    major collector), immediately after Script 1 loaded the harmonized
+    network -- see docs/FLOOD_TABLE_REVIEW.md Section 3/4 item 9. Preserving
+    a real existing value here fixes that silently-discarded fix; the
+    JSON mapping remains the correct fallback for non-FAF5 networks (OSM,
+    TNTP, toy fixtures) that have no such per-link attribute.
+    """
     out = road_links.copy()
     resolved_source = detect_network_source(out, explicit=source)
     resolved_mapping = mapping or load_network_mapping(
@@ -89,10 +107,23 @@ def normalize_network_links(
     default_tier = resolved_mapping.get("default_assignment_tier", "arterial")
     default_damage = resolved_mapping.get("default_damage_profile", "minor_road")
 
+    mapped_tier = _map_with_default(network_class, tier_map, default_tier)
+    mapped_damage = _map_with_default(network_class, damage_map, default_damage)
+
     out["network_source"] = resolved_source
     out["network_class"] = network_class
-    out["assignment_tier"] = _map_with_default(network_class, tier_map, default_tier)
-    out["damage_profile"] = _map_with_default(network_class, damage_map, default_damage)
+    if "assignment_tier" in out.columns:
+        out["assignment_tier"] = out["assignment_tier"].where(
+            out["assignment_tier"].notna(), mapped_tier
+        )
+    else:
+        out["assignment_tier"] = mapped_tier
+    if "damage_profile" in out.columns:
+        out["damage_profile"] = out["damage_profile"].where(
+            out["damage_profile"].notna(), mapped_damage
+        )
+    else:
+        out["damage_profile"] = mapped_damage
     out["combined_label"] = out["assignment_tier"].map(TIER_TO_LEGACY_COMBINED)
     return out
 

@@ -1,27 +1,28 @@
 {
+  "_comment": "DECISION 2026-10-08: values replaced with parameters/tables/T08_assignment_tiers_US_candidate.csv's real US tier values (HCM 7th ed. / NCHRP 825 planning-level reads) -- previously these were the UK-relabeled values FLOOD_TABLE_REVIEW.md flagged as the central audit finding (arterial 2200 veh/lane-h and 60 mph vs. the real US 900 and 45; collector 1700/55 vs 700/40; local 1000/35 vs 550/30). T08's own flow_breakpoint column is not a usable single number for 3 of 4 tiers ('n/a (use BPR)', and freeway is a range) because T08 assumes a classic BPR a/b power-law congestion curve, which this codebase's actual edge-speed model does not implement -- it uses a piecewise-linear breakpoint+slope model instead (see networks/t08b_profile.py). flow_breakpoint/congestion_factor below are therefore DERIVED from T08's real flow_cap_plph/free_flow_speed via that same piecewise-linear model's own documented formulas (Q_bp = 0.85 x capacity; slope = free_flow_speed / (1.15 x capacity) -- NCHRP 825 Exhibit 128's own linearization, already used identically in resiflow.networks.t08b_profile and verified there against the real exhibit), not read literally off T08's BPR-oriented column. See docs/FLOOD_TABLE_REVIEW.md.",
   "flow_cap_plph": {
-    "freeway": 2400,
-    "arterial": 2200,
-    "collector": 1700,
-    "local_access": 1000
+    "freeway": 2350,
+    "arterial": 900,
+    "collector": 700,
+    "local_access": 550
   },
   "flow_breakpoint": {
-    "freeway": 1400,
-    "arterial": 1300,
-    "collector": 1100,
-    "local_access": 800
+    "freeway": 1997.5,
+    "arterial": 765.0,
+    "collector": 595.0,
+    "local_access": 467.5
   },
   "free_flow_speed": {
     "freeway": 70.0,
-    "arterial": 60.0,
-    "collector": 55.0,
-    "local_access": 35.0
+    "arterial": 45.0,
+    "collector": 40.0,
+    "local_access": 30.0
   },
   "urban_speed_cap": {
     "freeway": 55.0,
-    "arterial": 45.0,
-    "collector": 35.0,
-    "local_access": 30.0
+    "arterial": 40.0,
+    "collector": 30.0,
+    "local_access": 25.0
   },
   "min_speed_cap": {
     "freeway": 10.0,
@@ -30,9 +31,9 @@
     "local_access": 5.0
   },
   "congestion_factor": {
-    "freeway": 0.033,
-    "arterial": 0.033,
-    "collector": 0.05,
-    "local_access": 0.05
+    "freeway": 0.0259,
+    "arterial": 0.04348,
+    "collector": 0.04969,
+    "local_access": 0.04743
   }
 }

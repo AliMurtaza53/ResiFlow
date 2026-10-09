@@ -21,6 +21,10 @@ _damage = import_module("3_damage_analysis")
 calculate_damage_sourced = _damage.calculate_damage_sourced
 create_damage_curves = _damage.create_damage_curves
 
+from resiflow.hazards.tunnel_cost import default_escalation_factor as _tunnel_escalation
+from resiflow.hazards.bridge_cost_t30 import default_escalation_factor as _bridge_escalation
+from resiflow.networks.cp25_road_cost import default_escalation_factor as _road_escalation
+
 _SQM_TO_SQFT = 10.763910417
 
 
@@ -77,7 +81,9 @@ def test_road_uses_t24_cp25_times_lane_miles_times_fraction(linear_damage_curves
     out = calculate_damage_sourced(df, linear_damage_curves)
     # Rural Interstate, default terrain (Rolling), Total Reconstruct Existing
     # Lane = 2041 $K/lane-mi -> $2,041,000/lane-mile x 2 lane-miles x 0.5
-    expected = 2041 * 1000.0 * 2.0 * 0.5
+    # DECISION 2026-10-08: calculate_damage_sourced() now escalates T24's
+    # 2018 USD to the latest NHCCI quarter by default (see resiflow.nhcci).
+    expected = 2041 * 1000.0 * 2.0 * 0.5 * _road_escalation()
     assert out.loc[0, "direct_damage_mean_usd"] == pytest.approx(expected, rel=1e-6)
 
 
@@ -96,8 +102,10 @@ def test_bridge_uses_t30_times_deck_area_times_hazus_ratio(linear_damage_curves)
         ]
     )
     out = calculate_damage_sourced(df, linear_damage_curves)
-    # CA NHS = $465/ft2; 50m x 10m deck; HAZUS bridge moderate ratio = 0.08
-    replacement_value = 50.0 * 10.0 * _SQM_TO_SQFT * 465.0
+    # CA NHS = $465/ft2 (2024 USD, escalated to the latest NHCCI quarter by
+    # default -- DECISION 2026-10-08); 50m x 10m deck; HAZUS bridge
+    # moderate ratio = 0.08
+    replacement_value = 50.0 * 10.0 * _SQM_TO_SQFT * 465.0 * _bridge_escalation()
     expected = replacement_value * 0.08
     assert out.loc[0, "direct_damage_mean_usd"] == pytest.approx(expected, rel=1e-6)
 
@@ -117,9 +125,13 @@ def test_tunnel_uses_rostami_construction_value_times_hazus_ratio(linear_damage_
     )
     out = calculate_damage_sourced(df, linear_damage_curves)
     # docs/BRDIGE_COSTS.md's own validation example: 1km, 2 lanes, 1 bore,
-    # default geometry -> ~$78.67M construction value; HAZUS tunnel
-    # "complete" (severe) ratio = 1.00 -> full construction value.
-    assert out.loc[0, "direct_damage_mean_usd"] == pytest.approx(78.67e6, rel=1e-3)
+    # default geometry -> ~$78.67M construction value in December 2008 USD,
+    # escalated to the latest NHCCI quarter by default (DECISION
+    # 2026-10-08); HAZUS tunnel "complete" (severe) ratio = 1.00 -> full
+    # construction value.
+    assert out.loc[0, "direct_damage_mean_usd"] == pytest.approx(
+        78.67e6 * _tunnel_escalation(), rel=1e-3
+    )
 
 
 def test_bridge_missing_state_match_contributes_zero_not_nan(linear_damage_curves):

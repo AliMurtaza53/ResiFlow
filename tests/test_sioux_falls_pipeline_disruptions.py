@@ -89,10 +89,10 @@ def test_sioux_falls_pipeline_scripts_reroute_bridge_bottleneck(tmp_path):
     damage_csv = dmg_dir / "intersections_1_with_damage_values.csv"
     cost_matrix = reroute_out / "cost_matrix_by_scenario.csv"
     passenger_cost_matrix = reroute_out / "cost_matrix_passenger_by_scenario.csv"
-    freight_post_path = reroute_out / "edge_flows_freight_s1_day1.gpq"
-    passenger_post_path = reroute_out / "edge_flows_passenger_s1_day1.gpq"
-    freight_iso_path = reroute_out / "trip_isolations_freight_s1_day1.csv"
-    passenger_iso_path = reroute_out / "trip_isolations_passenger_s1_day1.csv"
+    freight_post_path = reroute_out / "edge_flows_freight_s1_day0.gpq"
+    passenger_post_path = reroute_out / "edge_flows_passenger_s1_day0.gpq"
+    freight_iso_path = reroute_out / "trip_isolations_freight_s1_day0.csv"
+    passenger_iso_path = reroute_out / "trip_isolations_passenger_s1_day0.csv"
 
     assert edge_flows_path.exists(), f"missing baseline edge flows: {edge_flows_path}"
     assert odpfc_path.exists() or (base_dir / "odpfc_parts").is_dir()

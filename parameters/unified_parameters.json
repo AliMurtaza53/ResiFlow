@@ -25,8 +25,9 @@
     "speed_shift_mph": 0.0,
     "congestion_scale": 1.0,
     "effective_hours_per_day": 24,
+    "_comment_tier_table": "DECISION 2026-10-08: tier_table default changed from the now-archived T08_assignment_tiers_UK_current.csv to T08_assignment_tiers_US_candidate.csv -- its real US values now also drive assignment_profiles.json's own defaults (the use_table_tier_values=false path), so both paths converge. See docs/FLOOD_TABLE_REVIEW.md.",
     "use_table_tier_values": false,
-    "tier_table": "T08_assignment_tiers_UK_current",
+    "tier_table": "T08_assignment_tiers_US_candidate",
     "_comment_t08b": "use_table_t08b switches Script 1's road_links init from T08's flat per-tier dict to a real per-link join against T08b_facility_area_capacity_speed_US_candidate.csv (NCHRP 825 Exhibit 128) -- facility_type/area_type/lane_category derived per link from hpms_fclass/urban/lanes, see resiflow.networks.t08b_profile. Attaches flow_cap_plph/flow_breakpoint_plph/congestion_factor, which edge_init/edge_initial_speed_func/update_edge_speed already prefer over the tier dict when present. Downtown/Suburban area_type split and the 8%-small-metro-population adjustment are both deferred (collapsed to a single Urban row) -- no urbanized-area-size crosswalk exists in this project yet.",
     "use_table_t08b": false
   },
@@ -127,13 +128,15 @@
   },
 
   "recovery": {
-    "_comment": "Flood: residual_depth_gates_m (T27 recession). Earthquake/landslide: T37/T38 residual speed by damage×day (HAZUS Table 7-4); Script 4 branches on hazard_type — do not use flood_depth_max gates for EQ/LS. table_recovery_scenario also selects T26 capacity and T37/T38 speed scenarios.",
+    "_comment": "Flood: residual_depth_gates_m (depth thresholds; the DAY RANGES each applies for come from T27 -- see resiflow.tables.flood_residual_speed_gate). Earthquake/landslide: T37/T38 residual speed by damage×day (HAZUS Table 7-4); Script 4 branches on hazard_type — do not use flood_depth_max gates for EQ/LS. table_recovery_scenario also selects T26 capacity and T37/T38 speed scenarios.",
     "residual_depth_gates_m": {
       "intermediate": 2.0,
       "deep": 6.0
     },
+    "_comment_use_table_recovery_design": "DECISION 2026-10-08: T26_recovery_design_current.csv (roads) and the new T26_recovery_schedule_US_candidate_bridges.csv (bridges, NCHRP WOD 390/Harvey-I-69-re-anchored) are confirmed-correct per explicit decision and the bridge/road split (resiflow.tables.recovery_schedule_from_bridge_and_road_tables) is fully wired and tested -- but left FALSE here (same SA-seam convention as every other real-table swap in this project): flipping it changes the real event-day checkpoints from the data bundle's single day to T26's own multi-checkpoint schedule (0/30/45/60/90/98/110/147/150/160/180/...), which several toy/E2E pipeline tests assert a single-day cost matrix against. Flip when ready; see docs/FLOOD_TABLE_REVIEW.md.",
     "use_table_recovery_design": false,
     "recovery_design_table": "T26_recovery_design_current",
+    "recovery_bridge_design_table": "T26_recovery_schedule_US_candidate_bridges",
     "table_recovery_scenario": "average",
     "earthquake_residual_speed_table": "T37_earthquake_residual_speed_schedule",
     "landslide_residual_speed_table": "T38_landslide_residual_speed_schedule"

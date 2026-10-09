@@ -223,6 +223,29 @@ def copy_parameters(toy_data_dir: Path, *, flow_cap_plph: int = 1) -> None:
     profiles_path = dest / "assignment_profiles.json"
     profiles = json.loads(profiles_path.read_text(encoding="utf-8"))
     profiles["flow_cap_plph"] = tier_caps
+    # Pin every other tier value too, decoupled from whatever
+    # assignment_profiles.json's own real-world defaults currently are
+    # (DECISION 2026-10-08 changed those from UK-relabeled to real US T08
+    # values -- see docs/FLOOD_TABLE_REVIEW.md). These toy fixtures test
+    # routing/rerouting MECHANICS (bottlenecks, isolation, Braess) against
+    # pre-computed expected costs, not real-world tier calibration, so they
+    # need their own fixed, stable values independent of future changes to
+    # the real defaults -- the original UK-relabeled numbers, unchanged.
+    profiles["free_flow_speed"] = {
+        "freeway": 70.0, "arterial": 60.0, "collector": 55.0, "local_access": 35.0,
+    }
+    profiles["urban_speed_cap"] = {
+        "freeway": 55.0, "arterial": 45.0, "collector": 35.0, "local_access": 30.0,
+    }
+    profiles["min_speed_cap"] = {
+        "freeway": 10.0, "arterial": 8.0, "collector": 7.0, "local_access": 5.0,
+    }
+    profiles["congestion_factor"] = {
+        "freeway": 0.033, "arterial": 0.033, "collector": 0.05, "local_access": 0.05,
+    }
+    profiles["flow_breakpoint"] = {
+        "freeway": 1400, "arterial": 1300, "collector": 1100, "local_access": 800,
+    }
     profiles_path.write_text(json.dumps(profiles, indent=2), encoding="utf-8")
 
 
@@ -230,7 +253,19 @@ def write_recovery_table(toy_data_dir: Path) -> None:
     rows = [
         {
             "scenario": 1,
-            "event_day": 1,
+            # event_day 0 (not 1): matches T26/T27's real "day of the flood
+            # itself" convention (docs/FLOOD_TABLE_REVIEW.md 2026-10-08).
+            # T27's day-0 row is "all flooded segments" get the T19 speed
+            # reduction; day 1+ narrows to depth-gated residual-speed tiers
+            # that assume day 0 already ran first and fully closed
+            # everything. Both T26's own recovery_schedule_from_table()
+            # (event_days = {0, ...}) and the real production data bundle's
+            # recovery design_updated.csv (first row is event_day=0) share
+            # this same invariant -- this toy stub is the one place that
+            # didn't, which silently broke under the T27 fix (a shallow
+            # flooded edge was never closed in the first place, so skipping
+            # straight to a depth-gated day reopened it immediately).
+            "event_day": 0,
             "bridge_minor": 0.5,
             "bridge_moderate": 0.4,
             "bridge_extensive": 0.3,

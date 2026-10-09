@@ -9,6 +9,167 @@ Legend: **FIX** = clear defect, **CONFIRM** = needs your decision or a source ch
 
 ---
 
+## Resolved, 2026-10-08: Section 4 items 5/6/7/9/14, T08/T26/T27 confirmed, NHCCI dollar-year harmonization
+
+Per your explicit decisions this round.
+
+**Item 5 (T22 TEMPLATE):** Archived by you (`archive/T22_damage_ratio_curves_TEMPLATE.csv`).
+`damage_ratio_road_flood.xlsx` is confirmed the permanent, final T22 source
+-- not a placeholder pending replacement. No upstream code change was
+needed (the xlsx was already the hard default; `use_table_damage_ratio_curves`
+has always defaulted off). One thing worth your attention: that flag's
+default table name (`damage_ratio_curves_table`) still names the now-archived
+file by its old top-level path. Flipping the flag on without also updating
+that name will now fail loudly (`FileNotFoundError`) instead of silently
+serving illustrative values -- I left it that way (the safer failure mode)
+rather than removing the flag/table machinery outright. **CONFIRM** if you'd
+rather I delete that dead path entirely.
+
+**Item 6 (T26 bridges):** `T26_recovery_schedule_US_candidate_bridges.xlsx`
+converted to a real CSV (same schema as the road table) and wired in:
+Script 4's `load_scenarios()` now pairs it with the road
+`T26_recovery_design_current.csv` via a new
+`resiflow.tables.recovery_schedule_from_bridge_and_road_tables` (the two
+tables' day checkpoints rarely coincide -- e.g. bridge/average's full
+recovery is 147 days vs. road/average's 90 -- so both are evaluated at
+their shared union of checkpoints). `recovery.use_table_recovery_design`
+flipped to **true** (was false) since you confirmed both tables as
+correct/final; this is a real default-behavior change to every flood run
+using the recovery schedule, not a dormant option. The bridge schedule is
+re-anchored to NCHRP Web-Only Document 390 (2024) -- the Hurricane Harvey
+/ I-69 South bridge case for the average scenario, and WOD 390's
+Figure B-14 years-tail for the slow scenario.
+
+**Item 7 (T27):** Confirmed correct/final. Script 4's flood residual-speed
+restriction now actually **reads** T27 (`resiflow.tables.flood_residual_speed_gate`)
+instead of a hardcoded `if event_day == 1/2/3` check. Two real, previously
+undiscovered bugs surfaced while wiring this:
+  - **T27 was dead code in every real run.** This project's real
+    recovery-schedule day checkpoints are 0, 7, 14, 30, 60, 90 (T26's own
+    day columns) -- none of which are 1, 2, or 3, so the old hardcoded
+    check never fired for any real scenario. The restriction existed in
+    the model's design but never actually executed.
+  - Even on paper, the old hardcoded version had a gap T27's schedule
+    doesn't: on the "intermediate-depth" day it explicitly excluded deep
+    (>6m) segments, so a severely flooded road briefly got NO speed
+    restriction at all before being re-gated the next day. T27's schedule
+    is cumulative (its "depth > 2m" tier also covers deep segments), so
+    this is now fixed too.
+  - **How T27 is used / what it's supposed to inform** (since this
+    qualifies as the harmonization issue you asked me to flag): it tells
+    Script 4, for each day after a flood, which previously-flooded
+    segments (by their initial depth) still have their speed capped at
+    the T19 speed-depth value vs. which have recovered to full speed --
+    i.e. it's the residual-speed half of recovery, separate from T26's
+    capacity-recovery half. `recovery.residual_depth_gates_m` (2m/6m)
+    still supplies the depth thresholds; T27 now supplies the day ranges.
+  - **Invariant this fix depends on, now made explicit:** day 0 always
+    runs first and fully closes every flooded segment (T27's own "all
+    flooded segments" row); later days only narrow which segments *stay*
+    closed as the water recedes. Both `recovery_schedule_from_table()`
+    (`event_days` seeded with `{0, ...}`) and the real production data
+    bundle's own `recovery design_updated.csv` (first row is
+    `event_day=0`) already guarantee this. One place didn't: the toy test
+    fixtures' single-checkpoint recovery design stub used `event_day=1`,
+    skipping day 0 entirely -- under the old hardcoded gate this was
+    harmless (day 1 happened to also mean "close everything"), but under
+    the real T27 schedule it meant a shallow-but-still-fully-closed toy
+    flood edge reopened immediately, since the fix correctly assumes day
+    0 already ran. Fixed the fixture to use `event_day=0` (matching the
+    real convention) and the dependent output filenames
+    (`..._s1_day1.gpq` -> `..._s1_day0.gpq`) across
+    `tests/test_toy_pipeline_disruptions.py` and
+    `tests/test_sioux_falls_pipeline_disruptions.py`.
+
+**Item 9 (re-keying + tolls):**
+  - Re-keying turned out to be a real, confirmed bug, not just a cleanup:
+    `resiflow.networks.normalize_network_links()` was **unconditionally
+    overwriting** the real `hpms_fclass`-derived `assignment_tier` that
+    `convert_faf5_links()` computes (F1/F2->freeway, F3/F4->arterial,
+    F5/F6->collector, F7->local_access) with the old name-based
+    `network_mapping.faf5.json` mapping, immediately after Script 1 loads
+    the network -- every FAF5 `primary` link was being forced back to
+    "arterial" regardless of its real F_Class, silently discarding the
+    2026-10-02 fix. Fixed: it now only fills in `assignment_tier`/
+    `damage_profile` from the JSON mapping where a real value isn't
+    already present, so FAF5 keeps its real per-link tiers and non-FAF5
+    networks (OSM/TNTP/toy) keep working exactly as before. Real impact on
+    the national network: **72,674 links (15.0%)** had a different
+    assignment tier under the bug than their real `hpms_fclass` says --
+    worst on `collector`, which the bug collapsed from a real 35,604 links
+    down to 784 (the name-based mapping only ever assigns "collector" to
+    the rare `tertiary` tag, never to the real F5/F6-class links hiding
+    inside the generic `primary`/`motorway_link` names).
+  - **Toll costs**: real and already in the generalized cost. FAF5's own
+    `TRUCKTOLL` field (5-axle average toll x segment length, real per-link
+    data) drives `average_toll_cost` in `convert_faf5_links()`; Script 1/4's
+    route-assignment cost model (`road_revised.py`) sums it directly into
+    `total_cost = cost_fuel + cost_time + cost_toll + cost_fare` and reports
+    `cost_toll`/`toll_cost_total` as its own line item. This is the
+    **travel/routing** cost (it affects route choice and rerouting-cost
+    estimates), not the disaster **damage** cost -- Script 3's direct
+    damage figures (bridge/road/tunnel repair cost) correctly do not
+    include tolls, since a toll has nothing to do with what it costs to
+    fix a flooded road.
+
+**Item 14 (surface floods never reaching extensive/severe):** Confirmed
+intentional by you -- no action taken.
+
+**T08, T26, T27 confirmed correct -- other files brought into line:**
+  - `assignment_profiles.json`'s own default values (previously the
+    UK-relabeled numbers this doc's own audit flagged -- arterial 2,200
+    veh/lane-h and 60 mph vs. the real US 900 and 45) now match
+    `T08_assignment_tiers_US_candidate.csv` directly: `flow_cap_plph`/
+    `free_flow_speed`/`urban_speed_cap`/`min_speed_cap` copied verbatim.
+    `flow_breakpoint`/`congestion_factor` are **derived**, not copied --
+    T08's own flow_breakpoint column is BPR-oriented text ("n/a (use BPR)"
+    for 3 of 4 tiers, a range for the 4th) because it assumes a classic
+    BPR a/b power-law congestion curve, which this codebase's actual
+    edge-speed model doesn't implement (it's piecewise-linear:
+    breakpoint + slope). Both are derived via the same NCHRP 825 Exhibit
+    128 linearization already used in `t08b_profile.py`
+    (`Q_bp = 0.85 x capacity`; `slope = free_flow_speed / (1.15 x capacity)`),
+    so the derivation is reused, not invented fresh. `assignment.tier_table`
+    default repointed from the now-archived UK file to the real US
+    candidate; `resiflow.networks.profiles._load_profiles_from_table`
+    applies the identical derivation when the flag path is used, so both
+    paths agree (confirmed by test).
+  - This is, like the T26 flag flip, a real default-behavior change --
+    baseline arterial capacity drops from the UK-relabeled 2,200 veh/lane-h
+    to the real US 900 for every flood scenario using the default
+    (non-T08b) assignment path.
+
+**USD harmonization (NHCCI):** T24 CP25 (2018 USD), T30 (2024 USD), and the
+Rostami et al. tunnel model (December 2008 USD) were three different
+dollar-years being summed together unescalated the moment
+`vulnerability.use_sourced_asset_costs` is turned on -- a gap I noticed
+while reporting back on 2026-10-05's work and you asked me to close using
+`NHCCI_20260922.csv`. New `resiflow.nhcci` module reads FHWA's real
+National Highway Construction Cost Index (seasonally adjusted composite,
+2003 Q1-2026 Q1) and computes escalation factors; a construction-specific
+CPI fallback was considered but not needed -- all three source years
+already fall within NHCCI's own coverage. All three cost modules
+(`cp25_road_cost.py`, `bridge_cost_t30.py`, `tunnel_cost.py`) now escalate
+to the **latest available NHCCI quarter** (2026 Q1 as of this writing) by
+default -- an objective, non-arbitrary target that updates automatically
+as the NHCCI file is refreshed, rather than a hardcoded future year.
+Real factors as of this writing: T24 (2018 Q4->2026 Q1) x1.692; T30
+(2024 Q4->2026 Q1) x0.977 (NHCCI's seasonally-adjusted composite actually
+dipped slightly over that window); tunnels (2008 Q4->2026 Q1) x1.916.
+Every function keeps an explicit `escalation_factor=1.0` override for
+anyone who wants the table's literal, unescalated published values.
+
+**Decisions made this pass (logged per your standing instruction):**
+1. `recovery.use_table_recovery_design`: false -> **true**.
+2. `recovery.recovery_bridge_design_table`: new, `T26_recovery_schedule_US_candidate_bridges`.
+3. `assignment.tier_table`: `T08_assignment_tiers_UK_current` (archived) -> **`T08_assignment_tiers_US_candidate`**.
+4. `assignment_profiles.json`: UK-relabeled defaults -> real US T08 values (verbatim + NCHRP-825-derived breakpoint/congestion).
+5. T27 read live instead of hardcoded; depth-gate day ranges now table-driven.
+6. All three sourced-cost modules escalate to the latest NHCCI quarter by default (not the literal published dollar-year).
+7. T22 TEMPLATE formally archived; xlsx confirmed permanent.
+
+---
+
 ## Resolved, 2026-10-05: Real sourced costs for roads (T24 CP25), bridges (T30), tunnels (Rostami et al.)
 
 Per your explicit decisions: T22 stays on `damage_ratio_road_flood.xlsx`
@@ -238,11 +399,10 @@ centroid-connector filtering) -- not estimated.
   code; correctly treated as urban (see item 1).
 
 **Still open, unchanged by this pass:** items 2, 4 (bridge d(H) -- the NBI
-join itself was already fixed in the prior bridge/tunnel session), 5
-(T22 TEMPLATE stays the dormant default name -- the recommendation is
-simply never to flip `use_table_damage_ratio_curves` on until TEMPLATE is
-replaced; the real xlsx is already the live default and does not need the
-flag), 6, 7, 9 (network_mapping.faf5.json re-keying), 12, 14, 15, 16.
+join itself was already fixed in the prior bridge/tunnel session), 12, 15
+(partial -- urban-size and dollar-year now resolved, rural terrain still
+isn't), 16 (resolved 2026-10-05 via Rostami et al.). Items 5, 6, 7, 9, 14
+resolved 2026-10-08 -- see that section above.
 
 ---
 

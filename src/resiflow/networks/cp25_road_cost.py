@@ -69,6 +69,19 @@ IMPROVEMENT_TYPE_DEFAULT = "Total Reconstruct Existing Lane"
 
 _USD_PER_THOUSAND = 1_000.0
 
+# T24 CP25's own published dollar year (HERS/C&P Report Exhibits A-5..A-8).
+_T24_BASE_YEAR, _T24_BASE_QUARTER = 2018, 4
+
+
+def default_escalation_factor(params_root=None) -> float:
+    """NHCCI escalation from T24 CP25's 2018 USD to the latest available
+    NHCCI quarter -- see resiflow.nhcci. DECISION 2026-10-08
+    (docs/FLOOD_TABLE_REVIEW.md): harmonizes T24/T30/tunnel costs, which
+    were otherwise three different dollar-years, onto one common basis."""
+    from resiflow.nhcci import escalation_factor
+
+    return escalation_factor(_T24_BASE_YEAR, _T24_BASE_QUARTER, params_root=params_root)
+
 
 def load_t24_cp25(params_root=None) -> pd.DataFrame:
     from resiflow.tables import load_table
@@ -83,6 +96,7 @@ def cp25_road_cost_usd_per_lane_mile(
     *,
     terrain_type: pd.Series | None = None,
     improvement_type: str = IMPROVEMENT_TYPE_DEFAULT,
+    escalation_factor: float | None = None,
     params_root=None,
 ) -> pd.Series:
     """Per-link T24 CP25 reconstruction unit cost, in real USD per lane-mile.
@@ -98,7 +112,14 @@ def cp25_road_cost_usd_per_lane_mile(
     terrain_type : optional real Flat/Rolling/Mountainous per link (not yet
         available project-wide -- see TERRAIN_DEFAULT). Falls back to
         TERRAIN_DEFAULT wherever None/missing.
+    escalation_factor : multiplies the table's own 2018 USD onto a common
+        dollar-year with T30/tunnel costing. Defaults to
+        :func:`default_escalation_factor` (NHCCI, 2018 Q4 -> latest
+        available quarter); pass 1.0 for the table's literal, unescalated
+        2018 USD values.
     """
+    if escalation_factor is None:
+        escalation_factor = default_escalation_factor(params_root=params_root)
     t24 = load_t24_cp25(params_root=params_root)
     # Normalize every input to a plain 0..n-1-indexed Series immediately --
     # callers routinely pass boolean-mask-sliced subsets (non-contiguous
@@ -147,4 +168,4 @@ def cp25_road_cost_usd_per_lane_mile(
         on=["region", "functional_class", "subcategory_or_terrain", "improvement_type"],
         how="left",
     )
-    return merged["cost_thousand_2018usd_per_lane_mile"] * _USD_PER_THOUSAND
+    return merged["cost_thousand_2018usd_per_lane_mile"] * _USD_PER_THOUSAND * escalation_factor
