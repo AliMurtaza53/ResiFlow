@@ -67,8 +67,10 @@
     },
     "_comment_tables": "use_table_* flags (default false = formula path). Wave-1 VOC sealed Li-like: time (A-3 VOT) + fuel-only (T04_avg_fuel_VOC) + toll; T05 non-fuel is OUT_OF_SCOPE (see T05_nonfuel_OUT_OF_SCOPE.csv). Keep use_table_nonfuel_curve=false; do not point at ATRI T05.",
     "use_table_fuel_curve": false,
+    "_comment_fuel_curve_table": "AUDIT 2026-10-08: this file is now archive/T04_fuel_consumption_speed_UK_TAG_current.csv (not at the top-level parameters/tables/ path this parameter names) -- flipping use_table_fuel_curve on without also updating this name will fail loudly (FileNotFoundError), which is the safer failure mode; left as-is rather than removing the dormant flag/table machinery.",
     "fuel_curve_table": "T04_fuel_consumption_speed_UK_TAG_current",
     "use_table_nonfuel_curve": false,
+    "_comment_nonfuel_curve_table": "AUDIT 2026-10-08: this file is now archive/T05_nonfuel_cost_speed_UK_TAG_current.csv (not at the top-level path this parameter names) -- same dangling-reference note as fuel_curve_table above. T05 is OUT_OF_SCOPE anyway (see use_table_tables comment); this flag should never be flipped on regardless.",
     "nonfuel_curve_table": "T05_nonfuel_cost_speed_UK_TAG_current"
   },
 
@@ -109,6 +111,7 @@
     "depth_scale_lambda": null,
     "damage_threshold_scale": 1.0,
     "use_table_damage_thresholds": false,
+    "_comment_damage_threshold_table": "AUDIT 2026-10-08: restored to parameters/tables/ after being repeatedly removed from the working tree by concurrent work on this branch -- if load_table(...) for this name ever raises FileNotFoundError again, it needs restoring (git checkout -- parameters/tables/T20_damage_level_depth_thresholds.csv) rather than this parameter being repointed.",
     "damage_threshold_table": "T20_damage_level_depth_thresholds",
     "_comment_damage_ratio": "use_table_damage_ratio_curves switches Script 3's C1-C6 depth-damage curves from damage_curves/damage_ratio_road_flood.xlsx (ungitted, local-only) to parameters/tables/T22_damage_ratio_curves_TEMPLATE.csv. Left FALSE: T22's manifest status is TEMPLATE_REPLACE_VALUES -- its numbers are illustrative shapes, not sourced (see the CSV's own header and van Ginkel et al. 2021 SI). Flip only after replacing T22's values with real extracted data; the wiring itself (unit conversion cm->m, column renaming) is tested and ready.",
     "use_table_damage_ratio_curves": false,

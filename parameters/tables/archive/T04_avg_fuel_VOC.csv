@@ -1,0 +1,19 @@
+"# SOURCE: Methodology matched to Li et al. (2026)	 ""Stress-testing road network resilience using",,,,,
+"# counterfactual flood events (1953-2024) in Great Britain	"" Transportation Research Part D",,,,,
+# Li et al.'s own generalized cost function (nird.road_osm.voc_func, github.com/nismod/DAFNI-NIRD) computes,,,,
+# a single, vehicle-class-agnostic FUEL-ONLY cost per km, live per road link, using a continuous quadratic,,
+# formula (no speed bins, no non-fuel component). No single average VOC figure is reported in their,,,,
+# paper or SI; the value below reproduces their averaging approach (mean across their own road-speed set),,,,,
+# using US-specific data in place of their UK formula/inputs.,,,,,
+# UNDERLYING FUEL DATA: EMFAC2025 v2.1.1 (CARB), Statewide CA, CY2026 - same source as,,,
+# T04_EMFAC2025_CA_fuel_speed_SUV_SUtruck.csv. Averaged across 5-80 mph (16 speed bins).,,,,,
+# FUEL PRICE: $3.224/gal gasoline per EIA https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=pet&s=emm_epm0_pte_nus_dpg&f=a, $3.66/gal diesel (2025 national averages per EIA https://www.eia.gov/dnav/pet/hist/LeafHandler.ashx?n=pet&s=emd_epd2d_pte_nus_dpg&f=a,,,,
+# figures for final use).,,,,,
+# SCOPE MATCH TO LI ET AL: fuel cost only. Li et al.'s cost_func has no non-fuel VOC term at all,,,,,
+# (time cost + fuel cost + toll only) - so this is the correct like-for-like comparison scope.,,,,,
+# It is NOT the full VOC (fuel + non-fuel) used elsewhere in this project's T05 table.,,,,,
+vehicle_class,avg_fuel_usd_per_mile,fuel_price_usd_per_gal,fuel_type,status,for
+gas_suv,0.187,3.15,gasoline,VERIFIED,passenger
+diesel_su_truck,0.4491,3.65,diesel,VERIFIED,freight
+"
+",,,,,

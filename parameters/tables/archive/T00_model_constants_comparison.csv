@@ -1,0 +1,18 @@
+# T00 - Scalar constants: UK current vs US candidate. Matrix rows 1-3,7,18,25.
+# status codes: ADOPTED | ADOPT_PENDING_* | CANDIDATE_NEW | VERIFY_EXACT | METHOD_DECISION_ADVISOR | SA_FACTOR
+# generated 2026-08-17 from ResiFlow feature/sensitivity-analysis unified_parameters.json + audit workbook
+parameter,uk_current_value,uk_units,us_candidate_value,us_units,recommended_units,source,status
+vot_car,GBP17.69 (all classes),GBP/hr,21.8,USD/hr,"USD/hr, dollar-year pinned",USDOT BCA guidance (current edition),ADOPT_PENDING_EDITION_PIN
+vot_lgv,GBP17.69,GBP/hr,36.5,USD/hr,USD/hr,USDOT BCA guidance,ADOPT_PENDING_EDITION_PIN
+vot_ogv_truck,GBP17.69,GBP/hr,37.2,USD/hr,USD/hr,USDOT BCA guidance (truck driver VTTS),ADOPT_PENDING_EDITION_PIN
+vot_psv,GBP17.69,GBP/hr,21.8,USD/hr,USD/hr,USDOT BCA guidance,ADOPT_PENDING_EDITION_PIN
+avg_car_occupancy,1.06 (UK NTS commute),persons/veh,1.15,persons/veh,persons/veh,FHWA NHTS work-trip occupancy (pull exact from current release),VERIFY_EXACT
+fuel_price_gasoline,1.40 (petrol),GBP/L,0.87,USD/L,"USD/L, base-year 2022-24 pinned",EIA annual retail average,ADOPT_PENDING_YEAR_PIN
+fuel_price_diesel,1.40,GBP/L,0.99,USD/L,USD/L,EIA annual retail average,ADOPT_PENDING_YEAR_PIN
+closure_depth_car,30 (ensemble 15/30/60),cm,30 (ensemble 15/30/60),cm,cm,Pregnolato et al. 2017; NWS 12-in guidance,ADOPTED
+closure_depth_truck,n/a (car value used),cm,60,cm,cm,Kramer et al. 2016 (~50-60 cm truck fording),CANDIDATE_NEW
+isolation_loss_passenger,17.69x7=123.8/day,GBP/worker-day,280 (35/hr x 8 h),USD/worker-day,USD/worker-day,BLS CES mean hourly earnings ~USD35 (2024),VERIFY_EXACT
+isolation_loss_freight,n/a (wage proxy),-,FAF5 value/ton x payload x daily share,USD/truck-day,USD/truck-day,FAF5 commodity value; USDOT BCA freight appendix,METHOD_DECISION_ADVISOR
+construction_escalation,3.3,%/yr (ONS UK),NHCCI index (quarterly),index,index from source year,FHWA NHCCI https://www.fhwa.dot.gov/policy/otps/nhcci,ADOPT
+effective_assignment_hours,24,h/day,10-24 (SA range; K~0.08-0.12),h/day,h/day,FHWA HPMS K-factors,SA_FACTOR
+weekday_truck_factor,n/a (uniform 365),-,1.0-1.2,dimensionless,dimensionless,State count programs; traffic monitoring literature,SA_FACTOR

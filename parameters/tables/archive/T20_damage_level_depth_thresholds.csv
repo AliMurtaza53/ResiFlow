@@ -1,0 +1,18 @@
+# T20 - Depth (cm) at which each damage level BEGINS, by flood type and road class. Levels: no < minor < moderate < extensive < severe.
+# CURRENT rows are verbatim from src/resiflow/fragility/flood_categorical.py's non-table (default) code path. Coastal rows are the code's own PLACEHOLDER - gate off (matrix row 21).
+# major/minor split basis (2026-10-02): resiflow.fragility.flood_categorical._is_major prefers real
+# hpms_fclass (F1-F3 major, F4-F7 minor) when the network carries it, falling back to this table's
+# original name-based set (motorway/trunk/primary/secondary vs tertiary/local) otherwise.
+# The van Ginkel/Li sophisticated/simple/ordinary 3-way scheme (this file's old single incomplete
+# CANDIDATE row previously sketched) now lives fully populated in the sibling file
+# T20_damage_level_depth_thresholds_US_candidate.csv -- point vulnerability.damage_threshold_table
+# at that file (instead of this one) to opt into it; the two schemes are not merged into one file
+# because resiflow.fragility.flood_categorical auto-detects which scheme a loaded table uses from
+# its own road_class values, which only works cleanly with one scheme per file.
+flood_type,road_class,status,no_below_cm,minor_from_cm,moderate_from_cm,extensive_from_cm,severe_from_cm,source
+river,major (motorway/trunk/primary/secondary),CURRENT,0,50,100,200,600,flood_categorical.py (verbatim)
+river,minor (tertiary/local),CURRENT,0,1,50,200,600,flood_categorical.py (verbatim; minor from any depth>0)
+surface,major,CURRENT,0,200,600,n/a,n/a,flood_categorical.py (caps at moderate)
+surface,minor,CURRENT,0,50,600,n/a,n/a,flood_categorical.py (caps at moderate)
+coastal,major,PLACEHOLDER_DO_NOT_USE,0,40,90,180,500,flood_categorical.py - marked 'confirm with advisor'
+coastal,minor,PLACEHOLDER_DO_NOT_USE,0,30,80,150,400,flood_categorical.py - marked 'confirm with advisor'

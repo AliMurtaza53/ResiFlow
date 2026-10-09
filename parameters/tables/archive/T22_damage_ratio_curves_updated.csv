@@ -1,0 +1,12 @@
+# T22 - Depth-damage ratio curves C1-C6 (fraction of asset value damaged vs depth). Pairs: C1/C2 sophisticated, C3/C4 simple, C5/C6 ordinary (low/high flow).,,,,
+# STATUS: same as Ginkel et al,,,,,,
+# (not in the git repo) and in van Ginkel et al. 2021 supplementary (doi:10.5194/nhess-21-1011-2021). REPLACE these values from that source;,,,,,,
+# keep the depth grid and column labels so the loader and Morris theta/lambda embeddings are unaffected.,,,,,,
+# Morris SA: perturb via theta (C-low/C-high mixing) and lambda (depth-axis scale), never per-cell.,,,,,
+depth_cm,C1_sophisticated_lowflow,C2_sophisticated_highflow,C3_simple_lowflow,C4_simple_highflow,C5_ordinary_lowflow,C6_ordinary_highflow
+0,0,0,0,0,0,0
+50,0.01,0.02,0.002,0.015,0.015,0.12
+100,0.03,0.06,0.004,0.04,0.025,0.2
+150,0.075,0.1,0.025,0.2,,
+200,0.1,0.12,0.03,0.25,0.035,0.28
+600,0.2,0.22,0.04,0.35,0.05,0.35

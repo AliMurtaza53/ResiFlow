@@ -1,0 +1,13 @@
+# T05b - US CANDIDATE non-fuel operating costs, USD per mile (2025 data year for ATRI rows).
+# Routing should use MARGINAL cost only; driver wage belongs in VOT, not here (avoid double counting - see matrix row 5).
+# Sources: ATRI 2026 https://truckingresearch.org/about-atri/atri-research/operational-costs-of-trucking/ ; AAA Your Driving Costs.
+vehicle_class,component,usd_per_mile,source,status
+car,maintenance_repair,0.1,AAA Your Driving Costs (marginal components),APPROXIMATE_VERIFY
+car,tires,0.03,AAA Your Driving Costs,APPROXIMATE_VERIFY
+car,total_marginal_nonfuel,0.13,AAA (sum of above; excludes ownership/depreciation),APPROXIMATE_VERIFY
+ogv_truck,repair_maintenance,0.2,ATRI Operational Costs of Trucking 2026 (2025 data),VERIFY_EXACT
+ogv_truck,tires,0.05,ATRI 2026,VERIFY_EXACT
+ogv_truck,truck_trailer_payments,0.39,ATRI 2026 (record high),VERIFY_EXACT
+ogv_truck,insurance_permits,0.1,ATRI 2026,VERIFY_EXACT
+ogv_truck,total_marginal_exfuel_exdriver,0.74,ATRI 2026 derived (ex-fuel USD1.854/mi minus driver wage+benefits ~USD1.11),VERIFY_EXACT
+ogv_truck,total_marginal_exfuel,1.854,"ATRI 2026: USD1.854/mi ex-fuel, USD2.336/mi total",SOURCED

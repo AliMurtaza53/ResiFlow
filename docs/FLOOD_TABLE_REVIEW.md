@@ -9,6 +9,120 @@ Legend: **FIX** = clear defect, **CONFIRM** = needs your decision or a source ch
 
 ---
 
+## Audit, 2026-10-08 (3): all parameter JSONs + every table under parameters/tables/
+
+Project-wide, not flood-only (this doc's own scope line above is the
+flood path specifically; this pass checked everything).
+
+### Parameter JSONs: consistency check
+
+Read all 8: `unified_parameters.json`, `assignment_profiles.json`,
+`network_mapping.{faf5,osm,tntp}.json`, `hazards.example.json`,
+`hazards.conus_multihazard.example.json`, `sa_morris_design.json`.
+
+- **`network_mapping.{faf5,osm,tntp}.json`, `hazards*.json`,
+  `sa_morris_design.json`:** consistent, nothing to fix. `network_mapping.faf5.json`
+  in particular is now correctly understood as a *fallback-only* source
+  (today's `normalize_network_links()` fix means FAF5's real per-link
+  tiers win whenever present; this file only fills the gaps) --
+  confirmed compatible, no content change needed.
+- **`assignment_profiles.json`:** consistent with the T08 sync decision
+  logged earlier today.
+- **`unified_parameters.json` -- 3 dangling table-name references found**
+  (a parameter names a file that isn't at the path it names, because the
+  file has since been archived). All three flags default `false`, so none
+  are *actively* broken today, but each would fail loudly
+  (`FileNotFoundError`) if switched on without also updating the name --
+  documented inline at each one rather than silently left as a trap:
+  1. `cost_operating.fuel_curve_table` -> `T04_fuel_consumption_speed_UK_TAG_current`
+     (now `archive/...`). Pre-existing, not something this session did;
+     T05 non-fuel is already `OUT_OF_SCOPE` by design and this flag
+     should never be flipped on regardless.
+  2. `cost_operating.nonfuel_curve_table` -> `T05_nonfuel_cost_speed_UK_TAG_current`
+     (now `archive/...`). Same as above.
+  3. `vulnerability.damage_threshold_table` -> `T20_damage_level_depth_thresholds`.
+     This one **was actively broken**: the file had been deleted from
+     `parameters/tables/` (by concurrent work on this branch) three
+     separate times across today's sessions. Restored again and flagged
+     inline in the JSON with the exact restore command, since it's the
+     *default* table (used by `use_table_damage_thresholds`, not a
+     secondary candidate) and needs to keep existing.
+  4. (Already known, logged 2026-10-08 earlier today, not new:)
+     `vulnerability.damage_ratio_curves_table` -> the archived T22
+     TEMPLATE -- accepted, safer-failure-mode, not fixed further.
+- **`manifest.csv` had gone stale in one place**: its own note on
+  `T26_recovery_design_current.csv` claimed `recovery.use_table_recovery_design`
+  now defaults `true` -- true only briefly, before being reverted later
+  the same day once it broke E2E tests (see the entry above). Corrected.
+
+### Every table under `parameters/tables/`: wiring audit
+
+Checked every file directly under `parameters/tables/` (34 before this
+pass) plus `archive/`, `updates_ak/`, `nandu_sep2026/`, `raw/` against
+real code references (not just docstring mentions -- confirmed an actual
+`load_table(...)` / `Path(tables_root())/...` read in each case), and
+against `manifest.csv`'s own status labels.
+
+**Newly confirmed wired** (had no manifest row, or a wrong one, until now):
+`T19_alt_snowfall_rate_speed_capacity.csv` (`hazards/winter_storm_rate.py`),
+`T19_winter_speed_closure_crosswalk.csv` (`fragility/winter_storm_speed.py`),
+`T33_winter_storm_clearance_order_new.csv` (`hazards/winter_storm_clearance.py`
+-- the manifest had been describing the *old*, now-superseded
+`T33_winter_storm_clearance_order.csv` by the same conceptual name; the
+real live file has a `_new` suffix the manifest never recorded).
+
+**Confirmed NOT loaded, by design (not neglect) -- left in place, manifest
+now says so explicitly:**
+`T04_avg_fuel_VOC_sealed.csv` (documents what the live hardcoded fuel-cost
+formula coefficients resolve to), `T32_ice_event_assumption_note.csv`
+(`winter_storm_categorical.py`'s own docstring: "documentation of that
+choice, not a separate code path"), `T36_damage_state_operational_factors_inventory.csv`
+(research ledger; already documented this way).
+
+**Confirmed NOT loaded, genuinely unwired (not documentation-by-design):**
+`T35_winter_storm_speed_recovery.csv` -- zero code references anywhere;
+manifest already said "directly usable once T34 supplies day_open" (i.e.
+known-pending), now says so more explicitly. Left in place, not archived
+-- it's a real near-term dependency of in-progress work (T34), not dead.
+
+**Moved to `archive/`** (confirmed superseded, zero remaining code
+references, each with a note at its new manifest row explaining why):
+- `T24_asset_unit_costs_US_candidate.csv` -- superseded by
+  `T24_asset_unit_costs_US_candidate_CP25.csv` (2026-10-05 work).
+- `T22_damage_ratio_curves_updated.csv` -- already manifest-flagged
+  `ARCHIVED_REJECTED` (incomplete reshape attempt) but still sitting at
+  top level; physically relocated to match its documented status.
+- `damage_cost_road_flood_US.xlsx` -- untracked; the same
+  Interstate/US Route/State Route/Local figures already documented (and
+  superseded) in this doc's own "T24 unit costs" table above, under a new
+  filename.
+- `NewT0_updated.xlsx` -- untracked; a VOT/fuel citation source referenced
+  only in a comment in `scripts/seal_t04_emfac_fuel_voc.py`, never loaded.
+
+**Flagged, not moved** (genuine ambiguity -- these sit in personal/named
+staging areas or look like in-progress renames, and moving them risked
+disrupting someone else's active work rather than cleaning up dead
+weight):
+- `T20_damage_level_depth_thresholds_US.csv` -- byte-identical duplicate
+  of `T20_damage_level_depth_thresholds_US_candidate.csv` under a shorter
+  name, untracked, no code reference. **CONFIRM** intent and consolidate
+  to one filename.
+- `parameters/tables/updates_ak/` (4 files) -- a personal staging folder;
+  its `T24_asset_unit_costs_US_candidate_CP25.csv` and
+  `T30_bridge_replacement_unit_costs_US.csv` are byte-identical to the
+  already-promoted top-level copies (redundant, safe to delete at your
+  discretion); `T22_damage_ratio_curves_US_candidate.csv` is now moot
+  given the permanent decision to stay on the xlsx for T22;
+  `T04_EMFAC2025_CA_fuel_speed_SUV_SUtruck.csv` not independently checked.
+- `parameters/tables/nandu_sep2026/` (4 files, incl. `parameter_diff_final.xlsx`
+  -- the audit matrix this doc itself cites) -- a named collaborator
+  staging folder; not touched.
+
+**Every `use_table_*`/`use_sourced_*` flag in `unified_parameters.json`
+confirmed referenced by real code** (none orphaned/dead).
+
+---
+
 ## Resolved, 2026-10-08: Section 4 items 5/6/7/9/14, T08/T26/T27 confirmed, NHCCI dollar-year harmonization
 
 Per your explicit decisions this round.

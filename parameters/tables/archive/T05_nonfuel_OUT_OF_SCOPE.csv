@@ -1,0 +1,14 @@
+# T05 non-fuel VOC — NOT USED (Wave-1 sealed decision).
+# Decision: Li et al. 2026 generalized cost = time + fuel-only + toll; no non-fuel VOC term.
+# USDOT BCA Exhibit A-3 truck VOT already includes vehicle capital + inventory; stacking
+# ATRI non-fuel (esp. truck/trailer payments) would double-count capital vs A-3 VOT.
+# ATRI remains OK for haul_hours (NewT0), not for $/mi non-fuel beside A-3.
+# Fuel-only constant VOC: T04_avg_fuel_VOC(_sealed).csv (diesel_heavy_truck / gas_suv).
+# Archived (do not adopt):
+#   archive/T05_nonfuel_cost_US_candidate.csv  (ATRI/AAA candidate — rejected for Wave-1)
+#   archive/T05_nonfuel_cost_speed_UK_TAG_current.csv  (UK TAG discretization — legacy)
+# Code note: road_revised still evaluates UK non_fuel_cost_coeffs when
+# use_table_nonfuel_curve=false; table path stays off. Zeroing that formula path is a
+# separate wiring task from sealing this table out of scope.
+status,scope,adopted_value_usd_per_mile,note
+OUT_OF_SCOPE,Wave-1 Li-like rerouting VOC,0,non-fuel deliberately omitted; use T04 fuel-only + A-3 VOT + toll
