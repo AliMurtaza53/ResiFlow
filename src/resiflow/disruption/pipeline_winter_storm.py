@@ -6,7 +6,7 @@ from pathlib import Path
 
 from resiflow.disruption.build import build_winter_storm_link_disruption
 from resiflow.disruption.pipeline_intensity import run_intensity_disruption
-from resiflow.disruption.winter_storm import intersections_with_winter_storm
+from resiflow.disruption.winter_storm import classify_merged_intersections, intersections_with_winter_storm
 from resiflow.hazards.sioux_falls_multihazard import WinterStormHazardSource
 from resiflow.utils import load_config
 
@@ -33,4 +33,5 @@ def run_winter_storm_disruption(
         intersections_fn=intersections_with_winter_storm,
         build_link_fn=build_winter_storm_link_disruption,
         base_path=base_path,
+        post_merge_fn=classify_merged_intersections,
     )

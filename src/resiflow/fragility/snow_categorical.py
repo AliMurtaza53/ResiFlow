@@ -1,60 +1,32 @@
-"""Snow categorical fragility: snowfall depth (mm) to damage_level."""
+"""Snow categorical fragility: snowfall depth (mm) to damage_level.
+
+Delegates to the single shared winter classification
+(``winter_storm_categorical``: VDOT depth ladder, gated duration/temperature
+escalators). The snow testbed carries no duration/temperature rasters, so it
+gets the depth-only base tier -- no escalation. This replaces the separate
+75/150/300/600 mm (major) and 50/100/200/400 mm (minor) thresholds that used to
+live here and disagreed with the winter_storm placeholders.
+"""
 
 from __future__ import annotations
 
 import pandas as pd
 
+from resiflow.fragility.winter_storm_categorical import compute_damage_levels_vectorized as _shared_levels
+
 
 def compute_damage_level_on_snow(
-    road_classification: str,
+    road_classification: str,  # noqa: ARG001 -- kept for the historical signature; the ladder is class-independent
     snow_depth_mm: float,
 ) -> str:
-    """Map snow depth (mm) to recovery damage level (FAF/US roads)."""
-    depth = float(snow_depth_mm or 0.0)
-    rc = ("" if road_classification is None else str(road_classification)).strip().lower()
-    major = rc in {"motorway", "motorway_link", "trunk", "primary", "secondary"}
-
-    if depth <= 0:
-        return "no"
-    if major:
-        if depth < 75:
-            return "no"
-        if depth < 150:
-            return "minor"
-        if depth < 300:
-            return "moderate"
-        if depth < 600:
-            return "extensive"
-        return "severe"
-    if depth < 50:
-        return "no"
-    if depth < 100:
-        return "minor"
-    if depth < 200:
-        return "moderate"
-    if depth < 400:
-        return "extensive"
-    return "severe"
+    """Map snow depth (mm) to a damage level (depth-only base tier)."""
+    depth = pd.Series([float(snow_depth_mm or 0.0)])
+    return str(_shared_levels(pd.Series([road_classification]), depth).iloc[0])
 
 
 def compute_damage_levels_vectorized(
     road_classification: pd.Series,
     snow_depth_mm: pd.Series,
 ) -> pd.Series:
-    """Vectorized snow damage levels."""
-    depth = pd.to_numeric(snow_depth_mm, errors="coerce").fillna(0.0)
-    rc_lower = road_classification.fillna("").astype(str).str.strip().str.lower()
-    major = rc_lower.isin({"motorway", "motorway_link", "trunk", "primary", "secondary"})
-    result = pd.Series("no", index=depth.index, dtype=object)
-
-    result.loc[major & (depth >= 75) & (depth < 150)] = "minor"
-    result.loc[major & (depth >= 150) & (depth < 300)] = "moderate"
-    result.loc[major & (depth >= 300) & (depth < 600)] = "extensive"
-    result.loc[major & (depth >= 600)] = "severe"
-
-    minor = ~major
-    result.loc[minor & (depth >= 50) & (depth < 100)] = "minor"
-    result.loc[minor & (depth >= 100) & (depth < 200)] = "moderate"
-    result.loc[minor & (depth >= 200) & (depth < 400)] = "extensive"
-    result.loc[minor & (depth >= 400)] = "severe"
-    return result
+    """Vectorized snow damage levels (depth-only base tier)."""
+    return _shared_levels(road_classification, snow_depth_mm)

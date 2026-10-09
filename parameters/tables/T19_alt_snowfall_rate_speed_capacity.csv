@@ -1,0 +1,78 @@
+# T19-ALT v2: Snowfall-RATE-based speed and capacity adjustment factors (WAFs/SAFs/CAFs).
+# STATUS: SOURCED. CORRECTED from v1: v1 was missing a proper speed-adjustment table for snow
+# (only had Hranac's city-level ranges, valid to ~0.12 in/hr). This version adds the full SHRP 2-L08
+# Exhibit 36-25 table, which has BOTH capacity and speed adjustment factors across the full snow
+# intensity range, at 5 free-flow-speed levels. This is the correct primary table going forward.
+#
+# ============================================================================
+# CRITICAL: UNITS. All rate thresholds below (in/hr) are LIQUID-EQUIVALENT precipitation rate,
+# NOT snow-depth accumulation rate. Confirmed directly: ASOS/AWOS station gauges (Heated Tipping
+# Bucket, All-Weather Precipitation Accumulation Gauge) measure liquid-equivalent accumulation only
+# -- this is the NWS/FAA standard instrumentation basis for essentially all US weather-station
+# precipitation-intensity reporting, and it underlies both the Hranac (2006) ASOS-sourced snow
+# intensity values and the Iowa DOT/SHRP2-L08 thresholds this table uses.
+# SNODAS depth-DIFFERENCED rate (mm of depth gained per hour) is NOT the same quantity. Snow density
+# varies, typically ~1:8 to 1:12 liquid-to-depth by volume (a ~10:1 rule of thumb is the common
+# meteorological approximation). Binning a depth-differenced rate directly against these thresholds
+# is a unit mismatch and will systematically over-classify events into higher intensity bins than
+# they actually are on a liquid-equivalent basis.
+# USE SNODAS's OWN SWE (snow water equivalent) OUTPUT, DIFFERENCED THE SAME WAY, AS THE RATE INPUT
+# TO THIS TABLE -- not the depth layer. SNODAS produces both depth and SWE grids from the same run;
+# the SWE-differenced rate is liquid-equivalent by construction and directly comparable to the
+# thresholds below. (Product 1036 = snow depth; the companion SWE product from the same SNODAS
+# archive is the one to difference for this table -- confirm exact product code before pulling,
+# per the corrected script spec.)
+# ============================================================================
+#
+# SOURCE (PRIMARY, this table): SHRP 2-L08 Final Report (Vandehey, Ryus, Bonneson, Rouphail,
+# Margiotta, Dowling, 2013), Exhibit 36-25, as reproduced in FHWA's ATDM Guide (FHWA-HOP-13-042)
+# Appendix A, Tables 34-35. Freeways only. Both CAF and SAF given together, at 5 discrete
+# free-flow-speed levels (55/60/65/70/75 mph) -- interpolate for other posted speeds, or snap to
+# nearest as the existing wiring already does (flagged as extrapolated for non-freeway links).
+#
+# Weather type definitions (liquid-equivalent, in/hr):
+#   Light snow:        >0 to 0.05
+#   Light-medium snow:  >0.05 to 0.10
+#   Medium-heavy snow:  >0.10 to 0.50
+#   Heavy snow:         >0.50
+#   Severe cold:        <-4 deg F (temperature-only trigger, no rate)
+# ============================================================================
+weather_type,intensity_definition_liquid_equiv,metric,ffs_55mph,ffs_60mph,ffs_65mph,ffs_70mph,ffs_75mph,source
+Light snow,>0-0.05 in/hr,CAF,0.97,0.96,0.96,0.95,0.95,SHRP2-L08 Exhibit 36-25 / FHWA-HOP-13-042 Table 34
+Light snow,>0-0.05 in/hr,SAF,0.94,0.92,0.89,0.87,0.84,SHRP2-L08 Exhibit 36-25 / FHWA-HOP-13-042 Table 34
+Light-medium snow,>0.05-0.10 in/hr,CAF,0.95,0.94,0.92,0.90,0.88,SHRP2-L08 Exhibit 36-25
+Light-medium snow,>0.05-0.10 in/hr,SAF,0.92,0.90,0.88,0.86,0.83,SHRP2-L08 Exhibit 36-25
+Medium-heavy snow,>0.10-0.50 in/hr,CAF,0.93,0.91,0.90,0.88,0.87,SHRP2-L08 Exhibit 36-25
+Medium-heavy snow,>0.10-0.50 in/hr,SAF,0.90,0.88,0.86,0.84,0.82,SHRP2-L08 Exhibit 36-25
+Heavy snow,>0.50 in/hr,CAF,0.80,0.78,0.76,0.74,0.72,SHRP2-L08 Exhibit 36-25
+Heavy snow,>0.50 in/hr,SAF,0.88,0.86,0.85,0.83,0.81,SHRP2-L08 Exhibit 36-25
+Severe cold,<-4 deg F,CAF,0.93,0.92,0.92,0.91,0.90,SHRP2-L08 Exhibit 36-25
+Severe cold,<-4 deg F,SAF,0.95,0.95,0.94,0.93,0.92,SHRP2-L08 Exhibit 36-25
+Nonsevere weather,all other conditions,CAF,1.00,1.00,1.00,1.00,1.00,SHRP2-L08 Exhibit 36-25 (baseline)
+Nonsevere weather,all other conditions,SAF,1.00,1.00,1.00,1.00,1.00,SHRP2-L08 Exhibit 36-25 (baseline)
+#
+# ============================================================================
+# CROSS-CHECK 1 (retained from v1): Hranac et al. (2006) FHWA-HOP-07-073 city-level ranges.
+# These are Twin Cities/Baltimore/Seattle-specific, in cm/hr, ASOS-sourced (liquid-equivalent,
+# same unit basis as the primary table). Useful as a regional-variation sanity check -- note the
+# Twin Cities/Baltimore gap (19% vs 5% FFS reduction at similar snow intensity) suggesting driver
+# behavior/experience matters as much as the physical rate. Valid only up to ~0.3 cm/hr (~0.12 in/hr).
+# ============================================================================
+weather_type,intensity_definition_liquid_equiv,parameter,reduction_range_pct,source
+Light snow,<0.01 cm/hr (<0.004 in/hr),Free-flow speed,-5% to -16%,Hranac 2006 Table ES.2
+Snow,~0.3 cm/hr (~0.12 in/hr),Free-flow speed,-5% to -19%,Hranac 2006 Table ES.2
+#
+# ============================================================================
+# CROSS-CHECK 2 (retained from v1): McBride (1978) pavement-state categories. Not rate-based --
+# same source T19's primary depth-proxy crosswalk uses. Included for triangulation only.
+# ============================================================================
+pavement_state,speed_reduction_pct,source
+Wet and snowing,-13%,McBride 1978 / FHWA 1977
+Wet and slushy,-22%,McBride 1978 / FHWA 1977
+Slushy in wheel paths,-30%,McBride 1978 / FHWA 1977
+Snowy and sticking,-35%,McBride 1978 / FHWA 1977
+Snowing and packed,-42%,McBride 1978 / FHWA 1977
+#
+# NOTE ON TRUCKS: none of these sources (primary or cross-check) report separate truck coefficients.
+# Same limitation as v1 and as T19's primary table -- remains an unsourced gap, not fixed by this update.
+# NOTE ON ARTERIALS: SHRP2-L08/HCM factors are freeway-only, same limitation as v1.

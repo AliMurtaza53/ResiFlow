@@ -85,14 +85,17 @@ def test_resolve_synthetic_generator_registry() -> None:
 
 def test_snow_fragility_thresholds() -> None:
     from resiflow.fragility.snow_categorical import compute_damage_level_on_snow
-    from resiflow.fragility.snow_operational import apply_max_speed_to_links
+    from resiflow.fragility.winter_storm_speed import apply_max_speed_to_links
 
+    # VDOT ladder (102/305/457 mm): 200 mm is "moderate".
     assert compute_damage_level_on_snow("primary", 200.0) == "moderate"
+    # T19-winter speed curve: still moving at 200 mm, closed (ratio 0.0) at >= 254 mm.
     frame = apply_max_speed_to_links(
-        pd.DataFrame({"snow_depth_max_mm": [200.0], "free_flow_speeds": [50.0]}),
-        snow_key_mm=150,
+        pd.DataFrame({"snow_depth_max_mm": [200.0, 300.0], "free_flow_speeds": [50.0, 50.0]}),
+        depth_col="snow_depth_max_mm",
     )
-    assert float(frame["max_speed"].iloc[0]) == 0.0
+    assert 0.0 < float(frame["max_speed"].iloc[0]) < 50.0
+    assert float(frame["max_speed"].iloc[1]) == 0.0
 
 
 def test_snow_hazard_source_toy_mode(tmp_path) -> None:

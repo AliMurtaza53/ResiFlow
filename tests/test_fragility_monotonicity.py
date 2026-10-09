@@ -33,17 +33,13 @@ def test_flood_river_edr_monotonic() -> None:
 
 
 def test_earthquake_edr_monotonic() -> None:
-    # No road_label -> treated as roads -> always "no" now (HAZUS publishes
-    # no ground-shaking fragility for roads; see fragility/
-    # earthquake_categorical.py's module docstring). Monotonic trivially
-    # (constant), which is the correct behavior, not a weakened test --
-    # test_earthquake_road_always_no and test_earthquake_bridge_edr_monotonic
-    # below cover the two branches explicitly.
+    # PGA-pass categorical is always "no" (roads and bridges). Bridge Sa(1.0s)
+    # levels are assigned post-merge in features_with_earthquake — see
+    # test_bridge_sa_damage_level_* in test_hazus_bridge.py.
     pga = pd.Series(np.linspace(0, 0.6, 40))
     rc = pd.Series(["tertiary"] * len(pga))
     ranks = _level_rank(compute_damage_levels_vectorized(rc, pga))
-    assert ranks.is_monotonic_increasing
-    assert ranks.iloc[0] == 0
+    assert (ranks == 0).all()
 
 
 def test_earthquake_road_always_no() -> None:
@@ -54,17 +50,13 @@ def test_earthquake_road_always_no() -> None:
     assert (levels == "no").all()
 
 
-def test_earthquake_bridge_edr_monotonic() -> None:
-    # Bridges still use the placeholder PGA-threshold curve (real Sa(1.0s)
-    # fragility needs a raster pass not available at this call site) -- so
-    # bridges, unlike roads, should still show real variation with PGA.
+def test_earthquake_bridge_pga_pass_also_no() -> None:
+    # Bridges must not use PGA thresholds; Sa override is post-merge.
     pga = pd.Series(np.linspace(0, 0.6, 40))
     rc = pd.Series(["tertiary"] * len(pga))
     road_label = pd.Series(["Bridge"] * len(pga))
-    ranks = _level_rank(compute_damage_levels_vectorized(rc, pga, road_label))
-    assert ranks.is_monotonic_increasing
-    assert ranks.iloc[0] == 0
-    assert ranks.iloc[-1] > 0
+    levels = compute_damage_levels_vectorized(rc, pga, road_label)
+    assert (levels == "no").all()
 
 
 def test_landslide_edr_monotonic() -> None:

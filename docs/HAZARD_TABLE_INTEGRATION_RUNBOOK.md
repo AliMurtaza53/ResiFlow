@@ -256,6 +256,12 @@ liquefaction lookup for non-bridge rows instead of returning `0.0`.
 
 ## Track B: Winter storm cost + recovery (`winter_storm_cost_and_recovery.xlsx`)
 
+> **Update 2026-09-25:** the classification, speed/closure, T33 rank (now keyed on `faf5_class`, table
+> `T33_winter_storm_clearance_order_new.csv`) and T34 `day_open` are now wired; the winter speed curve
+> is the T19-winter crosswalk, not `fragility/winter_storm_operational.py` (removed). Current state,
+> including what Script 4 does and does not consume, is in [WINTER_STORM.md](WINTER_STORM.md). The
+> text below is the original plan and is partly superseded.
+
 ### What this closes
 
 Winter storm currently has no dedicated model on *either* side: direct cost

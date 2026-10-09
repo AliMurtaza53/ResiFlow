@@ -1,0 +1,22 @@
+# T32 addendum - Simple ice-event assumption for POC (Uri 602, Elliott 603 confirmed to have
+# real freezing rain/ice accretion; Jonas 601 and Snowmageddon 604 are clean snow-only cases).
+# GOAL: proof-of-concept with a defensible, cheap assumption now; full ice-accretion physics
+# (a separate depth/thickness-driven damage path) is future work, not required for POC.
+# ASSUMPTION: treat ice risk as a COLD-TEMPERATURE ESCALATION of the existing snow mechanism,
+# reusing T32's own already-sourced T_factor, rather than building a separate ice model.
+# Rule: if T_factor >= 1.5 (occurs at air_temp_F <= 10 per T32's own formula), escalate the
+# event's damage_level by one tier (minor->moderate->extensive->severe, capped at severe).
+# RATIONALE: no separate ice-accretion depth/thickness data source has been identified or
+# intersected yet for any of the 4 events (would need NWS Storm Data point observations or a
+# NOHRSC ice-specific product, neither pulled). This assumption avoids fabricating an ice-specific
+# curve while still moving the affected event(s) toward a "worse" outcome, consistent with VDOT's
+# own practice of giving ice a faster/stricter response target than depth alone would imply.
+# LIMITATION, STATED PLAINLY: this assumption captures "ice makes things worse" directionally but
+# does NOT capture ice-specific damage mechanisms (downed trees/lines, glaze-driven crash spikes)
+# that are physically distinct from packable-snow plow workload. If Uri/Elliott validation results
+# look wrong in the icing-affected sub-regions specifically, this is the first assumption to revisit.
+event_id,event_name,ice_confirmed,escalation_rule_applies,source
+601,Jonas 2016,No,Not applicable,Multiple contemporaneous news/local-gov accounts; no Ice Storm Warnings found for the DMV corridor
+602,Uri 2021,Yes - substantial,Yes,"NWS Ice Storm Warnings AL/AR/MS/TN/Mid-South, 0.25-0.5 in accretion; WPC Storm Summary Feb 11 2021"
+603,Elliott 2022,Yes - confirmed,Yes,AFP/Guardian and AP coverage confirm freezing rain in Middle Tennessee specifically
+604,Snowmageddon 2010,No,Not applicable,NWS PRESTO Feb 2010 climate summary - pure snow, no ice mentioned

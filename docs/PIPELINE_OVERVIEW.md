@@ -89,7 +89,7 @@ Dispatched by `RESIFLOW_HAZARD_TYPE`:
 | Type | Arg 1 | Intensity in raster | Closure rule |
 |------|-------|---------------------|--------------|
 | `flood` (default) | `depth_key` (cm) | meters depth | quadratic speed penalty; ≥ threshold → `max_speed=0` |
-| `snow` | `snow_key_mm` (mm) | mm snowfall | same functional form on snow depth |
+| `snow` / `winter_storm` | scenario key (unused for speed) | mm snow depth | T19-winter speed-ratio curve (`fragility/winter_storm_speed.py`), 0 at ≥ 254 mm. Damage level: one shared VDOT-ladder classification with gated duration/temperature escalators (`fragility/winter_storm_categorical.py`). `winter_storm` also emits T33 `clearance_rank`, T34 `day_open`, and a peak-day rank-5 `winter_peak_closure_flag` (`hazards/winter_storm_clearance.py`, keyed on `faf5_class`). Full explainer and the rate-based-table finding: [WINTER_STORM.md](WINTER_STORM.md). |
 
 **Per event, three transforms (kept separate by design):**
 

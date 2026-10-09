@@ -53,6 +53,7 @@ def run_intensity_disruption(
     intersections_fn: Callable,
     build_link_fn: Callable,
     base_path: Path | None = None,
+    post_merge_fn: Callable | None = None,
 ) -> None:
     """Run intensity raster disruption for multihazard testbed sources."""
     if base_path is None:
@@ -133,6 +134,8 @@ def run_intensity_disruption(
                         # hazards/winter_storm_cost.py.
                         "duration_hours",
                         "air_temp_F",
+                        # optional rate-based (T19-ALT) estimate -- hazards/winter_storm_rate.py
+                        "snowfall_rate_swe_in_hr",
                     }
                     or c.startswith("flood_depth_")
                     or c.startswith("damage_level_")
@@ -148,6 +151,12 @@ def run_intensity_disruption(
         if intersections.empty:
             logging.warning("[%s EMPTY] No intersections for event %s", hazard_label.upper(), hazard_event_id)
             continue
+
+        if post_merge_fn is not None:
+            # Hazard-specific step needing ALL merged raster fields at once (e.g.
+            # winter storm's duration/temperature escalators) -- runs before the
+            # intersections are saved so Script 3/4 read the final levels.
+            intersections = post_merge_fn(intersections, road_links)
 
         (out_path / "intersections").mkdir(parents=True, exist_ok=True)
         intersections_path = out_path / "intersections" / f"intersections_{hazard_event_id}.pq"

@@ -1,0 +1,56 @@
+# T19-style winter storm speed/closure table. REPLACES the quadratic in winter_storm_operational.py
+# and snow_operational.py (d=SNODAS depth mm; k=100mm winter_storm / 150mm snow - both unsourced).
+#
+# **THIS IS A CROSSWALK; NOT A SOURCED DEPTH-SPEED CURVE.** Per direct literature check: every
+# empirical US traffic study found (Agarwal/Maze/Souleyrette 2005 Iowa; Hranac et al. 2006
+# FHWA-HOP-07-073; which HCM 2010's own weather adjustment factors are built from; Ibrahim & Hall
+# 1994; McBride 1978; Padget et al. 2001; Liang et al. 1998) predicts speed/capacity loss from
+# PRECIPITATION RATE (in/hr or cm/hr) or discrete PAVEMENT STATE (dry / wet-snow-covered /
+# wet-slushy / packed-snow); never from accumulated ground depth. SNODAS gives accumulated depth.
+# No study bridges this gap directly.
+#
+# CROSSWALK METHOD: McBride (1978)'s four pavement-state categories (the only source expressed as
+# discrete STATES rather than a continuous rate curve) are mapped onto SNODAS depth bins as a
+# PROXY - i.e.; "more accumulated; unplowed depth is more likely to be in a more degraded state" -
+# not a physical law. Hranac/HCM's rate-based free-flow-speed WAF (0.90 at onset; gradually to
+# 0.85; capacity WAF to 0.80; both from FHWA-HOP-07-073 Fig ES.3) and Agarwal/Maze/Souleyrette's
+# Iowa freeway heavy-snow category (>0.5 in/hr: speed -11% to -15%) are given as CROSS-CHECK
+# anchors; not blended into the McBride numbers; so you can see where they agree/disagree.
+#
+# TRUCK RATIOS ARE AN UNSOURCED ASSUMPTION; FLAGGED AS SUCH: no study found reports a separate
+# truck coefficient (Padget et al. 2001 note a significant car/pickup/SUV difference exists but do
+# not give Numbers). Applied here: an additional flat derate vs. the car ratio; increasing with
+# depth; on the general (unverified for this specific context) grounds that trucks handle worse in
+# packed/slushy conditions despite higher ground clearance helping at the impassability end.
+# TREAT THIS COLUMN AS THE WEAKEST PART OF THIS TABLE.
+#
+# APPLIES TO: ambient/unplowed SNODAS depth on a given link. This is NOT the same as T34's
+# open/closed status (clearance-schedule-driven) or T35's post-reopening recovery curve - this
+# table represents "what speed would be supportable at this depth if driven on now;" to be
+# combined with T33/T34 (is the link open at all) and T35 (post-plow recovery trajectory).
+snow_depth_mm,depth_in_approx,mcbride_1978_state,v_ratio_car,v_ratio_truck,cross_check_hranac_hcm_WAF,cross_check_amz_iowa_category,confidence
+0,0,dry/clear,1.00,1.00,1.00,1.00,high (baseline)
+13,0.5,wet or snow-covered (onset),0.90,0.85,0.90 (rate WAF at onset),n/a - below AMZ 0.5in/hr threshold,medium - proxy
+25,1,wet or snow-covered,0.87,0.81,0.85-0.90 (rate WAF range),n/a,medium - proxy
+64,2.5,wet or slushy,0.78,0.71,n/a - McBride only,-11% to -15% (0.85-0.89) if rate implies heavy snow,low - proxy + rate mismatch
+102,4,packed snow (lower bound),0.65,0.56,n/a - McBride only,n/a,low - proxy
+152,6,packed snow (upper bound),0.58,0.48,n/a - McBride only,n/a,low - proxy
+203,8,at passenger-vehicle ground clearance,0.30,0.45,n/a,n/a,low - extrapolated toward closure
+254,10,above passenger-vehicle ground clearance,0.00,0.25,n/a,n/a,low - extrapolated toward closure
+305,12,above most SUV/truck clearance too,0.00,0.00,n/a,n/a,low - extrapolated
+#
+#Closure / impassability depth thresholds - separate mechanism from the speed ratios above.
+#MAJOR/plowed roads (Interstate; controlled access; principal arterial): closure is NOT primarily
+#depth-triggered in DOT practice found (ND DOT; MnDOT). Trigger is OPERATIONAL: visibility <0.25
+#mile; sustained wind >35 mph; whiteout/blowing-snow conditions; or wind chill -30 to -70F (MnDOT
+#Non-Interstate Closure Manual; ND DOT news account; joint DOT/Highway Patrol decision). A depth
+#number for these road classes would be fabricated - none found in DOT policy documents.
+#LOCAL/unplowed or lightly-plowed roads: closure/impassability approximated by passenger-vehicle
+#ground clearance. DC Dept. of Public Works (via National Geographic; using actual Feb 2010
+#"Snowmageddon" as their own operational benchmark): average vehicle clearance 8-10 in (200-250mm);
+#DC kept major roads to ~2in (50mm) during that storm via active plowing while secondary streets
+#reached 10-12in (250-300mm) unplowed; prompting the citywide shutdown decision.
+road_class,closure_basis,closure_depth_mm,source
+major/plowed (rank 1-2),Operational (visibility/wind/whiteout) - NOT depth,not applicable,"ND DOT (joint w/ Highway Patrol); MnDOT Non-Interstate Closure Manual"
+local/unplowed (rank 4-5) - passenger car,Ground clearance,200-250,"DC DPW via National Geographic; using Feb 2010 Snowmageddon as their cited benchmark"
+local/unplowed (rank 4-5) - truck/SUV,"Ground clearance (higher; partially offsetting worse handling)",250-300,"General ground-clearance figures (8-10in sedan vs 8-12in+ SUV/truck) - not DOT-sourced; treat as rough"

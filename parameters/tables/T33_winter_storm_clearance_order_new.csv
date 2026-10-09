@@ -1,0 +1,47 @@
+# T33 - Winter storm road-class clearance priority / plow-fleet allocation (Ali/ASSIP intern, Sensitivity Analysis Nandu project).,,,,
+# STATUS: SOURCED. Rebuilt against the project's actual network Class field (11-50), not OSM tags -,,,,
+# the original T33 used OSM road-type tags (motorway/primary/residential), which do not exist in this,,,,
+# network's schema. Hierarchy unchanged: t_r = (L_r*P)/(F*s_r*rho) => s_r = (L_r/t_r) / SUM_j(L_j/t_j),,,,,
+# intensity I_r = s_r/L_r, proportional to 1/t_r. Shares solved from target times, absolute (not relative,,,
+# to storm end... see original note). Two blocks below: (1) class-to-rank mapping with rationale,,,,,
+# (2) unchanged clearance-rank/fleet-share/target-hours table from the original T33, now keyed to the,,,,
+# rebuilt rank assignment.,,,,,
+#Class-to-rank mapping. Ramps/collector-distributor/traffic-circle/turn-lane/facility-access classes are,,,,,
+#not independently plowed -- assign the rank of the highest-priority class they connect to (topology-,,,,,
+"#inherited), not a fixed rank of their own. Frontage/service roads inherit their parent controlled-access",,,,,
+#facility's rank (plowed as one operational unit). Centroid Connector and Ferry Route are excluded,,,,,
+"#entirely -- not real roads / not a road-plowing hazard. Express Lane, Administrative/Service Road need",,,,,
+"#agency confirmation -- defaulted here, flagged for review.",,,,,
+network_class_code,network_class_label,share_pct,assigned_rank,rank_basis,confidence
+11,Interstate Highway,16.657,1,Direct - limited access freeway,high
+12,Other Controlled Access Highway,10.0046,1,Direct - limited access freeway,high
+13,Non-Controlled Access Interstate (Alaska only),0.041,1,Route designation (Interstate) overrides access-control geometry; DOT priority follows route class,medium
+16,Frontage/Service Road,2.3139,1,Inherits parent facility rank - plowed alongside the Interstate/controlled-access route it parallels,medium
+14,Arterial or Major Collector,41.0621,2,Direct - single merged rank; schema does not distinguish primary/secondary the way OSM does,high
+21,System Ramp,2.7571,TOPOLOGY,Inherits rank of highest-priority adjacent class (interchange cleared as a unit),medium
+22,Ramp,24.4094,TOPOLOGY,Inherits rank of highest-priority adjacent class (interchange cleared as a unit),medium
+23,Collector/Distributor Lane,0.9417,TOPOLOGY,Inherits rank of highest-priority adjacent class - functionally tied to the controlled-access facility,medium
+17,Traffic Circle,0.395,TOPOLOGY,Inherits rank of highest-priority adjacent class,low
+18,Turn Lane/Crossover,0.062,TOPOLOGY,Inherits rank of highest-priority adjacent class,low
+19,Facility Access/Circulator Road,0.3707,TOPOLOGY,Inherits rank of highest-priority adjacent class,low
+15,Local Road,0.1609,5,Direct - only 0.16% of network here; genuinely minor,high
+33,Express Lane,0.0035,1,Inherits parent facility rank (e.g. Rank 1 if an Interstate HOV/toll lane),flagged
+36,Administrative/Service Road,0.0025,TOPOLOGY,Inherits rank of highest-priority adjacent class,low
+50,Centroid Connector,0.7786,EXCLUDE,Not a real road - modeling artifact; always treat as open/unaffected,high
+41,Ferry Route,0.0392,EXCLUDE,Different mode - not a snow-plowing hazard; route to a separate hazard path if modeled at all,high
+#Unchanged from original T33: clearance-rank hierarchy solved from target times.,,,,,
+"#Hierarchy: t_r = (L_r*P)/(F*s_r*rho) => s_r = (L_r/t_r) / SUM_j(L_j/t_j), intensity I_r = s_r/L_r, proportional to 1/t_r.",,,,,
+clearance_rank,rank_label,lane-mile share L_r,target hours t_r,fleet share s_r,fleet intensity I_r
+1,Limited access / interstate,0.03,18,0.079470199,2.649006622516556
+2,Principal arterial,0.1,24,0.1986754966887417,1.986754966887417
+3,Minor arterial,0.12,36,0.15894039735099336,1.324503311258278
+4,Collector,0.2,48,0.1986754966887417,0.9933774834437085
+5,Local / residential,0.55,72,0.3642384105960265,0.6622516556291391
+TOTAL,,1,,1,
+clearance_rank,base days: minor,moderate,extensive,severe,
+1,1,1,2,3,
+2,1,2,3,4,
+3,1,2,4,6,
+4,2,3,5,8,
+5,2,4,7,11,
+#Base days are for the moderate region; multiply by region_factor. Unchanged from original T33.,,,,,

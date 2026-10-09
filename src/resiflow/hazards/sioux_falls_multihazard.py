@@ -130,6 +130,16 @@ class SiouxFallsMultihazardSource:
                             companion_path,
                             key,
                         )
+                # OPTIONAL: SNODAS-differenced snowfall-rate raster for the parallel
+                # rate-based (T19-ALT) estimate -- see hazards/winter_storm_rate.py and
+                # scripts/prepare_snowfall_rate_from_nohrsc.py. Absent is normal, not a warning.
+                rate_path = (
+                    self.base_path / "inputs" / self.multihazard_dir / f"{self.hazard_subtype}_snowrate" / f"event_{key}.tif"
+                )
+                if rate_path.exists():
+                    event_dict[str(key)]["snowfall_rate_swe_in_hr"].append(str(rate_path))
+                else:
+                    logging.info("No snowfall-rate raster (optional): %s -- rate-based estimate skipped, event %s", rate_path, key)
         return event_dict
 
     def resolve_event(self, event_id: str) -> HazardEvent:

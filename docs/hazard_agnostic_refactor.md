@@ -54,8 +54,8 @@ src/resiflow/
   fragility/
     flood_operational.py
     flood_categorical.py
-    snow_operational.py
-    snow_categorical.py
+    winter_storm_speed.py       # shared snow/winter speed (T19-winter); replaced snow_/winter_storm_operational.py
+    snow_categorical.py         # delegates to winter_storm_categorical.py
 ```
 
 Script 2 is a thin CLI: `run_disruption(scenario_key, event_key)` with
