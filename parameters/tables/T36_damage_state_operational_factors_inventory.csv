@@ -1,0 +1,38 @@
+# T36 inventory — published DS → traffic operations mappings (research ledger).
+# ResiFlow damage_state labels: no|minor|moderate|extensive|severe
+#   ↔ HAZUS: None|Slight|Moderate|Extensive|Complete
+#   ↔ Shiraki/Zhou/Shinozuka: No|Minor|Moderate|Major|Collapse  (Major≠Extensive; Collapse≠Complete)
+# DOUBLE-COUNT TRAP: HAZUS Table 7-4 is time-varying FUNCTIONALITY (capacity open fraction over days).
+#   Day-1 values are for immediate post-event ops (Script 2 max_speed). Do NOT also multiply by
+#   HAZUS day-N restoration in the same run as T26 recovery steps — pick one recovery clock.
+# HAZUS does NOT separate speed vs capacity; functionality is % open/operational (ATC-13 elicited).
+# Roadways in HAZUS are PGD/ground-failure driven (shaking alone does not damage roads).
+hazard,asset,damage_state,source_ds_label,speed_factor,capacity_factor,p_closed,source,evidence_type,notes
+earthquake,bridge,no,None,1.0,1.0,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,ATC-13-based restoration; functionality undifferentiated (not separate speed/capacity)
+earthquake,bridge,minor,Slight,,0.70,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,speed_factor blank: HAZUS reports functionality only; day-1 Functional Percentage=70
+earthquake,bridge,moderate,Moderate,,0.30,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,day-1 Functional Percentage=30
+earthquake,bridge,extensive,Extensive,,0.02,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,day-1 Functional Percentage=2; nearly closed but not identically 0
+earthquake,bridge,severe,Complete,,0.0,1.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,day-1 Functional Percentage=0; Complete=column collapse/loss of bearing (HAZUS 7.1.4)
+earthquake,road,no,None,1.0,1.0,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,same restoration curves for urban and major roads
+earthquake,road,minor,Slight,,0.90,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,day-1 Functional Percentage=90; Slight=few inches settlement/offset
+earthquake,road,moderate,Moderate,,0.25,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,day-1 Functional Percentage=25; Moderate=several inches settlement
+earthquake,road,extensive,Extensive/Complete,,0.10,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,HAZUS merges Extensive+Complete for roadways (major settlement few feet); day-1=10 — NOT fully closed
+earthquake,road,severe,Extensive/Complete,,0.10,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1,elicited,same as extensive (HAZUS roadway Extensive/Complete single class)
+earthquake,bridge,no,No Damage,1.0,1.0,0.0,Zhou et al. 2004 / Shiraki-Shinozuka LA network (WCEE 13-1128 Table 1),modeled,Authors state values are hypothetical; account partly for repair/detour — NOT pure structural closure
+earthquake,bridge,minor,Minor Damage,0.75,1.0,0.0,Zhou et al. 2004 / Shiraki-Shinozuka LA network (WCEE 13-1128 Table 1),modeled,Separate speed vs capacity; Minor≠HAZUS Slight
+earthquake,bridge,moderate,Moderate Damage,0.50,0.75,0.0,Zhou et al. 2004 / Shiraki-Shinozuka LA network (WCEE 13-1128 Table 1),modeled,
+earthquake,bridge,extensive,Major Damage,0.50,0.50,0.0,Zhou et al. 2004 / Shiraki-Shinozuka LA network (WCEE 13-1128 Table 1),modeled,Major≠HAZUS Extensive; still open at 50% capacity
+earthquake,bridge,severe,Collapse,0.50,0.50,0.0,Zhou et al. 2004 / Shiraki-Shinozuka LA network (WCEE 13-1128 Table 1),modeled,Collapse keeps 50% via local detour assumption — double-counts alternate supply if network already has detours; NOT closed
+earthquake,bridge,minor,component damage (survey),,,,"Padgett & DesRoches 2007 EQ Spectra 23(1)",elicited,"28 CSEUS DOT respondents; component damage→allowable traffic capacity (approach/joint/column). Not a single HAZUS-system DS table — do not invent a 5-state row from the abstract alone"
+earthquake,bridge,moderate,component damage (survey),,,,"Padgett & DesRoches 2007 EQ Spectra 23(1)",elicited,See paper figures/tables for % capacity by component DS
+earthquake,bridge,extensive,component damage (survey),,,,"Padgett & DesRoches 2007 EQ Spectra 23(1)",elicited,Extended by Misra/Kameshwar decision trees (closure/lane/speed-load restrictions) — FS not HAZUS DS
+earthquake,bridge,no,Inspected (ATC-20 Green),1.0,1.0,0.0,ATC-20 post-earthquake safety evaluation placards,elicited,Operational taxonomy (Inspected/Restricted Use/Unsafe) — no numeric speed/capacity factors published
+earthquake,bridge,moderate,Restricted Use (ATC-20 Yellow),,,,"ATC-20",elicited,Implies reduced ops; no standard %; maps loosely to partial functionality
+earthquake,bridge,severe,Unsafe (ATC-20 Red),0.0,0.0,1.0,ATC-20,elicited,Closed until repaired/stabilized; qualitative
+earthquake,bridge,severe,Collapsed / closed (Northridge 1994),0.0,0.0,1.0,Northridge case records (Caltrans/EQE),observed,Collapsed spans closed; no systematic slight/moderate→speed table from event inventories alone
+landslide,road,no,None,1.0,1.0,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1 (roadway),elicited,HAZUS roadway fragility is PGD-only; use as ground-failure/landslide proxy for ordinary roads
+landslide,road,minor,Slight,,0.90,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1 (roadway),elicited,Slight settlement/offset — pavement displacement class; NOT debris blockage
+landslide,road,moderate,Moderate,,0.25,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1 (roadway),elicited,
+landslide,road,extensive,Extensive/Complete,,0.10,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1 (roadway),elicited,Major settlement; HAZUS does not split debris blockage vs pavement displacement
+landslide,road,severe,Extensive/Complete,,0.10,0.0,HAZUS EQ Tech Manual 6.1 Table 7-4 day-1 (roadway),elicited,same merged class; debris-blockage case records often imply p_closed=1 until cleared — not in HAZUS
+landslide,bridge,severe,n/a,,,,,OPEN,,"Pure landslide→bridge DS→ops table not found in HAZUS Ch7; bridge damage under PGD uses bridge fragility separately"

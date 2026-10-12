@@ -1,0 +1,31 @@
+# T36 ADOPTED — immediate (day-1) operational factors by hazard × asset × damage_state.
+# Source: HAZUS Earthquake Model Technical Manual 6.1 Table 7-4 day-1 Functional Percentage
+#   (ATC-13 elicited restoration; FEMA 2024). Labels mapped Slight→minor, Complete→severe.
+# speed_factor == capacity_factor here because HAZUS reports undifferentiated functionality
+#   (% open/operational), not separate free-flow speed vs lane capacity.
+# When p_closed=1, treat as closed (max_speed=0) regardless of capacity_factor.
+# DOUBLE-COUNT: these are DAY-1 / Script-2 disruption factors only. T26 recovery schedule
+#   owns multi-day capacity restoration — do not also apply HAZUS day-3/7/30 % in the same run.
+# Roadways: HAZUS merges Extensive+Complete (same day-1=10%). Landslide uses roadway PGD curves.
+# Bridge-on-link: use asset=bridge when road_bridge==yes; else asset=road.
+hazard,asset,damage_state,speed_factor,capacity_factor,p_closed,source,evidence_type
+earthquake,bridge,no,1.0,1.0,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+earthquake,bridge,minor,0.70,0.70,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+earthquake,bridge,moderate,0.30,0.30,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+earthquake,bridge,extensive,0.02,0.02,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+earthquake,bridge,severe,0.0,0.0,1.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+earthquake,road,no,1.0,1.0,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+earthquake,road,minor,0.90,0.90,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+earthquake,road,moderate,0.25,0.25,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+earthquake,road,extensive,0.10,0.10,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+earthquake,road,severe,0.10,0.10,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1,elicited
+landslide,road,no,1.0,1.0,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1 roadway PGD,elicited
+landslide,road,minor,0.90,0.90,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1 roadway PGD,elicited
+landslide,road,moderate,0.25,0.25,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1 roadway PGD,elicited
+landslide,road,extensive,0.10,0.10,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1 roadway PGD,elicited
+landslide,road,severe,0.10,0.10,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1 roadway PGD,elicited
+landslide,bridge,no,1.0,1.0,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1 bridge (proxy),elicited
+landslide,bridge,minor,0.70,0.70,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1 bridge (proxy),elicited
+landslide,bridge,moderate,0.30,0.30,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1 bridge (proxy),elicited
+landslide,bridge,extensive,0.02,0.02,0.0,HAZUS EQ TM 6.1 Table 7-4 day-1 bridge (proxy),elicited
+landslide,bridge,severe,0.0,0.0,1.0,HAZUS EQ TM 6.1 Table 7-4 day-1 bridge (proxy),elicited

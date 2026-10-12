@@ -1,0 +1,69 @@
+# T38 - Landslide residual SPEED schedule (Script 4), damage_level × event_day × scenario.
+# PURPOSE: replace flood_depth_max gates for landslide (build sets flood_depth_max = PGD_mm/1000;
+#   2 m gate ⇒ 2000 mm PGD — rarely binds for ordinary events).
+# SCOPE: same split as T37 — minor/moderate speed from HAZUS roadway Table 7-4 (PGD restoration);
+#   extensive/severe speed_factor=1.0 (T26 capacity owns reopen). HAZUS does not split debris
+#   blockage vs pavement displacement; debris-blocked roads that stay closed should be
+#   damage_level=extensive/severe with capacity 0 via T26, not a residual speed factor.
+# SOURCE: HAZUS EQ TM 6.1 Table 7-4 roadway Functional % (ATC-13); ground-failure/PGD proxy
+#   for landslide. Not WA/OR/CA DOT reopen distributions (those remain OPEN research —
+#   FHWA ER guides eligibility windows, not median day-to-reopen by DS).
+# SCENARIOS: average / fast (days×0.5) / slow (days×1.5), same convention as T37.
+hazard,asset,damage_level,recovery_scenario,event_day,speed_factor,source,evidence_type,notes
+landslide,road,minor,average,0,0.90,HAZUS EQ TM 6.1 Table 7-4 roadway,elicited,Slight settlement — first traffic often near-normal
+landslide,road,minor,average,1,0.90,HAZUS EQ TM 6.1 Table 7-4 roadway,elicited,
+landslide,road,minor,average,3,1.00,HAZUS EQ TM 6.1 Table 7-4 roadway,elicited,pre-event ops restored
+landslide,road,moderate,average,0,0.25,HAZUS EQ TM 6.1 Table 7-4 roadway,elicited,partial ops day-1
+landslide,road,moderate,average,1,0.25,HAZUS EQ TM 6.1 Table 7-4 roadway,elicited,
+landslide,road,moderate,average,3,0.65,HAZUS EQ TM 6.1 Table 7-4 roadway,elicited,
+landslide,road,moderate,average,7,1.00,HAZUS EQ TM 6.1 Table 7-4 roadway,elicited,full ops
+landslide,road,extensive,average,0,1.00,T26 owns capacity,n/a,major settlement/debris — capacity timeline
+landslide,road,severe,average,0,1.00,T26 owns capacity,n/a,
+landslide,bridge,minor,average,0,0.70,HAZUS bridge Table 7-4 (proxy),elicited,rare pure-landslide bridge; same as EQ bridge
+landslide,bridge,minor,average,1,0.70,HAZUS bridge Table 7-4 (proxy),elicited,
+landslide,bridge,minor,average,3,1.00,HAZUS bridge Table 7-4 (proxy),elicited,
+landslide,bridge,moderate,average,0,0.30,HAZUS bridge Table 7-4 (proxy),elicited,
+landslide,bridge,moderate,average,1,0.30,HAZUS bridge Table 7-4 (proxy),elicited,
+landslide,bridge,moderate,average,3,0.60,HAZUS bridge Table 7-4 (proxy),elicited,
+landslide,bridge,moderate,average,7,0.95,HAZUS bridge Table 7-4 (proxy),elicited,
+landslide,bridge,moderate,average,30,1.00,HAZUS bridge Table 7-4 (proxy),elicited,
+landslide,bridge,extensive,average,0,1.00,T26 owns capacity,n/a,
+landslide,bridge,severe,average,0,1.00,T26 owns capacity,n/a,
+landslide,road,minor,fast,0,0.90,HAZUS roadway days×0.5,elicited,
+landslide,road,minor,fast,1,0.90,HAZUS roadway days×0.5,elicited,
+landslide,road,minor,fast,2,1.00,HAZUS roadway days×0.5,elicited,
+landslide,road,moderate,fast,0,0.25,HAZUS roadway days×0.5,elicited,
+landslide,road,moderate,fast,1,0.25,HAZUS roadway days×0.5,elicited,
+landslide,road,moderate,fast,2,0.65,HAZUS roadway days×0.5,elicited,
+landslide,road,moderate,fast,4,1.00,HAZUS roadway days×0.5,elicited,
+landslide,road,extensive,fast,0,1.00,T26 owns capacity,n/a,
+landslide,road,severe,fast,0,1.00,T26 owns capacity,n/a,
+landslide,bridge,minor,fast,0,0.70,HAZUS bridge days×0.5,elicited,
+landslide,bridge,minor,fast,1,0.70,HAZUS bridge days×0.5,elicited,
+landslide,bridge,minor,fast,2,1.00,HAZUS bridge days×0.5,elicited,
+landslide,bridge,moderate,fast,0,0.30,HAZUS bridge days×0.5,elicited,
+landslide,bridge,moderate,fast,1,0.30,HAZUS bridge days×0.5,elicited,
+landslide,bridge,moderate,fast,2,0.60,HAZUS bridge days×0.5,elicited,
+landslide,bridge,moderate,fast,4,0.95,HAZUS bridge days×0.5,elicited,
+landslide,bridge,moderate,fast,15,1.00,HAZUS bridge days×0.5,elicited,
+landslide,bridge,extensive,fast,0,1.00,T26 owns capacity,n/a,
+landslide,bridge,severe,fast,0,1.00,T26 owns capacity,n/a,
+landslide,road,minor,slow,0,0.90,HAZUS roadway days×1.5,elicited,
+landslide,road,minor,slow,1,0.90,HAZUS roadway days×1.5,elicited,
+landslide,road,minor,slow,5,1.00,HAZUS roadway days×1.5,elicited,
+landslide,road,moderate,slow,0,0.25,HAZUS roadway days×1.5,elicited,
+landslide,road,moderate,slow,1,0.25,HAZUS roadway days×1.5,elicited,
+landslide,road,moderate,slow,5,0.65,HAZUS roadway days×1.5,elicited,
+landslide,road,moderate,slow,11,1.00,HAZUS roadway days×1.5,elicited,
+landslide,road,extensive,slow,0,1.00,T26 owns capacity,n/a,
+landslide,road,severe,slow,0,1.00,T26 owns capacity,n/a,
+landslide,bridge,minor,slow,0,0.70,HAZUS bridge days×1.5,elicited,
+landslide,bridge,minor,slow,1,0.70,HAZUS bridge days×1.5,elicited,
+landslide,bridge,minor,slow,5,1.00,HAZUS bridge days×1.5,elicited,
+landslide,bridge,moderate,slow,0,0.30,HAZUS bridge days×1.5,elicited,
+landslide,bridge,moderate,slow,1,0.30,HAZUS bridge days×1.5,elicited,
+landslide,bridge,moderate,slow,5,0.60,HAZUS bridge days×1.5,elicited,
+landslide,bridge,moderate,slow,11,0.95,HAZUS bridge days×1.5,elicited,
+landslide,bridge,moderate,slow,45,1.00,HAZUS bridge days×1.5,elicited,
+landslide,bridge,extensive,slow,0,1.00,T26 owns capacity,n/a,
+landslide,bridge,severe,slow,0,1.00,T26 owns capacity,n/a,
