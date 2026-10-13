@@ -21,7 +21,33 @@ from snail import damages
 
 warnings.simplefilter("ignore")
 
-base_path = Path(load_config()["paths"]["soge_clusters"])
+_base_path: Path | None = None
+
+
+def _base_path_lazy() -> Path:
+    """Lazily resolve soge_clusters path -- importing this module (e.g. for
+    unit tests against its pure functions) must not require a real
+    config.json to exist."""
+    global _base_path
+    if _base_path is None:
+        _base_path = Path(load_config()["paths"]["soge_clusters"])
+    return _base_path
+
+
+class _BasePathProxy:
+    """Drop-in replacement for the old eager module-level ``base_path``
+    variable: ``base_path / "x"`` keeps working, but resolution is deferred
+    to first actual use."""
+
+    def __truediv__(self, other):
+        return _base_path_lazy() / other
+
+    @property
+    def parent(self):
+        return _base_path_lazy().parent
+
+
+base_path = _BasePathProxy()
 
 
 def first_existing(paths):
