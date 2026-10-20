@@ -22,3 +22,34 @@ def test_no_damage_level_accepts_three_args_matching_shared_categorical_fn_inter
     road_label = pd.Series(["road", "bridge"])
     result = _no_damage_level(road_classification, intensity, road_label)
     assert list(result) == ["no", "no"]
+
+
+def test_features_with_earthquake_overrides_bridge_damage_from_sa() -> None:
+    import geopandas as gpd
+    from shapely.geometry import LineString
+
+    from resiflow.disruption.earthquake import features_with_earthquake
+
+    features = gpd.GeoDataFrame(
+        {
+            "e_id": ["b1", "r1"],
+            "road_label": ["bridge", "road"],
+            "geometry": [LineString([(0, 0), (1, 0)]), LineString([(0, 1), (1, 1)])],
+        },
+        crs="EPSG:4326",
+    )
+    intersections = gpd.GeoDataFrame(
+        {
+            "e_id": ["b1", "r1"],
+            "pga_g": [0.5, 0.5],
+            "psa1p0_g": [2.0, 2.0],
+            "damage_level_earthquake": ["no", "no"],
+            "length": [1.0, 1.0],
+            "index_i": [0, 0],
+            "index_j": [0, 0],
+        }
+    )
+    out = features_with_earthquake(features, intersections)
+    assert out.loc[out["e_id"] == "r1", "damage_level_max"].iloc[0] == "no"
+    assert out.loc[out["e_id"] == "b1", "damage_level_max"].iloc[0] != "no"
+    assert float(out.loc[out["e_id"] == "b1", "psa1p0_g"].iloc[0]) == 2.0
