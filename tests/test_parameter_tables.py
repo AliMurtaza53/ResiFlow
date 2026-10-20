@@ -86,11 +86,14 @@ def test_placeholder_rows_are_refused(caplog):
 
 
 def test_approximate_and_template_files_warn(caplog):
+    # T22_damage_ratio_curves_TEMPLATE was the only TEMPLATE_REPLACE_VALUES
+    # example and was deliberately archived (real damage_ratio_road_flood.xlsx
+    # adopted instead) -- add a TEMPLATE_REPLACE_VALUES case back here if a
+    # new one is ever introduced.
     with caplog.at_level(logging.WARNING, logger="resiflow.tables"):
         load_table("T04_fuel_consumption_speed_US_candidate")
-        load_table("T22_damage_ratio_curves_TEMPLATE")
     warned = [r.message for r in caplog.records if "not authoritative" in r.message]
-    assert len(warned) == 2
+    assert len(warned) == 1
 
 
 def test_tables_root_follows_parameters_root_env(monkeypatch, tmp_path):

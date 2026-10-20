@@ -100,7 +100,7 @@
     "landslide_script3_depth_scale": 0.001,
     "winter_storm_script3_depth_scale": 0.001,
     "speed_depth_exponent": 2.0,
-    "use_table_speed_depth": true,
+    "use_table_speed_depth": false,
     "speed_depth_table": "T19_speed_depth_curve_discretized",
     "damage_state_operational_table": "T36_damage_state_operational_factors"
   },
