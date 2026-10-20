@@ -170,6 +170,7 @@ def _first_cost_row(cost_path: Path) -> dict[str, float]:
         "direct_damage_total",
         "direct_damage_total_usd",
         "combined_total_cost",
+        "isolation_cost",
     ):
         if column in row.index:
             out[column] = float(pd.to_numeric(row[column], errors="coerce"))
@@ -225,8 +226,8 @@ def _isolation_metrics(reroute_dir: Path, scenario_id: int = 1) -> dict[str, flo
         "isolation_flow_passenger": 0.0,
     }
     for mode, stem in (
-        ("freight", f"trip_isolations_freight_s{scenario_id}_day1"),
-        ("passenger", f"trip_isolations_passenger_s{scenario_id}_day1"),
+        ("freight", f"trip_isolations_freight_s{scenario_id}_day0"),
+        ("passenger", f"trip_isolations_passenger_s{scenario_id}_day0"),
     ):
         csv_path = reroute_dir / f"{stem}.csv"
         if not csv_path.exists():
