@@ -2,11 +2,25 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from shapely.geometry import LineString, MultiLineString
+
 from preprocess.build_multinode_county_subareas import (
+    _first_coord,
     _weighted_kmeans,
     cluster_county_subareas,
     subareas_for_overload_ratio,
 )
+
+
+def test_first_coord_handles_simple_linestring():
+    assert _first_coord(LineString([(1.0, 2.0), (3.0, 4.0)])) == (1.0, 2.0)
+
+
+def test_first_coord_descends_into_multilinestring():
+    # Real FAF5/TIGER link geometries are sometimes multi-part; shapely's
+    # own .coords raises NotImplementedError directly on these.
+    geom = MultiLineString([[(5.0, 6.0), (7.0, 8.0)], [(9.0, 10.0), (11.0, 12.0)]])
+    assert _first_coord(geom) == (5.0, 6.0)
 
 
 @pytest.mark.parametrize(

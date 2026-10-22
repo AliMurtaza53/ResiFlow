@@ -115,6 +115,15 @@ def cluster_county_subareas(
     return pd.concat(rows, ignore_index=True)
 
 
+def _first_coord(geom) -> tuple[float, float]:
+    """First vertex of a line geometry; descends into MultiLineString/MultiPoint,
+    since real FAF5/TIGER link geometries are sometimes multi-part and
+    shapely's .coords raises NotImplementedError directly on those."""
+    while hasattr(geom, "geoms"):
+        geom = geom.geoms[0]
+    return geom.coords[0]
+
+
 def snap_subareas_to_truck_access_nodes(
     subareas: pd.DataFrame,
     road_links: pd.DataFrame,
@@ -140,7 +149,7 @@ def snap_subareas_to_truck_access_nodes(
     node_points = (
         links[links["from_id"].isin(node_ids)][["from_id", "geometry"]]
         .rename(columns={"from_id": "node_id"})
-        .assign(geometry=lambda d: d.geometry.apply(lambda g: g.coords[0]))
+        .assign(geometry=lambda d: d.geometry.apply(_first_coord))
     )
     node_points["geometry"] = node_points["geometry"].apply(lambda xy: gpd.points_from_xy([xy[0]], [xy[1]])[0])
     node_gdf = gpd.GeoDataFrame(node_points, geometry="geometry", crs=links.crs or "EPSG:4326").drop_duplicates("node_id")
