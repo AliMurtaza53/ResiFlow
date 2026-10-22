@@ -17,3 +17,7 @@
 7. Error bars: define the source (damage-ratio min-max band vs ensemble vs bootstrap). Placeholder uses a +/-12% min-max band.
 8. RQ3: validated commodity totals and baseline denominators; large disrupted share may just reflect large baseline share (exposure ratio plot kept as a supplementary prototype).
 9. Placeholders that look like findings should be removed or flagged before submission (e.g. Harvey/NM landslide event identities).
+
+## Update (RQ1_1)
+- Earthquake road classes are now shown non-zero in the placeholder (no empty class rows). This conflicts with the model, where earthquake road damage is $0 by design (HAZUS bridges only): reconcile before real data.
+- Damage intensity: minor/moderate/severe does not map the same way across hazards (depth for flood, PGA/Sa for earthquake, PGD for landslide, ice/snow for winter storm; model ladder has 5 levels). Need a hazard-consistent intensity normalization or per-hazard severity definitions; the figure currently shows the 3-level display only as a layout example.

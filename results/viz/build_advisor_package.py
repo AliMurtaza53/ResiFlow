@@ -154,9 +154,9 @@ def build():
             original_limits = {ax: ax.get_xlim() for ax in fig.axes}
             for ax in fig.axes:
                 ax.xaxis.set_major_locator(mpl.ticker.MaxNLocator(6))
-                ax.set_xlim(0, 4.0 if key == 'RQ1a' else original_limits[ax][1]*1.12)
+                ax.set_xlim(0, 2.0 if key == 'RQ1a' else original_limits[ax][1]*1.12)
                 if key == 'RQ1a':
-                    ax.set_xticks(np.arange(0, 4.01, 0.5))
+                    ax.set_xticks(np.arange(0, 2.01, 0.25))
                 # Totals-only bars need only a small gap above the first row.
                 lo,hi=ax.get_ylim()
                 if lo>hi:
@@ -179,7 +179,7 @@ def build():
             else:
                 fig.subplots_adjust(left=.145 if key=='RQ2a' else .16,right=.97,top=.89,bottom=.39 if key=='RQ3a' else .32)
             if key=='RQ1a':
-                fig.axes[0].xaxis.set_major_locator(mpl.ticker.MultipleLocator(.5))
+                fig.axes[0].xaxis.set_major_locator(mpl.ticker.MultipleLocator(.25))
             if key=='RQ1b':
                 fig.axes[0].xaxis.set_major_locator(mpl.ticker.MultipleLocator(.75))
             if key=='RQ1c':

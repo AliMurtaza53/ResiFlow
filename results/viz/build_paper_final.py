@@ -28,6 +28,21 @@ def build(modes):
         subprocess.run([sys.executable, str(HERE / 'build_advisor_package.py'), *BUILD_FLAGS[mode]], check=True, cwd=HERE)
 
 
+def write_captions(rows):
+    """Caption sheet for writing, generated from the registry (figure values are placeholders)."""
+    out = ['# Caption sheet for writing (generated from visual_registry.csv; values in the figures are PLACEHOLDERS)\n']
+    for fig, group in rows.groupby('paper_figure', sort=True):
+        out.append(f'\n## {fig}  ({fig}.pdf / {fig}.png)\n')
+        for _, r in group.iterrows():
+            names = ' | '.join(reg.titles(r)) or r.title
+            caveat = r.caveats.split('UPDATE')[-1].strip()[:700]
+            out.append(f'\n- **Panel(s) {r.paper_panel or "-"}: {names}**\n'
+                       f'  - Caption draft: {r.caption}\n'
+                       f'  - Dollar basis: axis {r.axis_dollar_year}; {r.dollar_year_by_component[:300]}\n'
+                       f'  - State in text: {caveat}\n')
+    (FINAL / 'CAPTIONS.md').write_text(''.join(out), encoding='utf-8')
+
+
 def main():
     rows = reg.paper_rows()
     unknown = sorted(set(rows.paper_template) - set(TEMPLATES))
@@ -47,6 +62,7 @@ def main():
                                  build=mode, titles=' | '.join(reg.titles(r)), status=r.status,
                                  axis_dollar_year=r.axis_dollar_year, built=datetime.now().strftime('%Y-%m-%d %H:%M')))
     pd.DataFrame(manifest).to_csv(FINAL / 'MANIFEST.csv', index=False)
+    write_captions(rows)
     print(f'{len(rows)} panel rows -> {FINAL}')
 
 

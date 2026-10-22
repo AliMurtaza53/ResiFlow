@@ -3,7 +3,7 @@
 Every placeholder figure draws from the same per-event totals, so the sheets reconcile by construction:
   total(event)            = direct + cumulative 90-day indirect (rerouting + isolation, passenger + freight)
   RQ1_1 class bars        sum to direct(event); road classes exclude bridge structures (asset split first),
-                          earthquake roads are $0 by design (bridges only); 'Severe' = severe + extensive
+                          every class shown non-zero for now (the model's earthquake road damage is $0 by design, bridges only: revisit); 'Severe' = severe + extensive
   RQ1_2(A) state bars     are the leading states' direct damage (mean with min-max damage-ratio range)
   RQ1_2(B)                = RQ2(B) state sum (states + Rest) = direct + indirect
   RQ2(A) mode bars        sum to the event's indirect cost; Toll is $0 and dropped
@@ -32,7 +32,7 @@ INDIRECT = {
 }
 CLASS_SHARE = {
     "Hurricane Harvey": (.22, .24, .14, .12, .28),
-    "New Madrid Earthquake": (0, 0, 0, 0, 1.0),
+    "New Madrid Earthquake": (.12, .14, .10, .08, .56),  # placeholder: every class shown non-zero (see REVISIT.md)
     "New Madrid Landslide": (.26, .20, .12, .22, .20),
     "Winter Storm Jonas": (.35, .25, .15, .10, .15),
 }
