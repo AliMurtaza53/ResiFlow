@@ -31,12 +31,14 @@ def build_full_crosswalk(
     """Merge multi-subarea crosswalk (bottleneck counties) with the existing
     single-node crosswalk (everyone else) into one county_fips -> [(node_id, weight)] table."""
     multi = multinode_crosswalk[["county_fips", "node_id", "weight"]].copy()
+    multi["node_id"] = multi["node_id"].astype(str)
     remedied_counties = set(multi["county_fips"])
 
     existing = existing_single_node_crosswalk.copy()
     county_col = "county_id" if "county_id" in existing.columns else "detail_zone_id"
     node_col = "node_id" if "node_id" in existing.columns else "assigned_node_id"
     existing = existing.rename(columns={county_col: "county_fips", node_col: "node_id"})
+    existing["node_id"] = existing["node_id"].astype(str)
     existing = existing[~existing["county_fips"].isin(remedied_counties)][["county_fips", "node_id"]]
     existing["weight"] = 1.0
 
