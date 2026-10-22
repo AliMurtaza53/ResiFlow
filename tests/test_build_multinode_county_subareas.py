@@ -37,6 +37,14 @@ def test_subareas_for_overload_ratio(overload_ratio, expected):
     assert subareas_for_overload_ratio(overload_ratio) == expected
 
 
+def test_subareas_for_overload_ratio_respects_max_subareas_override():
+    # LA-sized counties showed a residual overload at the default cap of 6;
+    # a sensitivity test needs to raise the cap for one run without
+    # changing the default for every other county.
+    assert subareas_for_overload_ratio(32.7, max_subareas=12) == 12
+    assert subareas_for_overload_ratio(32.7) == 6
+
+
 def test_weighted_kmeans_separates_distinct_clusters():
     points = np.array(
         [[0.0, 0.0], [0.1, 0.1], [0.0, 0.1], [10.0, 10.0], [10.1, 10.1], [10.0, 10.1]]

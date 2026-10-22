@@ -89,6 +89,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--road-links", required=True, help="faf5_road_links.gpq with from_id/to_id/geometry/hpms_fclass")
     parser.add_argument("--year", type=int, default=2022)
     parser.add_argument("--lodes-job-type", default="JT00")
+    parser.add_argument("--max-subareas-per-county", type=int, default=6, help="Override the default subarea cap (6), for sensitivity tests on large/dense counties")
     parser.add_argument("--home-output", required=True, help="Origin (home-weighted) crosswalk CSV")
     parser.add_argument("--work-output", required=True, help="Destination (work-weighted) crosswalk CSV")
     return parser
@@ -113,7 +114,7 @@ def main(argv: list[str] | None = None) -> int:
         blocks = build_endpoint_blocks(states, target_fips, endpoint, job_type=args.lodes_job_type, year=args.year)
         LOGGER.info("Loaded %d %s blocks", len(blocks), endpoint)
 
-        subareas = cluster_county_subareas(blocks, overload_ratios, weight_col="weight")
+        subareas = cluster_county_subareas(blocks, overload_ratios, weight_col="weight", max_subareas=args.max_subareas_per_county)
         LOGGER.info("Clustered into %d %s subareas across %d counties", len(subareas), endpoint, subareas["county_fips"].nunique())
 
         missing = target_fips - set(subareas["county_fips"])

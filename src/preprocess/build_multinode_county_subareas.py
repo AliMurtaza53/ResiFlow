@@ -45,9 +45,14 @@ _MAX_SUBAREAS_PER_COUNTY = 6
 _MIN_SUBAREAS_FOR_TARGET_COUNTY = 2
 
 
-def subareas_for_overload_ratio(overload_ratio: float) -> int:
-    """More subareas for more severely overloaded counties, capped."""
-    return int(np.clip(np.ceil(overload_ratio), _MIN_SUBAREAS_FOR_TARGET_COUNTY, _MAX_SUBAREAS_PER_COUNTY))
+def subareas_for_overload_ratio(overload_ratio: float, max_subareas: int = _MAX_SUBAREAS_PER_COUNTY) -> int:
+    """More subareas for more severely overloaded counties, capped.
+
+    ``max_subareas`` is a per-call override (default 6) for sensitivity
+    tests on counties too large/dense for the default cap -- e.g. LA
+    County still showed a 3.57x residual overload at cap=6.
+    """
+    return int(np.clip(np.ceil(overload_ratio), _MIN_SUBAREAS_FOR_TARGET_COUNTY, max_subareas))
 
 
 def _weighted_kmeans(points: np.ndarray, weights: np.ndarray, k: int, *, seed: int = 0, iters: int = 50) -> np.ndarray:
@@ -78,6 +83,7 @@ def cluster_county_subareas(
     block_employment: pd.DataFrame,
     overload_ratios: pd.Series,
     weight_col: str = "freight_jobs",
+    max_subareas: int = _MAX_SUBAREAS_PER_COUNTY,
 ) -> pd.DataFrame:
     """Cluster each county's weighted blocks (freight employment, or any
     other per-block weight -- e.g. passenger home/work counts) into subareas.
@@ -88,7 +94,7 @@ def cluster_county_subareas(
     rows: list[pd.DataFrame] = []
     for county_fips, group in block_employment.groupby("county_fips"):
         overload_ratio = float(overload_ratios.get(county_fips, _MIN_SUBAREAS_FOR_TARGET_COUNTY))
-        k = subareas_for_overload_ratio(overload_ratio)
+        k = subareas_for_overload_ratio(overload_ratio, max_subareas=max_subareas)
         points = group[["lon", "lat"]].to_numpy(dtype=float)
         weights = group[weight_col].to_numpy(dtype=float)
         if len(group) < k:
@@ -172,6 +178,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--road-links", required=True, help="faf5_road_links.gpq with from_id/to_id/geometry/fclass")
     parser.add_argument("--year", type=int, default=2022)
     parser.add_argument("--lodes-job-type", default="JT00")
+    parser.add_argument("--max-subareas-per-county", type=int, default=_MAX_SUBAREAS_PER_COUNTY, help="Override the default subarea cap (6), for sensitivity tests on large/dense counties")
     parser.add_argument("--output", required=True, help="Output crosswalk CSV: county_fips,subarea_rank,node_id,weight,distance_m")
     return parser
 
@@ -190,7 +197,7 @@ def main(argv: list[str] | None = None) -> int:
     LOGGER.info("Loaded %d employment blocks", len(block_employment))
 
     overload_ratios = targets.set_index("county_fips")["overload_ratio"]
-    subareas = cluster_county_subareas(block_employment, overload_ratios)
+    subareas = cluster_county_subareas(block_employment, overload_ratios, max_subareas=args.max_subareas_per_county)
     LOGGER.info("Clustered into %d subareas across %d counties", len(subareas), subareas["county_fips"].nunique())
 
     # Counties with no employment-bearing blocks (data gap) fall back to a
