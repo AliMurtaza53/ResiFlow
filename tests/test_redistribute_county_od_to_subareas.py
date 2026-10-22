@@ -64,6 +64,20 @@ def test_redistribute_preserves_total_demand_and_splits_by_weight():
     assert c_total == pytest.approx(50.0)
 
 
+def test_redistribute_with_asymmetric_origin_destination_crosswalks():
+    # Passenger demand: county A's home-weighted origin split differs from
+    # its work-weighted destination split.
+    county_od = pd.DataFrame({"origin_county": ["A"], "destination_county": ["A"], "Car21": [100.0]})
+    home_crosswalk = pd.DataFrame({"county_fips": ["A", "A"], "node_id": ["home1", "home2"], "weight": [0.8, 0.2]})
+    work_crosswalk = pd.DataFrame({"county_fips": ["A", "A"], "node_id": ["work1", "work2"], "weight": [0.3, 0.7]})
+
+    result = redistribute(county_od, home_crosswalk, destination_crosswalk=work_crosswalk)
+
+    assert result["Car21"].sum() == pytest.approx(100.0)
+    home1_work1 = result.loc[(result["origin_node"] == "home1") & (result["destination_node"] == "work1"), "Car21"].iloc[0]
+    assert home1_work1 == pytest.approx(0.8 * 0.3 * 100.0)
+
+
 def test_redistribute_raises_if_demand_not_preserved():
     county_od = pd.DataFrame({"origin_county": ["A"], "destination_county": ["B"], "Car21": [100.0]})
     # destination county "B" missing from crosswalk -> inner merge drops the row

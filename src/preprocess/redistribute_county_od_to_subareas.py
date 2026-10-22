@@ -54,12 +54,22 @@ def redistribute(
     demand_column: str = "Car21",
     origin_col: str = "origin_county",
     destination_col: str = "destination_county",
+    destination_crosswalk: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    """Tri-proportionally split county-pair demand across subarea node pairs."""
+    """Tri-proportionally split county-pair demand across subarea node pairs.
+
+    For passenger (commute) demand, origin and destination subareas are NOT
+    symmetric: a county's outbound/home-end weights (where residents live)
+    differ from its inbound/work-end weights (where jobs are) -- pass
+    ``destination_crosswalk`` separately in that case. Freight demand has no
+    such distinction, so it reuses ``full_crosswalk`` for both sides by
+    default.
+    """
     origin_weights = full_crosswalk.rename(
         columns={"county_fips": origin_col, "node_id": "origin_node", "weight": "origin_weight"}
     )
-    destination_weights = full_crosswalk.rename(
+    destination_source = destination_crosswalk if destination_crosswalk is not None else full_crosswalk
+    destination_weights = destination_source.rename(
         columns={"county_fips": destination_col, "node_id": "destination_node", "weight": "destination_weight"}
     )
 
@@ -87,7 +97,12 @@ def redistribute(
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--county-od", required=True, help="County-to-county OD parquet (pre-node-mapping)")
-    parser.add_argument("--multinode-crosswalk", required=True, help="Output of build_multinode_county_subareas.py")
+    parser.add_argument("--multinode-crosswalk", required=True, help="Output of build_multinode_county_subareas.py (origin side; also destination side unless --destination-multinode-crosswalk is given)")
+    parser.add_argument(
+        "--destination-multinode-crosswalk",
+        default=None,
+        help="Optional separate multi-subarea crosswalk for the destination side (e.g. work-weighted vs origin's home-weighted) -- passenger demand only",
+    )
     parser.add_argument("--existing-crosswalk", required=True, help="Existing single-node bts_county_to_network_centroid crosswalk")
     parser.add_argument("--demand-column", default="Car21")
     parser.add_argument("--origin-column", default="origin_county")
@@ -112,12 +127,18 @@ def main(argv: list[str] | None = None) -> int:
         full_crosswalk.groupby("county_fips").size().gt(1).sum(),
     )
 
+    destination_full_crosswalk = None
+    if args.destination_multinode_crosswalk:
+        destination_multinode_crosswalk = pd.read_csv(args.destination_multinode_crosswalk, dtype={"county_fips": str})
+        destination_full_crosswalk = build_full_crosswalk(destination_multinode_crosswalk, existing_crosswalk)
+
     new_od = redistribute(
         county_od,
         full_crosswalk,
         demand_column=args.demand_column,
         origin_col=args.origin_column,
         destination_col=args.destination_column,
+        destination_crosswalk=destination_full_crosswalk,
     )
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)

@@ -77,18 +77,20 @@ def _weighted_kmeans(points: np.ndarray, weights: np.ndarray, k: int, *, seed: i
 def cluster_county_subareas(
     block_employment: pd.DataFrame,
     overload_ratios: pd.Series,
+    weight_col: str = "freight_jobs",
 ) -> pd.DataFrame:
-    """Cluster each county's freight-weighted employment blocks into subareas.
+    """Cluster each county's weighted blocks (freight employment, or any
+    other per-block weight -- e.g. passenger home/work counts) into subareas.
 
-    Returns: county_fips, subarea_rank, lon, lat, weight (employment share
-    within the county, sums to 1.0 per county).
+    Returns: county_fips, subarea_rank, lon, lat, weight (share within the
+    county, sums to 1.0 per county).
     """
     rows: list[pd.DataFrame] = []
     for county_fips, group in block_employment.groupby("county_fips"):
         overload_ratio = float(overload_ratios.get(county_fips, _MIN_SUBAREAS_FOR_TARGET_COUNTY))
         k = subareas_for_overload_ratio(overload_ratio)
         points = group[["lon", "lat"]].to_numpy(dtype=float)
-        weights = group["freight_jobs"].to_numpy(dtype=float)
+        weights = group[weight_col].to_numpy(dtype=float)
         if len(group) < k:
             k = max(1, len(group))
         labels = _weighted_kmeans(points, weights, k)
