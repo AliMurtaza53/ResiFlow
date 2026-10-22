@@ -142,6 +142,11 @@ def main(argv: list[str] | None = None) -> int:
         destination_col=args.destination_column,
         destination_crosswalk=destination_full_crosswalk,
     )
+    if args.demand_column != "Car21":
+        # Script 1's assignment-OD convention is always Car21, regardless of
+        # the source county_od's own flow column name (e.g. passenger OD's
+        # "jobs").
+        new_od = new_od.rename(columns={args.demand_column: "Car21"})
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     new_od.to_parquet(args.output, index=False)
