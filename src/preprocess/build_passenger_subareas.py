@@ -83,6 +83,109 @@ def build_endpoint_blocks(
     return out[out["weight"] > 0][["county_fips", "lon", "lat", "weight"]]
 
 
+def assign_blocks_to_nearest_subarea(
+    blocks: pd.DataFrame,
+    subarea_crosswalk: pd.DataFrame,
+    block_id_col: str,
+) -> pd.DataFrame:
+    """Nearest-subarea-centroid assignment for each block, within its own county.
+
+    blocks: county_fips, lon, lat, <block_id_col>.
+    subarea_crosswalk: county_fips, lon, lat, node_id (a built home/work
+    crosswalk -- lon/lat here are the SUBAREA centroid, matching how the
+    block was originally clustered, not the snapped network node).
+    Returns: <block_id_col>, node_id.
+    """
+    assignments: list[pd.DataFrame] = []
+    for county_fips, group in blocks.groupby("county_fips"):
+        subareas = subarea_crosswalk[subarea_crosswalk["county_fips"] == county_fips]
+        if subareas.empty:
+            continue
+        sub_lon = subareas["lon"].to_numpy(dtype=float)
+        sub_lat = subareas["lat"].to_numpy(dtype=float)
+        sub_node = subareas["node_id"].to_numpy()
+        blk_lon = group["lon"].to_numpy(dtype=float)
+        blk_lat = group["lat"].to_numpy(dtype=float)
+        dist = (blk_lon[:, None] - sub_lon[None, :]) ** 2 + (blk_lat[:, None] - sub_lat[None, :]) ** 2
+        nearest_idx = dist.argmin(axis=1)
+        assignments.append(
+            pd.DataFrame({block_id_col: group[block_id_col].to_numpy(), "node_id": sub_node[nearest_idx]})
+        )
+    if not assignments:
+        return pd.DataFrame(columns=[block_id_col, "node_id"])
+    return pd.concat(assignments, ignore_index=True)
+
+
+def build_intra_county_real_pair_od(
+    states: list[str],
+    target_county_fips: set[str],
+    home_crosswalk: pd.DataFrame,
+    work_crosswalk: pd.DataFrame,
+    *,
+    job_type: str = "JT00",
+    year: int = 2022,
+    base: str | Path | None = None,
+) -> pd.DataFrame:
+    """Real (non-independent) intra-county home-work node-pair demand.
+
+    Only intra-county pairs (home county == work county == a target
+    county) need this -- that is exactly the case where BOTH the origin
+    and destination sides are multi-subarea, so the independent
+    w^H_a * w^W_b split (used for every other county pair) would assume
+    home and work locations are statistically independent within the
+    county. LODES OD's own h_geocode/w_geocode pairs already carry the
+    real joint structure, so this maps each real pair to its home/work
+    subarea node directly instead of approximating it.
+
+    Returns: origin_node, destination_node, Car21.
+    """
+    frames: list[pd.DataFrame] = []
+    for state in states:
+        geo = read_lodes_crosswalk(state, base=base)
+        home_county = geo.rename(columns={"tabblk2020": "h_geocode", "cty": "home_county"})
+        work_county = geo.rename(columns={"tabblk2020": "w_geocode", "cty": "work_county"})
+
+        try:
+            od = read_lodes_od(state, job_type=job_type, year=year, part="main", base=base)
+        except FileNotFoundError:
+            continue
+        od = od.merge(home_county[["h_geocode", "home_county"]], on="h_geocode", how="inner")
+        od = od.merge(work_county[["w_geocode", "work_county"]], on="w_geocode", how="inner")
+        od = od[(od["home_county"] == od["work_county"]) & od["home_county"].isin(target_county_fips)]
+        if od.empty:
+            continue
+
+        block_geo = read_lodes_block_geo(state, base=base).rename(columns={"blklondd": "lon", "blklatdd": "lat"})
+        home_blocks = (
+            od[["h_geocode", "home_county"]]
+            .drop_duplicates()
+            .rename(columns={"h_geocode": "tabblk2020", "home_county": "county_fips"})
+            .merge(block_geo[["tabblk2020", "lon", "lat"]], on="tabblk2020", how="inner")
+        )
+        work_blocks = (
+            od[["w_geocode", "work_county"]]
+            .drop_duplicates()
+            .rename(columns={"w_geocode": "tabblk2020", "work_county": "county_fips"})
+            .merge(block_geo[["tabblk2020", "lon", "lat"]], on="tabblk2020", how="inner")
+        )
+
+        home_assignment = assign_blocks_to_nearest_subarea(home_blocks, home_crosswalk, "tabblk2020").rename(
+            columns={"tabblk2020": "h_geocode", "node_id": "origin_node"}
+        )
+        work_assignment = assign_blocks_to_nearest_subarea(work_blocks, work_crosswalk, "tabblk2020").rename(
+            columns={"tabblk2020": "w_geocode", "node_id": "destination_node"}
+        )
+
+        mapped = od.merge(home_assignment, on="h_geocode", how="inner").merge(work_assignment, on="w_geocode", how="inner")
+        frames.append(mapped.groupby(["origin_node", "destination_node"], as_index=False)["S000"].sum())
+
+    if not frames:
+        return pd.DataFrame(columns=["origin_node", "destination_node", "Car21"])
+    combined = pd.concat(frames, ignore_index=True)
+    combined = combined.groupby(["origin_node", "destination_node"], as_index=False)["S000"].sum()
+    return combined.rename(columns={"S000": "Car21"})
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--target-counties-csv", required=True, help="CSV with county_fips, overload_ratio, state_abbr columns")
@@ -92,6 +195,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-subareas-per-county", type=int, default=6, help="Override the default subarea cap (6), for sensitivity tests on large/dense counties")
     parser.add_argument("--home-output", required=True, help="Origin (home-weighted) crosswalk CSV")
     parser.add_argument("--work-output", required=True, help="Destination (work-weighted) crosswalk CSV")
+    parser.add_argument(
+        "--intra-county-output",
+        default=None,
+        help="Optional: real (non-independent) intra-county home-work node-pair OD CSV -- "
+        "use this to REPLACE the independent w^H*w^W approximation for each target county's own diagonal",
+    )
     return parser
 
 
@@ -109,6 +218,7 @@ def main(argv: list[str] | None = None) -> int:
 
     road_links = gpd.read_parquet(args.road_links)
 
+    snapped_by_endpoint: dict[str, pd.DataFrame] = {}
     for endpoint, output_path in (("home", args.home_output), ("work", args.work_output)):
         LOGGER.info("Building %s-side blocks for %d target counties across %d states", endpoint, len(target_fips), len(states))
         blocks = build_endpoint_blocks(states, target_fips, endpoint, job_type=args.lodes_job_type, year=args.year)
@@ -125,6 +235,26 @@ def main(argv: list[str] | None = None) -> int:
         Path(output_path).parent.mkdir(parents=True, exist_ok=True)
         snapped.to_csv(output_path, index=False)
         LOGGER.info("Wrote %d %s subarea->node rows to %s", len(snapped), endpoint, output_path)
+        snapped_by_endpoint[endpoint] = snapped
+
+    if args.intra_county_output:
+        LOGGER.info("Building REAL (non-independent) intra-county home-work node-pair OD")
+        intra_county_od = build_intra_county_real_pair_od(
+            states,
+            target_fips,
+            snapped_by_endpoint["home"],
+            snapped_by_endpoint["work"],
+            job_type=args.lodes_job_type,
+            year=args.year,
+        )
+        Path(args.intra_county_output).parent.mkdir(parents=True, exist_ok=True)
+        intra_county_od.to_csv(args.intra_county_output, index=False)
+        LOGGER.info(
+            "Wrote %d real intra-county node-pair rows (total Car21=%.1f) to %s",
+            len(intra_county_od),
+            intra_county_od["Car21"].sum() if not intra_county_od.empty else 0.0,
+            args.intra_county_output,
+        )
 
     return 0
 

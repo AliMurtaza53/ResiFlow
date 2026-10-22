@@ -1,7 +1,11 @@
 import pandas as pd
 import pytest
 
-from preprocess.redistribute_county_od_to_subareas import build_full_crosswalk, redistribute
+from preprocess.redistribute_county_od_to_subareas import (
+    build_full_crosswalk,
+    redistribute,
+    replace_intra_county_pairs,
+)
 
 
 def test_build_full_crosswalk_merges_multinode_and_existing():
@@ -85,3 +89,52 @@ def test_redistribute_raises_if_demand_not_preserved():
 
     with pytest.raises(ValueError, match="Demand total not preserved"):
         redistribute(county_od, full_crosswalk)
+
+
+def test_replace_intra_county_pairs_swaps_diagonal_and_rescales_exactly():
+    # County A's own diagonal (home==work==A) totals 100 at the county
+    # level; the real block-pair breakdown sums to only 90 (a plausible
+    # LODES-read discrepancy) and must be rescaled to match exactly.
+    county_od = pd.DataFrame(
+        {
+            "origin_county": ["A", "A"],
+            "destination_county": ["A", "B"],
+            "Car21": [100.0, 20.0],
+        }
+    )
+    real_intra_county_od = pd.DataFrame(
+        {
+            "origin_node": ["home1", "home2"],
+            "destination_node": ["work1", "work2"],
+            "Car21": [60.0, 30.0],
+        }
+    )
+    home_crosswalk = pd.DataFrame({"node_id": ["home1", "home2"], "county_fips": ["A", "A"]})
+    work_crosswalk = pd.DataFrame({"node_id": ["work1", "work2"], "county_fips": ["A", "A"]})
+
+    remaining_county_od, rescaled = replace_intra_county_pairs(
+        county_od, real_intra_county_od, home_crosswalk, work_crosswalk
+    )
+
+    # the A->A diagonal row is gone; the A->B row is untouched
+    assert len(remaining_county_od) == 1
+    assert remaining_county_od.iloc[0]["destination_county"] == "B"
+
+    # rescaled real pairs now sum to EXACTLY the original diagonal total (100), not 90
+    assert rescaled["Car21"].sum() == pytest.approx(100.0)
+    assert rescaled.set_index(["origin_node", "destination_node"]).loc[("home1", "work1"), "Car21"] == pytest.approx(
+        60.0 * 100.0 / 90.0
+    )
+
+
+def test_replace_intra_county_pairs_raises_if_target_county_has_no_real_pairs():
+    county_od = pd.DataFrame({"origin_county": ["A"], "destination_county": ["A"], "Car21": [100.0]})
+    real_intra_county_od = pd.DataFrame({"origin_node": ["home1"], "destination_node": ["work1"], "Car21": [50.0]})
+    # crosswalk maps the real pair's nodes to county B, not A -- A has no real pairs at all
+    home_crosswalk = pd.DataFrame({"node_id": ["home1"], "county_fips": ["B"]})
+    work_crosswalk = pd.DataFrame({"node_id": ["work1"], "county_fips": ["B"]})
+
+    with pytest.raises(ValueError, match="No real intra-county pairs"):
+        replace_intra_county_pairs(
+            county_od, real_intra_county_od, home_crosswalk, work_crosswalk, target_counties={"A"}
+        )

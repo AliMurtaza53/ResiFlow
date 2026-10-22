@@ -14,6 +14,7 @@ sys.modules[_SPEC.name] = _MODULE
 _SPEC.loader.exec_module(_MODULE)
 
 county_fips_to_state_abbr = _MODULE.county_fips_to_state_abbr
+split_same_node_demand = _MODULE.split_same_node_demand
 compute_node_demand = _MODULE.compute_node_demand
 compute_node_connector_capacity = _MODULE.compute_node_connector_capacity
 build_overload_table = _MODULE.build_overload_table
@@ -37,6 +38,32 @@ def test_compute_node_demand_sums_inbound_and_outbound():
     demand = compute_node_demand(od)
     assert demand["n1"] == pytest.approx(130.0)  # 100 outbound + 30 inbound
     assert demand["n2"] == pytest.approx(130.0)  # 30 outbound + 100 inbound
+
+
+def test_split_same_node_demand_separates_self_loops():
+    od = pd.DataFrame(
+        {
+            "origin_node": ["n1", "n2", "n3"],
+            "destination_node": ["n2", "n1", "n3"],  # n3->n3 is a same-node pair
+            "Car21": [100.0, 30.0, 50.0],
+        }
+    )
+    routable, same_node = split_same_node_demand(od)
+
+    assert len(routable) == 2
+    assert set(routable["origin_node"]) == {"n1", "n2"}
+    assert same_node["n3"] == pytest.approx(50.0)
+    assert "n1" not in same_node.index
+
+
+def test_compute_node_demand_excludes_double_counting_same_node_pairs():
+    # Without filtering, a same-node pair would count its demand TWICE at
+    # that node (once as outbound, once as inbound) even though it needs
+    # no inter-node road path -- network_flow_model excludes it entirely.
+    od = pd.DataFrame({"origin_node": ["n1"], "destination_node": ["n1"], "Car21": [100.0]})
+    routable, _ = split_same_node_demand(od)
+    demand = compute_node_demand(routable)
+    assert demand.empty
 
 
 def test_compute_node_connector_capacity_sums_touching_edges():

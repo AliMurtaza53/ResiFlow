@@ -66,8 +66,34 @@ def county_fips_to_state_abbr(county_fips: str) -> str:
     return _FIPS_TO_STATE.get(str(county_fips).zfill(5)[:2], "")
 
 
+def split_same_node_demand(od: pd.DataFrame, demand_column: str = "Car21") -> tuple[pd.DataFrame, pd.Series]:
+    """Separate same-node (origin_node == destination_node) rows from the rest.
+
+    resiflow.road_revised's network_flow_model excludes same-origin/
+    destination pairs from assignment entirely (confirmed via the
+    CT+RI subset test's cross-check against Pass A's own "initial
+    supply" log line) -- they need no inter-node road path at all. A
+    node-demand sum that includes them anyway double-counts (once as
+    outbound, once as inbound) volume the real model never routes
+    through that node's connectors. Returns (od without same-node rows,
+    same-node demand per node) so callers can report it separately
+    instead of silently folding it into "total_demand".
+    """
+    same_node_mask = od["origin_node"] == od["destination_node"]
+    same_node_demand = od.loc[same_node_mask].groupby("origin_node")[demand_column].sum()
+    same_node_demand.index = same_node_demand.index.astype(str)
+    same_node_demand.index.name = "node_id"
+    return od.loc[~same_node_mask], same_node_demand
+
+
 def compute_node_demand(od: pd.DataFrame, demand_column: str = "Car21") -> pd.Series:
-    """Total inbound + outbound demand per node."""
+    """Total inbound + outbound demand per node, EXCLUDING same-node pairs.
+
+    Callers must pass od through split_same_node_demand() first (or
+    otherwise guarantee no origin_node == destination_node rows) --
+    this function does not filter them itself so the exclusion is
+    visible at the call site, not hidden inside this helper.
+    """
     outbound = od.groupby("origin_node")[demand_column].sum()
     inbound = od.groupby("destination_node")[demand_column].sum()
     return outbound.add(inbound, fill_value=0.0)
@@ -161,9 +187,19 @@ def main(argv: list[str] | None = None) -> int:
     node_ids = set(pd.concat([od["origin_node"], od["destination_node"]]).astype(str).unique())
     LOGGER.info("Found %d unique assignment nodes", len(node_ids))
 
-    demand_by_node = compute_node_demand(od, demand_column=args.demand_column)
+    routable_od, same_node_demand = split_same_node_demand(od, demand_column=args.demand_column)
+    LOGGER.info(
+        "Same-node (origin==destination) demand excluded from connector loading: %.1f of %.1f total (%.2f%%) "
+        "-- these need no inter-node road path, matching network_flow_model's own exclusion",
+        same_node_demand.sum(),
+        od[args.demand_column].sum(),
+        100.0 * same_node_demand.sum() / od[args.demand_column].sum(),
+    )
+
+    demand_by_node = compute_node_demand(routable_od, demand_column=args.demand_column)
     capacity_by_node = compute_node_connector_capacity(road_links, node_ids)
     node_overload = build_overload_table(demand_by_node, capacity_by_node)
+    node_overload["same_node_demand"] = node_overload["node_id"].map(same_node_demand).fillna(0.0)
     if args.node_output:
         Path(args.node_output).parent.mkdir(parents=True, exist_ok=True)
         node_overload.to_csv(args.node_output, index=False)

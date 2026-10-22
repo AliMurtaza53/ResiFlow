@@ -96,6 +96,73 @@ def redistribute(
     return result
 
 
+def replace_intra_county_pairs(
+    county_od: pd.DataFrame,
+    real_intra_county_od: pd.DataFrame,
+    home_crosswalk: pd.DataFrame,
+    work_crosswalk: pd.DataFrame,
+    demand_column: str = "Car21",
+    origin_col: str = "origin_county",
+    destination_col: str = "destination_county",
+    target_counties: set[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Swap each target county's independent-weight diagonal row for the
+    REAL (non-independent) home-work pair breakdown.
+
+    The independent split (origin_weight * destination_weight) assumes
+    home and work locations are statistically independent within a
+    county -- true only by approximation. For a county's own diagonal
+    (home county == work county), LODES OD's real block pairs are
+    available directly (build_intra_county_real_pair_od), so use those
+    instead of the approximation.
+
+    Rescales the real pairs to match each removed diagonal row's
+    original total EXACTLY, preserving this module's total-demand
+    invariant even though the real block-pair sum (a slightly different
+    LODES read path) may not match the county-level total bit for bit.
+
+    ``target_counties``, when given, is the authoritative set of counties
+    that MUST have real pairs available -- a target missing from
+    real_intra_county_od then raises instead of silently keeping that
+    county's independent-weight diagonal row. Left as None (the
+    inference used before this parameter existed), a target absent from
+    the real pairs is invisible and its diagonal is silently left alone,
+    which can hide a genuine data gap.
+
+    Returns (county_od with target counties' own diagonal rows removed,
+    real_intra_county_od rescaled and ready to concatenate onto
+    redistribute()'s output).
+    """
+    if real_intra_county_od.empty:
+        return county_od, real_intra_county_od
+
+    node_to_county = (
+        pd.concat([home_crosswalk[["node_id", "county_fips"]], work_crosswalk[["node_id", "county_fips"]]])
+        .drop_duplicates("node_id")
+        .set_index("node_id")["county_fips"]
+    )
+    real = real_intra_county_od.copy()
+    real["county_fips"] = real["origin_node"].map(node_to_county)
+
+    if target_counties is None:
+        target_counties = set(real["county_fips"].dropna().unique())
+    is_target_diagonal = county_od[origin_col].isin(target_counties) & (
+        county_od[origin_col] == county_od[destination_col]
+    )
+    diagonal_totals = county_od.loc[is_target_diagonal].groupby(origin_col)[demand_column].sum()
+    remaining_county_od = county_od.loc[~is_target_diagonal]
+
+    real_totals = real.groupby("county_fips")["Car21"].sum()
+    missing_real = set(diagonal_totals.index) - set(real_totals.index)
+    if missing_real:
+        raise ValueError(f"No real intra-county pairs found for target counties: {sorted(missing_real)} -- cannot rescale")
+
+    scale = diagonal_totals / real_totals.reindex(diagonal_totals.index)
+    real["Car21"] = real["Car21"] * real["county_fips"].map(scale)
+
+    return remaining_county_od, real[["origin_node", "destination_node", "Car21"]]
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--county-od", required=True, help="County-to-county OD parquet (pre-node-mapping)")
@@ -106,6 +173,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Optional separate multi-subarea crosswalk for the destination side (e.g. work-weighted vs origin's home-weighted) -- passenger demand only",
     )
     parser.add_argument("--existing-crosswalk", required=True, help="Existing single-node bts_county_to_network_centroid crosswalk")
+    parser.add_argument(
+        "--intra-county-od",
+        default=None,
+        help="Optional: build_passenger_subareas.py's --intra-county-output. When given, each "
+        "target county's own diagonal row is replaced with these REAL (non-independent) "
+        "home-work pairs instead of the independent w^H*w^W approximation.",
+    )
     parser.add_argument("--demand-column", default="Car21")
     parser.add_argument("--origin-column", default="origin_county")
     parser.add_argument("--destination-column", default="destination_county")
@@ -134,6 +208,25 @@ def main(argv: list[str] | None = None) -> int:
         destination_multinode_crosswalk = pd.read_csv(args.destination_multinode_crosswalk, dtype={"county_fips": str})
         destination_full_crosswalk = build_full_crosswalk(destination_multinode_crosswalk, existing_crosswalk)
 
+    rescaled_real_intra_county = None
+    if args.intra_county_od:
+        real_intra_county_od = pd.read_csv(args.intra_county_od, dtype={"origin_node": str, "destination_node": str})
+        county_od, rescaled_real_intra_county = replace_intra_county_pairs(
+            county_od,
+            real_intra_county_od,
+            multinode_crosswalk,
+            destination_multinode_crosswalk if destination_multinode_crosswalk is not None else multinode_crosswalk,
+            demand_column=args.demand_column,
+            origin_col=args.origin_column,
+            destination_col=args.destination_column,
+            target_counties=set(multinode_crosswalk["county_fips"]),
+        )
+        LOGGER.info(
+            "Replaced target counties' diagonal rows with %d real intra-county node-pair rows (total=%.1f)",
+            len(rescaled_real_intra_county),
+            rescaled_real_intra_county["Car21"].sum(),
+        )
+
     new_od = redistribute(
         county_od,
         full_crosswalk,
@@ -147,6 +240,10 @@ def main(argv: list[str] | None = None) -> int:
         # the source county_od's own flow column name (e.g. passenger OD's
         # "jobs").
         new_od = new_od.rename(columns={args.demand_column: "Car21"})
+
+    if rescaled_real_intra_county is not None:
+        new_od = pd.concat([new_od, rescaled_real_intra_county], ignore_index=True)
+        new_od = new_od.groupby(["origin_node", "destination_node"], as_index=False)["Car21"].sum()
 
     Path(args.output).parent.mkdir(parents=True, exist_ok=True)
     new_od.to_parquet(args.output, index=False)
