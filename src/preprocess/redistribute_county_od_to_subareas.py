@@ -21,6 +21,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from resiflow.demand.passenger_conversion import SENSITIVITY_SCENARIOS
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -183,6 +185,14 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--demand-column", default="Car21")
     parser.add_argument("--origin-column", default="origin_county")
     parser.add_argument("--destination-column", default="destination_county")
+    parser.add_argument(
+        "--vehicle-conversion-scenario",
+        default=None,
+        choices=sorted(SENSITIVITY_SCENARIOS),
+        help="Optional: apply resiflow.demand.passenger_conversion's documented jobs->vehicle-trips "
+        "factor (named scenario, e.g. central_with_round_trip) to --demand-column and --intra-county-od "
+        "before redistributing. Omit to pass jobs/Car21 through unconverted (today's behavior).",
+    )
     parser.add_argument("--output", required=True, help="New assignment OD parquet: origin_node,destination_node,Car21")
     return parser
 
@@ -194,6 +204,19 @@ def main(argv: list[str] | None = None) -> int:
     county_od = pd.read_parquet(args.county_od)
     multinode_crosswalk = pd.read_csv(args.multinode_crosswalk, dtype={"county_fips": str, "node_id": str})
     existing_crosswalk = pd.read_csv(args.existing_crosswalk, dtype=str)
+
+    if args.vehicle_conversion_scenario:
+        from resiflow.demand.passenger_conversion import convert_jobs_to_vehicle_trips
+
+        params = SENSITIVITY_SCENARIOS[args.vehicle_conversion_scenario]
+        LOGGER.info(
+            "Applying vehicle-conversion scenario '%s' (combined_factor=%.4f) to --demand-column='%s'",
+            args.vehicle_conversion_scenario,
+            params.combined_factor,
+            args.demand_column,
+        )
+        county_od = county_od.copy()
+        county_od[args.demand_column] = convert_jobs_to_vehicle_trips(county_od[args.demand_column], params=params)
 
     full_crosswalk = build_full_crosswalk(multinode_crosswalk, existing_crosswalk)
     LOGGER.info(
