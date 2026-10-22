@@ -4,16 +4,27 @@
 Confirms/refreshes the finding behind
 docs/FAF5_Caliper_Methodology_and_Proposed_Assignment.md: today's assignment
 loads an entire county's total demand (inbound + outbound) through a single
-network node's connector edges. For each county node, compares total demand
+network node's connector edges. For each network node, compares total demand
 against the SUM of ORIGINAL capacity of all edges touching that node --
 original capacity must come from a fresh resiflow.road_revised-style
 edge_init() call, never a post-Pass-A acc_capacity column (that column is
 decremented every iteration and reflects REMAINING, not original, capacity).
 
-Writes a durable CSV (county_fips, state_abbr, overload_ratio, total_demand,
+Demand MUST be the same combined freight+passenger assignment OD that
+Script 1 actually assigns (resiflow.demand.load_assignment_demand) -- an
+earlier freight-only check (just faf5_od_matrix.pq's Car21) understated
+demand by ~160x at the one node it was cross-checked against, because the
+real baseline run also merges LODES passenger demand
+(lodes_passenger_assignment_od_*.parquet) whenever that file is present and
+NIRD_DISABLE_PASSENGER_OD/RESIFLOW_DISABLE_PASSENGER_OD aren't set.
+
+Writes a durable, NODE-level CSV (node_id, overload_ratio, total_demand,
 total_connector_capacity) instead of leaving results in a login-node script
 that can be OOM-killed before anything is saved -- the prior interactive run
-lost its final aggregate-impact number this way.
+lost its final aggregate-impact number this way. Node-level results are
+later joined to county FIPS via the county->node crosswalk (see
+scripts/extract_existing_county_crosswalk.py); a node_id is not a county
+FIPS code even though today's mapping happens to be 1 node per county.
 """
 
 from __future__ import annotations
@@ -32,6 +43,7 @@ if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
 import resiflow.road_revised as func  # noqa: E402
+from resiflow.demand import demand_spec_from_env, load_assignment_demand  # noqa: E402
 from resiflow.networks import load_assignment_profiles, normalize_network_links  # noqa: E402
 
 LOGGER = logging.getLogger(__name__)
@@ -80,23 +92,37 @@ def build_overload_table(
     demand_by_node: pd.Series,
     capacity_by_node: pd.Series,
 ) -> pd.DataFrame:
+    """Node-level overload table. NOT keyed by county FIPS -- join to a
+    county->node crosswalk (county_id,node_id) to get per-county results."""
     merged = pd.DataFrame({"total_demand": demand_by_node}).join(
         pd.DataFrame({"total_connector_capacity": capacity_by_node}), how="inner"
     )
     merged["overload_ratio"] = merged["total_demand"] / merged["total_connector_capacity"].replace(0, pd.NA)
-    merged = merged.reset_index().rename(columns={"index": "county_fips"})
-    merged["county_fips"] = merged["county_fips"].astype(str).str.zfill(5)
-    merged["state_abbr"] = merged["county_fips"].map(county_fips_to_state_abbr)
+    merged = merged.reset_index().rename(columns={"index": "node_id"})
+    merged["node_id"] = merged["node_id"].astype(str)
     return merged.sort_values("overload_ratio", ascending=False).reset_index(drop=True)
+
+
+def join_overload_to_counties(overload_by_node: pd.DataFrame, county_to_node: pd.DataFrame) -> pd.DataFrame:
+    """Map node-level overload results to county FIPS via the existing crosswalk."""
+    crosswalk = county_to_node.copy()
+    crosswalk["node_id"] = crosswalk["node_id"].astype(str)
+    crosswalk["county_id"] = crosswalk["county_id"].astype(str).str.zfill(5)
+    joined = crosswalk.merge(overload_by_node, on="node_id", how="left")
+    joined = joined.rename(columns={"county_id": "county_fips"})
+    joined["state_abbr"] = joined["county_fips"].map(county_fips_to_state_abbr)
+    return joined.sort_values("overload_ratio", ascending=False).reset_index(drop=True)
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--road-links", required=True, help="Raw faf5_road_links.gpq (from_id/to_id/geometry/hpms_fclass); capacity is computed fresh via edge_init, never read from a post-assignment column")
     parser.add_argument("--params-root", required=True, help="Directory with flow_breakpoint_dict.json etc. (base_path/parameters)")
-    parser.add_argument("--assignment-od", required=True, help="Current single-node assignment OD (origin_node,destination_node,Car21)")
+    parser.add_argument("--base-path", required=True, help="soge_clusters base_path passed to resiflow.demand.load_assignment_demand -- loads the SAME combined freight+passenger OD Script 1 assigns, not freight alone")
+    parser.add_argument("--existing-crosswalk", required=True, help="county_id,node_id crosswalk (see extract_existing_county_crosswalk.py) used to join node-level results back to county FIPS")
     parser.add_argument("--demand-column", default="Car21")
     parser.add_argument("--output", required=True, help="Output CSV: county_fips,state_abbr,overload_ratio,total_demand,total_connector_capacity")
+    parser.add_argument("--node-output", default=None, help="Optional node-level CSV (node_id,overload_ratio,total_demand,total_connector_capacity) before the county join")
     parser.add_argument("--overload-threshold", type=float, default=2.0, help="Min overload_ratio to flag as a remedy target")
     return parser
 
@@ -121,17 +147,33 @@ def main(argv: list[str] | None = None) -> int:
         max_flow_speed_dict=None,
     )
 
-    LOGGER.info("Reading assignment OD: %s", args.assignment_od)
-    od = pd.read_parquet(args.assignment_od)
+    LOGGER.info("Loading REAL combined assignment demand (freight+passenger) via load_assignment_demand: %s", args.base_path)
+    base_path = Path(args.base_path)
+    demand_result = load_assignment_demand(base_path, demand_spec_from_env(base_path))
+    od = demand_result.assignment_od
+    LOGGER.info(
+        "Demand loaded: freight=%.1f passenger=%.1f combined=%.1f",
+        demand_result.stats.get("freight_flow", 0.0),
+        demand_result.stats.get("passenger_flow", 0.0),
+        demand_result.stats.get("combined_flow", 0.0),
+    )
 
-    county_node_ids = set(pd.concat([od["origin_node"], od["destination_node"]]).astype(str).unique())
-    LOGGER.info("Found %d unique assignment nodes (== county nodes under today's single-node mapping)", len(county_node_ids))
+    node_ids = set(pd.concat([od["origin_node"], od["destination_node"]]).astype(str).unique())
+    LOGGER.info("Found %d unique assignment nodes", len(node_ids))
 
     demand_by_node = compute_node_demand(od, demand_column=args.demand_column)
-    capacity_by_node = compute_node_connector_capacity(road_links, county_node_ids)
-    overload = build_overload_table(demand_by_node, capacity_by_node)
+    capacity_by_node = compute_node_connector_capacity(road_links, node_ids)
+    node_overload = build_overload_table(demand_by_node, capacity_by_node)
+    if args.node_output:
+        Path(args.node_output).parent.mkdir(parents=True, exist_ok=True)
+        node_overload.to_csv(args.node_output, index=False)
+        LOGGER.info("Wrote %d node-level rows to %s", len(node_overload), args.node_output)
 
-    total_demand = overload["total_demand"].sum()
+    LOGGER.info("Reading existing county->node crosswalk: %s", args.existing_crosswalk)
+    existing_crosswalk = pd.read_csv(args.existing_crosswalk, dtype=str)
+    overload = join_overload_to_counties(node_overload, existing_crosswalk)
+
+    total_demand = node_overload["total_demand"].sum()
     targets = overload[overload["overload_ratio"] >= args.overload_threshold]
     excess_demand = (targets["total_demand"] - targets["total_connector_capacity"]).clip(lower=0).sum()
     LOGGER.info(
