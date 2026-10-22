@@ -192,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
 
     county_od = pd.read_parquet(args.county_od)
-    multinode_crosswalk = pd.read_csv(args.multinode_crosswalk, dtype={"county_fips": str})
+    multinode_crosswalk = pd.read_csv(args.multinode_crosswalk, dtype={"county_fips": str, "node_id": str})
     existing_crosswalk = pd.read_csv(args.existing_crosswalk, dtype=str)
 
     full_crosswalk = build_full_crosswalk(multinode_crosswalk, existing_crosswalk)
@@ -205,7 +205,7 @@ def main(argv: list[str] | None = None) -> int:
 
     destination_full_crosswalk = None
     if args.destination_multinode_crosswalk:
-        destination_multinode_crosswalk = pd.read_csv(args.destination_multinode_crosswalk, dtype={"county_fips": str})
+        destination_multinode_crosswalk = pd.read_csv(args.destination_multinode_crosswalk, dtype={"county_fips": str, "node_id": str})
         destination_full_crosswalk = build_full_crosswalk(destination_multinode_crosswalk, existing_crosswalk)
 
     rescaled_real_intra_county = None
