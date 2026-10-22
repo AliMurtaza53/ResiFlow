@@ -86,6 +86,19 @@ def crosswalk_file_path(state: str, *, base: str | Path | None = None) -> str:
     return f"{root}{st}/{st}_xwalk.csv.gz"
 
 
+def wac_file_path(
+    state: str,
+    *,
+    job_type: str = "JT00",
+    year: int = 2022,
+    base: str | Path | None = None,
+) -> str:
+    """Build the LODES Workplace Area Characteristics filename or URL for one state."""
+    st = state.lower()
+    root = lodes_base_url(Path(base) if isinstance(base, Path) else None) if base is None else str(base).rstrip("/") + "/"
+    return f"{root}{st}/wac/{st}_wac_{job_type}_{year}.csv.gz"
+
+
 def ensure_lodes_cached(local_path: str, remote_url: str) -> str:
     """Return a readable local path, downloading from Census when the cache file is missing."""
     if local_path.startswith("http://") or local_path.startswith("https://"):
