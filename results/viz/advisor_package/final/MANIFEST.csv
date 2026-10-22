@@ -1,0 +1,8 @@
+figure,panels,registry_id,template,build,titles,status,axis_dollar_year,built
+RQ1_1,,s3_major_cost_panel_a_facility,stacked_by_event_and_class,standard,,"Prototype (advisor sheet, synthetic placeholder values; layout frozen 2026-10-22)",2023,2026-10-22 18:54
+RQ1_2,A,s3_major_cost_panel_b_state,grouped_event_bars_with_error,standard,(A) Direct Costs by Top States,"Prototype (advisor sheet, synthetic placeholder values; layout frozen 2026-10-22)",2023,2026-10-22 18:54
+RQ1_2,B-E,x_ranked_states_4metric,small_multiples_2x2_by_event,standard,(B) Total Cost | (C) Cost per Exposed Lane-mile | (D) Freight Cost Relative to Annual Freight Value | (E) Cost per Capita,"Prototype (advisor sheet, synthetic placeholder values; layout frozen 2026-10-22)",2023,2026-10-22 18:54
+RQ2,A,s4_rerouting_isolation_by_mode_merged,event_mode_stacked_bars,proto,(A) Rerouting and Isolation Costs by Travel Mode,"Prototype (advisor sheet, synthetic placeholder values; layout frozen 2026-10-22)",2023,2026-10-22 18:54
+RQ2,B,x_sankey_cost_flow_state,small_multiples_2x2_by_state,proto,(B) Total Cost by Top States,"Prototype (advisor sheet, synthetic placeholder values; layout frozen 2026-10-22)",2023,2026-10-22 18:54
+RQ3,A-B,x_rq3a_event_industry_tonnage_value,event_industry_dual_panel,proto,(A) Disrupted Freight Tonnage | (B) Cargo Value of Disrupted Freight,"Prototype (advisor sheet, synthetic placeholder values; layout frozen 2026-10-22)",2023 (value panel; will change),2026-10-22 18:54
+RQ3,C,x_top5_states_industry,grouped_state_stacked_bars,proto,(C) Cargo Value of Disrupted Freight by Industry in Top States,"Prototype (advisor sheet, synthetic placeholder values; layout frozen 2026-10-22)",2023,2026-10-22 18:54

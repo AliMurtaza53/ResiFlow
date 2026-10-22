@@ -1,0 +1,16 @@
+{
+  "shares": {
+    "sctg3499": 0.13474782971044294,
+    "sctg1014": 0.21674204683899392,
+    "sctg2033": 0.2745150978444063,
+    "sctg1519": 0.16203650513267256,
+    "sctg0109": 0.21195852047348437
+  },
+  "n_disrupted_pairs": 145745,
+  "n_matched_pairs": 145745,
+  "matched_car21_total": 23765.15816699624,
+  "hazard_label": "Flood surface",
+  "scenario_param": 301,
+  "event_id": "1",
+  "results_variant": "convergence_oct12_run1_40h"
+}

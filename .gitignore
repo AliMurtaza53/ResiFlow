@@ -32,6 +32,21 @@ results/*
 !results/finale_2026_08/
 results/finale_2026_08/*
 !results/finale_2026_08/*.py
+# Paper figure code + registry + final set (viz pipeline); bulky intermediates stay ignored.
+!results/viz/
+results/viz/*
+!results/viz/*.py
+!results/viz/*.md
+!results/viz/*.csv
+!results/viz/figlib/
+results/viz/figlib/__pycache__/
+results/viz/*/
+!results/viz/figlib/
+!results/viz/advisor_package/
+results/viz/advisor_package/*
+!results/viz/advisor_package/final/
+results/viz/hopper_pull_*/
+!results/viz/hopper_pull_2026-10-22/
 logs/
 experiments/perf_numcpu/runs/
 experiments/pass_a_convergence/runs/

@@ -1,0 +1,16 @@
+{
+  "shares": {
+    "sctg3499": 0.12136498464083281,
+    "sctg1014": 0.19995305916529138,
+    "sctg2033": 0.2743900526779949,
+    "sctg0109": 0.2533992995545282,
+    "sctg1519": 0.15089260396135273
+  },
+  "n_disrupted_pairs": 145660,
+  "n_matched_pairs": 145660,
+  "matched_car21_total": 23774.818640281894,
+  "hazard_label": "Landslide",
+  "scenario_param": 501,
+  "event_id": "1",
+  "results_variant": "convergence_oct12_run1_40h"
+}

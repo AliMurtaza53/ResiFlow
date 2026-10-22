@@ -1,0 +1,16 @@
+{
+  "shares": {
+    "sctg1014": 0.19914184334236137,
+    "sctg2033": 0.272588248342277,
+    "sctg0109": 0.2516236163636137,
+    "sctg3499": 0.1335493231060976,
+    "sctg1519": 0.1430969688456505
+  },
+  "n_disrupted_pairs": 1855562,
+  "n_matched_pairs": 1855562,
+  "matched_car21_total": 297830.4354960809,
+  "hazard_label": "Winter storm",
+  "scenario_param": 601,
+  "event_id": "1",
+  "results_variant": "convergence_oct12_run1_40h"
+}

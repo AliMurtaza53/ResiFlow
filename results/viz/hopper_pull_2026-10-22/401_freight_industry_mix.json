@@ -1,0 +1,10 @@
+{
+  "shares": {},
+  "n_disrupted_pairs": 0,
+  "n_matched_pairs": 0,
+  "matched_car21_total": 0.0,
+  "hazard_label": "Earthquake",
+  "scenario_param": 401,
+  "event_id": "1",
+  "results_variant": "convergence_oct12_run1_40h"
+}
