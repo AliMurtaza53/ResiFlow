@@ -20,10 +20,19 @@ from __future__ import annotations
 
 import argparse
 import logging
+import sys
 from pathlib import Path
 
 import geopandas as gpd
 import pandas as pd
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = REPO_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
+import resiflow.road_revised as func  # noqa: E402
+from resiflow.networks import load_assignment_profiles, normalize_network_links  # noqa: E402
 
 LOGGER = logging.getLogger(__name__)
 
@@ -83,7 +92,8 @@ def build_overload_table(
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--road-links", required=True, help="Base road_links gpq, freshly edge_init()'d (original acc_capacity)")
+    parser.add_argument("--road-links", required=True, help="Raw faf5_road_links.gpq (from_id/to_id/geometry/hpms_fclass); capacity is computed fresh via edge_init, never read from a post-assignment column")
+    parser.add_argument("--params-root", required=True, help="Directory with flow_breakpoint_dict.json etc. (base_path/parameters)")
     parser.add_argument("--assignment-od", required=True, help="Current single-node assignment OD (origin_node,destination_node,Car21)")
     parser.add_argument("--demand-column", default="Car21")
     parser.add_argument("--output", required=True, help="Output CSV: county_fips,state_abbr,overload_ratio,total_demand,total_connector_capacity")
@@ -96,7 +106,21 @@ def main(argv: list[str] | None = None) -> int:
     args = build_arg_parser().parse_args(argv)
 
     LOGGER.info("Reading road links: %s", args.road_links)
-    road_links = gpd.read_parquet(args.road_links)
+    road_link_file = gpd.read_parquet(args.road_links)
+    road_link_file = normalize_network_links(road_link_file, params_root=args.params_root)
+
+    LOGGER.info("Computing ORIGINAL (pre-assignment) capacity via edge_init: %s", args.params_root)
+    profiles = load_assignment_profiles(args.params_root)
+    road_links = func.edge_init(
+        road_link_file,
+        profiles["flow_breakpoint"],
+        profiles["flow_cap_plph"],
+        profiles["free_flow_speed"],
+        profiles["urban_speed_cap"],
+        profiles["min_speed_cap"],
+        max_flow_speed_dict=None,
+    )
+
     LOGGER.info("Reading assignment OD: %s", args.assignment_od)
     od = pd.read_parquet(args.assignment_od)
 
