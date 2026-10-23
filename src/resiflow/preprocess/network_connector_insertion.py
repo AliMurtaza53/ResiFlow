@@ -85,14 +85,32 @@ def _is_ramp(edge: pd.Series) -> bool:
     return False
 
 
+def _is_limited_access_mainline(edge: pd.Series) -> bool:
+    """True for freeway/motorway mainline -- these have no direct property
+    access in reality (entry/exit only via ramps), so they are no more a
+    plausible connector attachment point than a ramp itself."""
+    if "assignment_tier" in edge.index and str(edge["assignment_tier"]).lower() == "freeway":
+        return True
+    for col in ("road_classification", "road_classification_coarse", "road_classification_detail"):
+        if col in edge.index and str(edge[col]).lower() == "motorway":
+            return True
+    return False
+
+
 def is_eligible_attachment_edge(edge: pd.Series) -> bool:
-    """An edge a connector may attach to: not a ramp, not bridge/tunnel.
+    """An edge a connector may attach to: not a ramp, not freeway/motorway
+    mainline, not bridge/tunnel.
 
     Deliberately simple -- "avoid intersections and ramps and bridges and
     tunnels" is the whole bar for now, not a geographically-optimal choice
-    of access point.
+    of access point. Freeway mainline is excluded alongside ramps for the
+    same underlying reason: neither has direct property access.
     """
-    return not _is_ramp(edge) and not _is_hazard_sensitive(edge)
+    return (
+        not _is_ramp(edge)
+        and not _is_limited_access_mainline(edge)
+        and not _is_hazard_sensitive(edge)
+    )
 
 
 def find_nearest_eligible_attachment(

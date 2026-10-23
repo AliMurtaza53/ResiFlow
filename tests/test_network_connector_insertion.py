@@ -113,18 +113,20 @@ def test_build_bidirectional_connector_gives_both_directions():
 def _candidate_road_links() -> gpd.GeoDataFrame:
     return gpd.GeoDataFrame(
         {
-            "e_id": ["near_arterial", "far_arterial", "ramp", "bridge"],
-            "road_classification": ["primary", "primary", "motorway_link", "primary"],
-            "road_label": ["road", "road", "road", "bridge"],
-            "Road_Name": ["MAIN ST", "SIDE ST", "RAMP", "RIVER BRIDGE"],
-            "bridge_fraction": [0.0, 0.0, 0.0, 1.0],
-            "tunnel_fraction": [0.0, 0.0, 0.0, 0.0],
+            "e_id": ["near_arterial", "far_arterial", "ramp", "bridge", "freeway"],
+            "road_classification": ["primary", "primary", "motorway_link", "primary", "motorway"],
+            "assignment_tier": ["arterial", "arterial", "arterial", "arterial", "freeway"],
+            "road_label": ["road", "road", "road", "bridge", "road"],
+            "Road_Name": ["MAIN ST", "SIDE ST", "RAMP", "RIVER BRIDGE", "I 710"],
+            "bridge_fraction": [0.0, 0.0, 0.0, 1.0, 0.0],
+            "tunnel_fraction": [0.0, 0.0, 0.0, 0.0, 0.0],
         },
         geometry=[
             LineString([(0, 0), (0, 1)]),      # closest to the centroid at (0.01, 0.5)
             LineString([(5, 0), (5, 1)]),       # far away
             LineString([(0.01, 0), (0.01, 1)]),  # closer than near_arterial, but a ramp
             LineString([(0.005, 0), (0.005, 1)]),  # closest of all, but a bridge
+            LineString([(0.001, 0), (0.001, 1)]),  # closest of all, but a freeway mainline
         ],
     )
 
