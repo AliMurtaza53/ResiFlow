@@ -221,13 +221,18 @@ def split_edge_at_fraction(
 
     child_before[to_col] = new_node_id
     child_before[length_col] = length_before
-    child_before.geometry = geom_before
+    # bracket assignment, NOT `child_before.geometry = ...` -- a dot-assign
+    # only updates an EXISTING index key; it happens to work here because
+    # parent.copy() already carries 'geometry' in its index (inherited from
+    # the source GeoDataFrame row), but relying on that is fragile. Bracket
+    # assignment is correct regardless of whether the key pre-exists.
+    child_before["geometry"] = geom_before
     child_before[e_id_col] = f"{e_id}_a"
     child_before["parent_e_id"] = e_id
 
     child_after[from_col] = new_node_id
     child_after[length_col] = length_after
-    child_after.geometry = geom_after
+    child_after["geometry"] = geom_after
     child_after[e_id_col] = f"{e_id}_b"
     child_after["parent_e_id"] = e_id
 
@@ -304,7 +309,15 @@ def build_connector_edge(
     row["from_id"] = centroid_node_id
     row["to_id"] = attach_node_id
     if geometry is not None:
-        row.geometry = geometry
+        # bracket assignment: `row.geometry = ...` only updates an EXISTING
+        # index key, and without a template (row = pd.Series(dtype=object))
+        # there is no pre-existing 'geometry' key -- the dot-assign silently
+        # becomes an invisible Python attribute instead of a Series entry,
+        # so the geometry is lost on the next DataFrame/parquet round-trip
+        # (confirmed: road_revised.py's road_links.geometry.length came
+        # back NaN for connector edges built this way, crashing Dijkstra
+        # with "Edge weights must not contain NaN values").
+        row["geometry"] = geometry
         row["length"] = geometry.length
     else:
         row["length"] = length_miles

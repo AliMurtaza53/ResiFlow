@@ -172,6 +172,22 @@ def test_build_connector_edge_derives_length_from_geometry_when_given():
     assert edge.geometry == geom
 
 
+def test_build_connector_edge_geometry_survives_geodataframe_round_trip_without_template():
+    # Regression: row.geometry = geom (dot-assign) only updates an EXISTING
+    # Series index key. Without a template, a freshly built pd.Series has no
+    # pre-existing 'geometry' key, so the dot-assign silently became an
+    # invisible Python attribute instead of a real Series entry -- geometry
+    # came back null after the row was packed into a DataFrame/GeoDataFrame
+    # (as every real caller does), and road_revised.py's
+    # road_links.geometry.length computation produced NaN, crashing igraph's
+    # Dijkstra ("Edge weights must not contain NaN values").
+    geom = LineString([(0, 0), (0, 0.0005)])
+    edges = build_bidirectional_connector("centroid_42", "n1", geometry=geom, e_id_prefix="conn1")
+    packed = gpd.GeoDataFrame(pd.DataFrame(edges), geometry="geometry")
+    assert packed.geometry.notna().all()
+    assert (packed.geometry.length > 0).all()
+
+
 def test_build_bidirectional_connector_reverses_geometry_for_return_leg():
     geom = LineString([(0, 0), (1, 1)])
     edges = build_bidirectional_connector("centroid_42", "n1", geometry=geom, e_id_prefix="conn1")
