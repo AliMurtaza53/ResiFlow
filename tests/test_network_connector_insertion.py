@@ -101,6 +101,20 @@ def test_build_connector_edge_uses_dedicated_tier():
     assert edge["Speed_Limit"] == pytest.approx(20.0)
 
 
+def test_build_connector_edge_defaults_toll_cost_to_zero_without_template():
+    # road_revised.py's Dijkstra edge weight is time_cost + operating_cost +
+    # average_toll_cost with no NaN guard -- a connector built without a
+    # template (no average_toll_cost column at all) must not leave this NaN.
+    edge = build_connector_edge("conn1", "centroid_42", "n1", 0.5)
+    assert edge["average_toll_cost"] == 0.0
+
+
+def test_build_connector_edge_fills_nan_toll_cost_from_template():
+    template = pd.Series({"average_toll_cost": float("nan"), "urban": 1})
+    edge = build_connector_edge("conn1", "centroid_42", "n1", 0.5, template=template)
+    assert edge["average_toll_cost"] == 0.0
+
+
 def test_build_bidirectional_connector_gives_both_directions():
     edges = build_bidirectional_connector("centroid_42", "n1", 0.5, e_id_prefix="conn1")
     assert len(edges) == 2

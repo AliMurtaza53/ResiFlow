@@ -315,6 +315,13 @@ def build_connector_edge(
     row["urban"] = template["urban"] if template is not None and "urban" in template.index else 1
     row["Speed_Limit"] = speed_mph
     row["parent_e_id"] = None
+    # road_revised.py's create_igraph_network() builds the Dijkstra edge
+    # weight as time_cost + operating_cost + average_toll_cost with NO
+    # NaN guard -- a connector edge missing this column (e.g. no template
+    # given) becomes NaN weight and crashes igraph's shortest-path call at
+    # assignment time, not at build time. A connector has no toll.
+    if "average_toll_cost" not in row.index or pd.isna(row.get("average_toll_cost")):
+        row["average_toll_cost"] = 0.0
     return row
 
 
