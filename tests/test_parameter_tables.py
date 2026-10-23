@@ -155,8 +155,14 @@ def test_t08_table_profiles_match_assignment_profiles_json(monkeypatch, tmp_path
     # congestion_factor are independently DERIVED by both paths via the
     # same NCHRP 825 formula, so they agree to float precision, not
     # bit-for-bit (assignment_profiles.json stores a rounded constant).
+    # centroid_connector is a synthetic 5th tier added directly to
+    # assignment_profiles.json for inserted subarea-access links (see
+    # resiflow.preprocess.network_connector_insertion); it has no T08 row
+    # since it isn't a real HCM/NCHRP road class, so it's exempt here.
     for profile_name, tiers in baseline.items():
         for tier, value in tiers.items():
+            if tier == "centroid_connector":
+                continue
             assert from_table[profile_name][tier] == pytest.approx(value, rel=1e-3)
 
 

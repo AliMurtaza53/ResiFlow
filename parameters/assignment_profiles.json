@@ -1,39 +1,46 @@
 {
   "_comment": "DECISION 2026-10-08: values replaced with parameters/tables/T08_assignment_tiers_US_candidate.csv's real US tier values (HCM 7th ed. / NCHRP 825 planning-level reads) -- previously these were the UK-relabeled values FLOOD_TABLE_REVIEW.md flagged as the central audit finding (arterial 2200 veh/lane-h and 60 mph vs. the real US 900 and 45; collector 1700/55 vs 700/40; local 1000/35 vs 550/30). T08's own flow_breakpoint column is not a usable single number for 3 of 4 tiers ('n/a (use BPR)', and freeway is a range) because T08 assumes a classic BPR a/b power-law congestion curve, which this codebase's actual edge-speed model does not implement -- it uses a piecewise-linear breakpoint+slope model instead (see networks/t08b_profile.py). flow_breakpoint/congestion_factor below are therefore DERIVED from T08's real flow_cap_plph/free_flow_speed via that same piecewise-linear model's own documented formulas (Q_bp = 0.85 x capacity; slope = free_flow_speed / (1.15 x capacity) -- NCHRP 825 Exhibit 128's own linearization, already used identically in resiflow.networks.t08b_profile and verified there against the real exhibit), not read literally off T08's BPR-oriented column. See docs/FLOOD_TABLE_REVIEW.md.",
+  "_centroid_connector_comment": "DECISION 2026-10-22: centroid_connector is a synthetic 5th tier for inserted subarea-access links (see resiflow.preprocess.network_connector_insertion), distinct from the 4 real road tiers above -- it represents omitted local access the way a conventional travel-demand-model centroid connector does (VA Statewide Model precedent: VDOT's VASWM Citilabs Cube network codes centroid connectors as FACTYPE 11 with capacity 10,000 veh/lane/hr flat across area types (~5-15x a real Interstate lane) and excludes them from the volume-delay/congestion function entirely -- see 01NET00A.S's own comment 'all facility types except for centroid connectors'). free_flow_speed=20.0 mph is VA's 15-25 mph range midpoint, used here as a STARTING precedent only -- not calibrated for any specific ResiFlow network and needs sensitivity testing before being trusted as a real access-time estimate. congestion_factor=0.0 and min_speed_cap=free_flow_speed together give connectors genuinely fixed impedance (speed never changes with flow) via the existing tier-profile mechanism in update_edge_speed, with no change to the core assignment loop. flow_cap_plph=10000 (matching VA's convention) makes capacity practically non-binding without literally excluding connectors from capacity-restrained reassignment.",
   "flow_cap_plph": {
     "freeway": 2350,
     "arterial": 900,
     "collector": 700,
-    "local_access": 550
+    "local_access": 550,
+    "centroid_connector": 10000
   },
   "flow_breakpoint": {
     "freeway": 1997.5,
     "arterial": 765.0,
     "collector": 595.0,
-    "local_access": 467.5
+    "local_access": 467.5,
+    "centroid_connector": 10000.0
   },
   "free_flow_speed": {
     "freeway": 70.0,
     "arterial": 45.0,
     "collector": 40.0,
-    "local_access": 30.0
+    "local_access": 30.0,
+    "centroid_connector": 20.0
   },
   "urban_speed_cap": {
     "freeway": 55.0,
     "arterial": 40.0,
     "collector": 30.0,
-    "local_access": 25.0
+    "local_access": 25.0,
+    "centroid_connector": 20.0
   },
   "min_speed_cap": {
     "freeway": 10.0,
     "arterial": 8.0,
     "collector": 7.0,
-    "local_access": 5.0
+    "local_access": 5.0,
+    "centroid_connector": 20.0
   },
   "congestion_factor": {
     "freeway": 0.0259,
     "arterial": 0.04348,
     "collector": 0.04969,
-    "local_access": 0.04743
+    "local_access": 0.04743,
+    "centroid_connector": 0.0
   }
 }
