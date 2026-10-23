@@ -269,8 +269,9 @@ def build_connector_edge(
     e_id,
     centroid_node_id,
     attach_node_id,
-    length_miles: float,
+    length_miles: float | None = None,
     *,
+    geometry=None,
     speed_mph: float = 20.0,
     oneway: bool = False,
     template: pd.Series | None = None,
@@ -283,6 +284,17 @@ def build_connector_edge(
     from parameters/assignment_profiles.json's "centroid_connector" tier at
     edge_init() time, not set here.
 
+    ``geometry`` (a shapely LineString in the network's native CRS) should
+    be passed whenever real network coordinates are available: the
+    assignment engine derives travel distance from ``geometry.length``, NOT
+    from the ``length`` attribute (road_revised.py recomputes
+    ``length_mile`` from geometry every run) -- a connector edge committed
+    to a real network without real geometry would silently assign as
+    zero-length. When given, ``length`` is set from the geometry itself
+    (same units as the rest of road_links, i.e. CRS-native meters), and
+    ``length_miles`` is ignored. Without ``geometry`` (e.g. schema-only unit
+    tests), ``length_miles`` is stored directly, unconverted.
+
     ``template`` (optional), if given, supplies values for any columns not
     set explicitly below (e.g. STATE, County_Name) so the new edge has a
     complete row matching the network's schema.
@@ -291,7 +303,11 @@ def build_connector_edge(
     row["e_id"] = e_id
     row["from_id"] = centroid_node_id
     row["to_id"] = attach_node_id
-    row["length"] = length_miles
+    if geometry is not None:
+        row.geometry = geometry
+        row["length"] = geometry.length
+    else:
+        row["length"] = length_miles
     row["assignment_tier"] = CENTROID_CONNECTOR_TIER
     row["road_classification"] = CENTROID_CONNECTOR_TIER
     row["lanes"] = 1
@@ -305,20 +321,29 @@ def build_connector_edge(
 def build_bidirectional_connector(
     centroid_node_id,
     attach_node_id,
-    length_miles: float,
+    length_miles: float | None = None,
     *,
     e_id_prefix: str,
+    geometry=None,
     speed_mph: float = 20.0,
     template: pd.Series | None = None,
 ) -> list[pd.Series]:
-    """Build both directions of a centroid connector (ingress + egress)."""
+    """Build both directions of a centroid connector (ingress + egress).
+
+    ``geometry``, if given, is the centroid->attach_node LineString; the
+    reverse-direction edge gets it reversed so both directions carry real,
+    equal-length geometry.
+    """
+    reverse_geometry = None
+    if geometry is not None:
+        reverse_geometry = type(geometry)(list(geometry.coords)[::-1])
     out_edge = build_connector_edge(
         f"{e_id_prefix}_out", centroid_node_id, attach_node_id, length_miles,
-        speed_mph=speed_mph, template=template,
+        geometry=geometry, speed_mph=speed_mph, template=template,
     )
     in_edge = build_connector_edge(
         f"{e_id_prefix}_in", attach_node_id, centroid_node_id, length_miles,
-        speed_mph=speed_mph, template=template,
+        geometry=reverse_geometry, speed_mph=speed_mph, template=template,
     )
     return [out_edge, in_edge]
 

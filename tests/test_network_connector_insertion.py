@@ -151,6 +151,22 @@ def test_find_nearest_eligible_attachment_clips_away_from_endpoints():
     assert result["fraction"] == pytest.approx(0.15)
 
 
+def test_build_connector_edge_derives_length_from_geometry_when_given():
+    geom = LineString([(0, 0), (0, 0.0005)])  # arbitrary short segment
+    edge = build_connector_edge("conn1", "centroid_42", "n1", geometry=geom)
+    assert edge["length"] == pytest.approx(geom.length)
+    assert edge.geometry == geom
+
+
+def test_build_bidirectional_connector_reverses_geometry_for_return_leg():
+    geom = LineString([(0, 0), (1, 1)])
+    edges = build_bidirectional_connector("centroid_42", "n1", geometry=geom, e_id_prefix="conn1")
+    out_edge, in_edge = edges
+    assert list(out_edge.geometry.coords) == [(0, 0), (1, 1)]
+    assert list(in_edge.geometry.coords) == [(1, 1), (0, 0)]
+    assert out_edge["length"] == pytest.approx(in_edge["length"])
+
+
 def test_find_nearest_eligible_attachment_raises_if_nothing_qualifies():
     roads = _candidate_road_links()
     only_ramp_and_bridge = roads[roads["e_id"].isin(["ramp", "bridge"])]
