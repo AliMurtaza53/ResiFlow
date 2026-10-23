@@ -69,6 +69,84 @@ def _is_hazard_sensitive(edge: pd.Series) -> bool:
     return False
 
 
+def _is_ramp(edge: pd.Series) -> bool:
+    """True for interchange ramps/connector-style links -- never a plausible
+    place for ordinary demand to enter the network, VA's own FACTYPE scheme
+    (hramp/Lramp, codes 9-10) keeps these distinct from arterials for the
+    same reason."""
+    for col in ("road_classification", "road_classification_coarse", "road_classification_detail"):
+        if col in edge.index and "ramp" in str(edge[col]).lower():
+            return True
+        if col in edge.index and "motorway_link" in str(edge[col]).lower():
+            return True
+    for col in ("road_label", "Road_Name"):
+        if col in edge.index and "ramp" in str(edge[col]).lower():
+            return True
+    return False
+
+
+def is_eligible_attachment_edge(edge: pd.Series) -> bool:
+    """An edge a connector may attach to: not a ramp, not bridge/tunnel.
+
+    Deliberately simple -- "avoid intersections and ramps and bridges and
+    tunnels" is the whole bar for now, not a geographically-optimal choice
+    of access point.
+    """
+    return not _is_ramp(edge) and not _is_hazard_sensitive(edge)
+
+
+def find_nearest_eligible_attachment(
+    centroid_lon: float,
+    centroid_lat: float,
+    road_links: "gpd.GeoDataFrame",
+    *,
+    min_fraction: float = 0.15,
+    max_fraction: float = 0.85,
+    e_id_col: str = "e_id",
+) -> dict:
+    """Nearest eligible point to (centroid_lon, centroid_lat) to attach a connector.
+
+    "Eligible" = passes is_eligible_attachment_edge(), and the nearest point
+    on the edge falls within [min_fraction, max_fraction] of its length --
+    clipping away from the endpoints keeps the new node clear of whatever
+    real intersection sits at either end, without needing to resolve
+    intersection geometry explicitly.
+
+    Returns {"e_id", "fraction", "point": (lon, lat), "distance_deg"} for the
+    closest qualifying edge, or raises ValueError if none qualify.
+
+    Degree-planar distance (not haversine) is precision enough to choose
+    among nearby local-scale candidates; this is a coarse nearest-edge
+    search, not a geodesic routing decision.
+    """
+    if gpd is None:
+        raise ImportError("geopandas is required to search for an attachment point")
+    from shapely.geometry import Point
+
+    centroid_point = Point(centroid_lon, centroid_lat)
+    best: dict | None = None
+    for _, edge in road_links.iterrows():
+        if not is_eligible_attachment_edge(edge):
+            continue
+        geom = edge.geometry
+        while hasattr(geom, "geoms"):
+            geom = geom.geoms[0]
+        fraction = geom.project(centroid_point, normalized=True)
+        fraction = min(max(fraction, min_fraction), max_fraction)
+        candidate_point = geom.interpolate(fraction, normalized=True)
+        distance = centroid_point.distance(candidate_point)
+        if best is None or distance < best["distance_deg"]:
+            best = {
+                "e_id": edge[e_id_col],
+                "fraction": float(fraction),
+                "point": (candidate_point.x, candidate_point.y),
+                "distance_deg": float(distance),
+            }
+    if best is None:
+        raise ValueError("no eligible (non-ramp, non-bridge/tunnel) edge found to attach to")
+    return best
+
+
 def split_edge_at_fraction(
     road_links: "gpd.GeoDataFrame",
     e_id,
@@ -229,6 +307,8 @@ def build_bidirectional_connector(
 
 __all__ = [
     "CENTROID_CONNECTOR_TIER",
+    "is_eligible_attachment_edge",
+    "find_nearest_eligible_attachment",
     "split_edge_at_fraction",
     "split_bidirectional_pair",
     "build_connector_edge",

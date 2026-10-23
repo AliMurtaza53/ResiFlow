@@ -7,6 +7,8 @@ from resiflow.preprocess.network_connector_insertion import (
     CENTROID_CONNECTOR_TIER,
     build_bidirectional_connector,
     build_connector_edge,
+    find_nearest_eligible_attachment,
+    is_eligible_attachment_edge,
     split_bidirectional_pair,
     split_edge_at_fraction,
 )
@@ -106,3 +108,49 @@ def test_build_bidirectional_connector_gives_both_directions():
     assert directions == {("centroid_42", "n1"), ("n1", "centroid_42")}
     for e in edges:
         assert e["assignment_tier"] == CENTROID_CONNECTOR_TIER
+
+
+def _candidate_road_links() -> gpd.GeoDataFrame:
+    return gpd.GeoDataFrame(
+        {
+            "e_id": ["near_arterial", "far_arterial", "ramp", "bridge"],
+            "road_classification": ["primary", "primary", "motorway_link", "primary"],
+            "road_label": ["road", "road", "road", "bridge"],
+            "Road_Name": ["MAIN ST", "SIDE ST", "RAMP", "RIVER BRIDGE"],
+            "bridge_fraction": [0.0, 0.0, 0.0, 1.0],
+            "tunnel_fraction": [0.0, 0.0, 0.0, 0.0],
+        },
+        geometry=[
+            LineString([(0, 0), (0, 1)]),      # closest to the centroid at (0.01, 0.5)
+            LineString([(5, 0), (5, 1)]),       # far away
+            LineString([(0.01, 0), (0.01, 1)]),  # closer than near_arterial, but a ramp
+            LineString([(0.005, 0), (0.005, 1)]),  # closest of all, but a bridge
+        ],
+    )
+
+
+def test_is_eligible_attachment_edge_excludes_ramps_and_structures():
+    roads = _candidate_road_links()
+    eligible = {row["e_id"] for _, row in roads.iterrows() if is_eligible_attachment_edge(row)}
+    assert eligible == {"near_arterial", "far_arterial"}
+
+
+def test_find_nearest_eligible_attachment_skips_ramp_and_bridge():
+    roads = _candidate_road_links()
+    result = find_nearest_eligible_attachment(0.01, 0.5, roads)
+    assert result["e_id"] == "near_arterial"
+
+
+def test_find_nearest_eligible_attachment_clips_away_from_endpoints():
+    roads = _candidate_road_links()
+    # centroid level with the very start of the line -> fraction must still
+    # clip to min_fraction, not land at 0 (the endpoint/intersection)
+    result = find_nearest_eligible_attachment(0.0, 0.0, roads, min_fraction=0.15, max_fraction=0.85)
+    assert result["fraction"] == pytest.approx(0.15)
+
+
+def test_find_nearest_eligible_attachment_raises_if_nothing_qualifies():
+    roads = _candidate_road_links()
+    only_ramp_and_bridge = roads[roads["e_id"].isin(["ramp", "bridge"])]
+    with pytest.raises(ValueError, match="no eligible"):
+        find_nearest_eligible_attachment(0.01, 0.5, only_ramp_and_bridge)
