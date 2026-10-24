@@ -7,9 +7,11 @@ from resiflow.preprocess.network_connector_insertion import (
     CENTROID_CONNECTOR_TIER,
     build_bidirectional_connector,
     build_connector_edge,
+    find_enclosing_connectors,
     find_nearest_eligible_attachment,
     is_eligible_attachment_edge,
     split_bidirectional_pair,
+    split_demand_by_capacity,
     split_edge_at_fraction,
 )
 
@@ -202,3 +204,94 @@ def test_find_nearest_eligible_attachment_raises_if_nothing_qualifies():
     only_ramp_and_bridge = roads[roads["e_id"].isin(["ramp", "bridge"])]
     with pytest.raises(ValueError, match="no eligible"):
         find_nearest_eligible_attachment(0.01, 0.5, only_ramp_and_bridge)
+
+
+def _square_block_road_links() -> gpd.GeoDataFrame:
+    # a closed 10x10 square block: south, east, north, west sides, all
+    # eligible arterials. Centroid at (5, 5) sits exactly in the middle.
+    rows = {
+        "e_id": ["south", "east", "north", "west"],
+        "road_classification": ["primary"] * 4,
+        "assignment_tier": ["arterial"] * 4,
+        "road_label": ["road"] * 4,
+        "Road_Name": ["S ST", "E ST", "N ST", "W ST"],
+        "bridge_fraction": [0.0] * 4,
+        "tunnel_fraction": [0.0] * 4,
+        "lanes": [2, 2, 2, 2],
+    }
+    geoms = [
+        LineString([(0, 0), (10, 0)]),   # south
+        LineString([(10, 0), (10, 10)]), # east
+        LineString([(10, 10), (0, 10)]), # north
+        LineString([(0, 10), (0, 0)]),   # west
+    ]
+    return gpd.GeoDataFrame(rows, geometry=geoms)
+
+
+def test_find_enclosing_connectors_uses_all_four_sides_of_a_square_block():
+    roads = _square_block_road_links()
+    result = find_enclosing_connectors(5, 5, roads, target_k=4)
+    assert {r["e_id"] for r in result} == {"south", "east", "north", "west"}
+    # each attaches at its segment's midpoint
+    south = next(r for r in result if r["e_id"] == "south")
+    assert south["point"] == pytest.approx((5.0, 0.0))
+
+
+def test_find_enclosing_connectors_caps_to_target_k():
+    roads = _square_block_road_links()
+    result = find_enclosing_connectors(5, 5, roads, target_k=2)
+    assert len(result) == 2
+    # the 2 nearest-to-centroid of the 4 equidistant sides (all distance 5) --
+    # just assert they're a subset of the real block edges, not fabricated
+    assert {r["e_id"] for r in result}.issubset({"south", "east", "north", "west"})
+
+
+def test_find_enclosing_connectors_pads_when_face_has_fewer_sides_than_target_k():
+    roads = _square_block_road_links()
+    # drop one side so the "block" is only 3 eligible roads directly
+    # bounding an open shape -- polygonize can't close it into a face, so
+    # this exercises the fallback/padding path using all 3 remaining roads.
+    three_sided = roads[roads["e_id"] != "north"]
+    result = find_enclosing_connectors(5, 5, three_sided, target_k=4)
+    # fewer than target_k roads exist nearby -- must not fabricate a 4th
+    assert len(result) == 3
+    assert {r["e_id"] for r in result} == {"south", "east", "west"}
+
+
+def test_find_enclosing_connectors_excludes_ramp_and_bridge_even_on_the_boundary():
+    roads = _square_block_road_links()
+    roads = roads.copy()
+    roads.loc[roads["e_id"] == "north", "road_classification"] = "motorway_link"
+    result = find_enclosing_connectors(5, 5, roads, target_k=4)
+    assert "north" not in {r["e_id"] for r in result}
+
+
+def test_find_enclosing_connectors_returns_empty_list_when_nothing_eligible_nearby():
+    roads = _square_block_road_links()
+    roads = roads.copy()
+    roads["road_classification"] = "motorway_link"  # make everything a ramp
+    result = find_enclosing_connectors(5, 5, roads, target_k=2)
+    assert result == []
+
+
+def test_split_demand_by_capacity_proportional_to_lanes_times_cap():
+    edges = [
+        pd.Series({"lanes": 2, "assignment_tier": "arterial"}),
+        pd.Series({"lanes": 4, "assignment_tier": "arterial"}),
+    ]
+    shares = split_demand_by_capacity(edges, {"arterial": 2200.0})
+    assert shares == pytest.approx([1 / 3, 2 / 3])
+    assert sum(shares) == pytest.approx(1.0)
+
+
+def test_split_demand_by_capacity_falls_back_to_equal_split_when_capacity_unknown():
+    edges = [
+        pd.Series({"lanes": 2, "assignment_tier": "unknown_tier"}),
+        pd.Series({"lanes": 4, "assignment_tier": "unknown_tier"}),
+    ]
+    shares = split_demand_by_capacity(edges, {"arterial": 2200.0})
+    assert shares == pytest.approx([0.5, 0.5])
+
+
+def test_split_demand_by_capacity_empty_input_returns_empty_list():
+    assert split_demand_by_capacity([], {"arterial": 2200.0}) == []

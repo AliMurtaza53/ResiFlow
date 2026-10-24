@@ -116,6 +116,40 @@ def assign_blocks_to_nearest_subarea(
     return pd.concat(assignments, ignore_index=True)
 
 
+def assign_blocks_to_access_groups(
+    subarea_blocks: pd.DataFrame,
+    access_points: pd.DataFrame,
+    block_id_col: str,
+) -> pd.DataFrame:
+    """Nearest-access-point assignment for blocks already confined to one subarea.
+
+    For the B/C (2- or 4-connector) access-representation configs: splits a
+    single subarea's already-assigned LODES blocks across its target_k
+    access-group locations (from
+    resiflow.preprocess.network_connector_insertion.find_enclosing_connectors),
+    using real block reassignment -- NOT a capacity-weighted split of
+    aggregate demand (that's a separate, explicitly-optional heuristic; see
+    split_demand_by_capacity).
+
+    subarea_blocks: <block_id_col>, lon, lat -- blocks already known to
+    belong to this one subarea (e.g. the output of
+    assign_blocks_to_nearest_subarea, filtered to one node_id).
+    access_points: access_id, lon, lat -- this subarea's K access-group
+    locations (one row per find_enclosing_connectors() result).
+
+    Thin wrapper reusing assign_blocks_to_nearest_subarea's nearest-within-
+    group logic: both blocks and access points get tagged with one shared
+    group key since they already belong to the same subarea -- no cross-
+    subarea grouping happens at this level.
+
+    Returns: <block_id_col>, access_id.
+    """
+    tagged_blocks = subarea_blocks.assign(county_fips="_single_subarea")
+    tagged_access = access_points.rename(columns={"access_id": "node_id"}).assign(county_fips="_single_subarea")
+    result = assign_blocks_to_nearest_subarea(tagged_blocks, tagged_access, block_id_col)
+    return result.rename(columns={"node_id": "access_id"})
+
+
 def build_intra_county_real_pair_od(
     states: list[str],
     target_county_fips: set[str],

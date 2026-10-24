@@ -165,6 +165,142 @@ def find_nearest_eligible_attachment(
     return best
 
 
+def find_enclosing_connectors(
+    centroid_lon: float,
+    centroid_lat: float,
+    road_links: "gpd.GeoDataFrame",
+    *,
+    target_k: int,
+    search_radius_m: float = 800.0,
+    max_face_area_m2: float = 500_000.0,
+    min_fraction: float = 0.15,
+    max_fraction: float = 0.85,
+    e_id_col: str = "e_id",
+) -> list[dict]:
+    """One connector per road bounding the local block the centroid sits in.
+
+    "If you are inside a polygon (between three intersecting lines or more),
+    each line on your polygon gets a connector" -- finds the planar face
+    (block) formed by locally eligible roads that CONTAINS the centroid
+    (``shapely.ops.polygonize``), and returns one attachment per edge on
+    that face's boundary, capped or padded to ``target_k``:
+
+      - face has exactly target_k bounding eligible edges: use them.
+      - more than target_k: keep the target_k nearest to the centroid.
+      - fewer than target_k (or no enclosing face at all, e.g. near the
+        edge of the search radius or a sparse area): pad with the next-
+        nearest eligible edges outside the face, up to target_k. Returns
+        FEWER than target_k -- never duplicates or invents connectors --
+        when genuinely that many eligible roads don't exist nearby.
+
+    Each connector attaches at its edge's MIDPOINT (fraction=0.5, "aim to
+    connect to the center of the nearest segment"), clipped to
+    [min_fraction, max_fraction] as a safety bound against a very short
+    edge. Units (search_radius_m, max_face_area_m2) match whatever CRS
+    road_links is in -- this project always calls it in the network's
+    native projected CRS (meters), matching find_nearest_eligible_attachment's
+    convention of being CRS-agnostic in principle, meters in practice.
+
+    Returns a list of (possibly fewer than target_k) dicts, each shaped
+    like find_nearest_eligible_attachment's return:
+    {"e_id", "fraction", "point": (lon, lat), "distance_deg"}.
+    """
+    if gpd is None:
+        raise ImportError("geopandas is required to search for attachment points")
+    if target_k < 1:
+        raise ValueError(f"target_k must be >= 1, got {target_k}")
+    from shapely.geometry import Point
+    from shapely.ops import polygonize
+
+    centroid_point = Point(centroid_lon, centroid_lat)
+    bbox = (
+        centroid_lon - search_radius_m, centroid_lat - search_radius_m,
+        centroid_lon + search_radius_m, centroid_lat + search_radius_m,
+    )
+    local = road_links.cx[bbox[0]:bbox[2], bbox[1]:bbox[3]]
+    eligible = [edge for _, edge in local.iterrows() if is_eligible_attachment_edge(edge)]
+    if not eligible:
+        return []
+
+    def _flat_geom(edge):
+        geom = edge.geometry
+        while hasattr(geom, "geoms"):
+            geom = geom.geoms[0]
+        return geom
+
+    def _attachment(edge) -> dict:
+        geom = _flat_geom(edge)
+        fraction = min(max(0.5, min_fraction), max_fraction)
+        point = geom.interpolate(fraction, normalized=True)
+        return {
+            "e_id": edge[e_id_col],
+            "fraction": float(fraction),
+            "point": (point.x, point.y),
+            "distance_deg": float(centroid_point.distance(point)),
+        }
+
+    # find the enclosing face, if any
+    faces = list(polygonize([_flat_geom(e) for e in eligible]))
+    enclosing = next(
+        (f for f in faces if f.area <= max_face_area_m2 and f.contains(centroid_point)),
+        None,
+    )
+
+    if enclosing is not None:
+        tol = 1.0  # meters; edges on the face boundary should coincide near-exactly
+        on_boundary = [e for e in eligible if _flat_geom(e).distance(enclosing.exterior) < tol]
+        boundary_ids = {e[e_id_col] for e in on_boundary}
+        rest = [e for e in eligible if e[e_id_col] not in boundary_ids]
+    else:
+        on_boundary = []
+        rest = list(eligible)
+
+    def _dist(edge) -> float:
+        return centroid_point.distance(_flat_geom(edge))
+
+    on_boundary = sorted(on_boundary, key=_dist)
+    rest = sorted(rest, key=_dist)
+
+    if len(on_boundary) >= target_k:
+        chosen = on_boundary[:target_k]
+    else:
+        chosen = on_boundary + rest[: target_k - len(on_boundary)]
+
+    return [_attachment(e) for e in chosen]
+
+
+def split_demand_by_capacity(
+    connector_edges: Iterable[pd.Series],
+    flow_cap_plph_dict: dict,
+    *,
+    lanes_col: str = "lanes",
+    tier_col: str = "assignment_tier",
+) -> list[float]:
+    """Proportional demand share per connector: lanes x flow_cap_plph[tier].
+
+    ``connector_edges`` is the ORIGINAL physical road edge each connector
+    attaches to (not the synthetic connector edge itself, which is
+    deliberately unconstrained) -- capacity reflects what that real road
+    can carry, per the project's tier-profile convention
+    (parameters/assignment_profiles.json). Shares sum to 1.0.
+
+    This is an OPTIONAL, explicitly-labeled heuristic -- the default demand
+    allocation across access groups is real block reassignment (see
+    src/preprocess/build_passenger_subareas.py), not a capacity split.
+    """
+    edges = list(connector_edges)
+    if not edges:
+        return []
+    capacities = [
+        float(e.get(lanes_col, 0) or 0) * float(flow_cap_plph_dict.get(str(e.get(tier_col)), 0.0))
+        for e in edges
+    ]
+    total = sum(capacities)
+    if total <= 0:
+        return [1.0 / len(edges)] * len(edges)
+    return [c / total for c in capacities]
+
+
 def split_edge_at_fraction(
     road_links: "gpd.GeoDataFrame",
     e_id,
@@ -372,6 +508,8 @@ __all__ = [
     "CENTROID_CONNECTOR_TIER",
     "is_eligible_attachment_edge",
     "find_nearest_eligible_attachment",
+    "find_enclosing_connectors",
+    "split_demand_by_capacity",
     "split_edge_at_fraction",
     "split_bidirectional_pair",
     "build_connector_edge",

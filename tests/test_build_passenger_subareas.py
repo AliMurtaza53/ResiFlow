@@ -84,6 +84,34 @@ def test_assign_blocks_to_nearest_subarea_picks_closest_within_county():
     assert mapping == {"b1": "near_b1", "b2": "near_b2"}
 
 
+def test_assign_blocks_to_access_groups_splits_one_subarea_by_nearest_access_point():
+    # all blocks already belong to ONE subarea; splitting further across
+    # its own 2 access-group locations, not across other subareas/counties.
+    subarea_blocks = pd.DataFrame(
+        {
+            "tabblk2020": ["b1", "b2", "b3"],
+            "lon": [-118.20, -118.30, -118.25],
+            "lat": [34.00, 34.10, 34.05],
+        }
+    )
+    access_points = pd.DataFrame(
+        {
+            "access_id": ["access_a", "access_b"],
+            "lon": [-118.20, -118.30],
+            "lat": [34.00, 34.10],
+        }
+    )
+
+    assigned = mod.assign_blocks_to_access_groups(subarea_blocks, access_points, "tabblk2020")
+
+    mapping = dict(zip(assigned["tabblk2020"], assigned["access_id"]))
+    assert mapping["b1"] == "access_a"
+    assert mapping["b2"] == "access_b"
+    # b3 is equidistant -- just confirm it picked one of the two real
+    # access points, not something fabricated
+    assert mapping["b3"] in {"access_a", "access_b"}
+
+
 def test_build_intra_county_real_pair_od_preserves_real_pairs(monkeypatch):
     # b1<->b2 live-and-work within 06037 (intra-county); b3's pair crosses
     # into county 99999 and must be excluded.
