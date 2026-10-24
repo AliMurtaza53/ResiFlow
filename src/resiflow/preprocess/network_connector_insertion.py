@@ -170,9 +170,9 @@ def find_enclosing_connectors(
     centroid_lat: float,
     road_links: "gpd.GeoDataFrame",
     *,
-    target_k: int,
-    search_radius_m: float = 800.0,
-    max_face_area_m2: float = 500_000.0,
+    target_k: int | None = None,
+    search_radius_m: float = 3000.0,
+    max_face_area_m2: float = 2_000_000.0,
     min_fraction: float = 0.15,
     max_fraction: float = 0.85,
     e_id_col: str = "e_id",
@@ -180,18 +180,26 @@ def find_enclosing_connectors(
     """One connector per road bounding the local block the centroid sits in.
 
     "If you are inside a polygon (between three intersecting lines or more),
-    each line on your polygon gets a connector" -- finds the planar face
-    (block) formed by locally eligible roads that CONTAINS the centroid
-    (``shapely.ops.polygonize``), and returns one attachment per edge on
-    that face's boundary, capped or padded to ``target_k``:
+    each line on your polygon gets a connector. If you are not inside a
+    polygon, one snap to the closest segment is fine" -- finds the planar
+    face (block) formed by locally eligible roads that CONTAINS the
+    centroid (``shapely.ops.polygonize``):
 
-      - face has exactly target_k bounding eligible edges: use them.
-      - more than target_k: keep the target_k nearest to the centroid.
-      - fewer than target_k (or no enclosing face at all, e.g. near the
-        edge of the search radius or a sparse area): pad with the next-
-        nearest eligible edges outside the face, up to target_k. Returns
-        FEWER than target_k -- never duplicates or invents connectors --
-        when genuinely that many eligible roads don't exist nearby.
+      - enclosed: one connector per edge on the face's boundary, by
+        default ALL of them (target_k=None) -- no artificial cap. A block
+        bounded by 5 real roads gets 5 connectors, not however many an
+        experimental setting happened to ask for.
+      - not enclosed (no face contains the centroid, e.g. a sparse/edge-
+        of-network area): a single connector at the nearest eligible edge.
+
+    ``target_k`` is an OPTIONAL override for building a fixed-size
+    experimental comparison (e.g. "always exactly 2" or "always exactly
+    4"): when given, caps an over-sized enclosing face's bounding edges to
+    the target_k nearest, or pads an under-sized one (or the unenclosed
+    case) with the next-nearest eligible edges outside it -- returning
+    FEWER than target_k only when genuinely that many eligible roads don't
+    exist nearby, never fabricating one. Leave it at the default (None)
+    for the real, geometrically-correct build.
 
     Each connector attaches at its edge's MIDPOINT (fraction=0.5, "aim to
     connect to the center of the nearest segment"), clipped to
@@ -200,14 +208,17 @@ def find_enclosing_connectors(
     road_links is in -- this project always calls it in the network's
     native projected CRS (meters), matching find_nearest_eligible_attachment's
     convention of being CRS-agnostic in principle, meters in practice.
+    search_radius_m defaults generously (3km) so a real block isn't
+    truncated by an arbitrarily tight search window -- an unenclosed point
+    still correctly falls back to its single nearest edge regardless of
+    how far the search reaches.
 
-    Returns a list of (possibly fewer than target_k) dicts, each shaped
-    like find_nearest_eligible_attachment's return:
-    {"e_id", "fraction", "point": (lon, lat), "distance_deg"}.
+    Returns a list of dicts, each shaped like find_nearest_eligible_attachment's
+    return: {"e_id", "fraction", "point": (lon, lat), "distance_deg"}.
     """
     if gpd is None:
         raise ImportError("geopandas is required to search for attachment points")
-    if target_k < 1:
+    if target_k is not None and target_k < 1:
         raise ValueError(f"target_k must be >= 1, got {target_k}")
     from shapely.geometry import Point
     from shapely.ops import polygonize
@@ -261,7 +272,11 @@ def find_enclosing_connectors(
     on_boundary = sorted(on_boundary, key=_dist)
     rest = sorted(rest, key=_dist)
 
-    if len(on_boundary) >= target_k:
+    if target_k is None:
+        # the real, geometrically-correct default: every side of the
+        # enclosing block, or just the single nearest edge if unenclosed
+        chosen = on_boundary if enclosing is not None else rest[:1]
+    elif len(on_boundary) >= target_k:
         chosen = on_boundary[:target_k]
     else:
         chosen = on_boundary + rest[: target_k - len(on_boundary)]

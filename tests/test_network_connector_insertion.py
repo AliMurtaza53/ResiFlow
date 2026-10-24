@@ -237,6 +237,23 @@ def test_find_enclosing_connectors_uses_all_four_sides_of_a_square_block():
     assert south["point"] == pytest.approx((5.0, 0.0))
 
 
+def test_find_enclosing_connectors_default_uses_all_sides_with_no_cap():
+    # target_k omitted entirely -- the real, geometrically-correct default:
+    # every side of the enclosing block, never capped to a fixed count.
+    roads = _square_block_road_links()
+    result = find_enclosing_connectors(5, 5, roads)
+    assert {r["e_id"] for r in result} == {"south", "east", "north", "west"}
+
+
+def test_find_enclosing_connectors_default_falls_back_to_single_nearest_when_unenclosed():
+    roads = _square_block_road_links()
+    # only 2 sides present -- open shape, no enclosing face possible
+    two_sided = roads[roads["e_id"].isin(["south", "east"])]
+    result = find_enclosing_connectors(5, 5, two_sided)
+    assert len(result) == 1
+    assert result[0]["e_id"] in {"south", "east"}
+
+
 def test_find_enclosing_connectors_caps_to_target_k():
     roads = _square_block_road_links()
     result = find_enclosing_connectors(5, 5, roads, target_k=2)
