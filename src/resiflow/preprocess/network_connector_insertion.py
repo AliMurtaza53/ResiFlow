@@ -172,7 +172,7 @@ def find_enclosing_connectors(
     *,
     target_k: int | None = None,
     search_radius_m: float = 3000.0,
-    max_face_area_m2: float = 2_000_000.0,
+    max_face_area_m2: float = 300_000.0,
     min_fraction: float = 0.15,
     max_fraction: float = 0.85,
     e_id_col: str = "e_id",
@@ -211,7 +211,13 @@ def find_enclosing_connectors(
     search_radius_m defaults generously (3km) so a real block isn't
     truncated by an arbitrarily tight search window -- an unenclosed point
     still correctly falls back to its single nearest edge regardless of
-    how far the search reaches.
+    how far the search reaches. max_face_area_m2 defaults to 300,000
+    (~ordinary urban block scale, generous for an irregular one) so a
+    sparsely-connected area's sprawling "superblock" -- genuinely enclosed
+    but hundreds of thousands of m2 across, bounding a dozen-plus distant
+    roads -- gets treated as NOT a real local block and falls back to the
+    single-nearest-edge case, rather than wiring up every far-flung road
+    that happens to bound it.
 
     Returns a list of dicts, each shaped like find_nearest_eligible_attachment's
     return: {"e_id", "fraction", "point": (lon, lat), "distance_deg"}.

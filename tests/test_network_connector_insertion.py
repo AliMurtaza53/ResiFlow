@@ -254,6 +254,31 @@ def test_find_enclosing_connectors_default_falls_back_to_single_nearest_when_une
     assert result[0]["e_id"] in {"south", "east"}
 
 
+def test_find_enclosing_connectors_treats_oversized_face_as_unenclosed():
+    # a genuinely closed block, but 1000x1000 units -- not a real local
+    # block (e.g. a sparse-connectivity "superblock"); must fall back to
+    # single-nearest rather than wiring up every far-flung bounding road.
+    rows = {
+        "e_id": ["south", "east", "north", "west"],
+        "road_classification": ["primary"] * 4,
+        "assignment_tier": ["arterial"] * 4,
+        "road_label": ["road"] * 4,
+        "Road_Name": ["S ST", "E ST", "N ST", "W ST"],
+        "bridge_fraction": [0.0] * 4,
+        "tunnel_fraction": [0.0] * 4,
+        "lanes": [2, 2, 2, 2],
+    }
+    geoms = [
+        LineString([(0, 0), (1000, 0)]),
+        LineString([(1000, 0), (1000, 1000)]),
+        LineString([(1000, 1000), (0, 1000)]),
+        LineString([(0, 1000), (0, 0)]),
+    ]
+    huge_block = gpd.GeoDataFrame(rows, geometry=geoms)
+    result = find_enclosing_connectors(500, 500, huge_block, max_face_area_m2=300_000)
+    assert len(result) == 1
+
+
 def test_find_enclosing_connectors_caps_to_target_k():
     roads = _square_block_road_links()
     result = find_enclosing_connectors(5, 5, roads, target_k=2)
