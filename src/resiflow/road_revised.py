@@ -48,6 +48,51 @@ def _log_rss(label: str) -> None:
         logging.info("RSS checkpoint [%s]: %.2f GB", label, rss_gb)
     except Exception:
         logging.exception("Failed to log RSS checkpoint [%s]", label)
+
+
+def _log_capacity_blocked_edges(
+    iter_flag: int | None,
+    temp_edge_flow: pd.DataFrame,
+    road_links_valid: pd.DataFrame,
+    mask: pd.Series,
+    *,
+    top_n: int = 25,
+) -> None:
+    """Opt-in diagnostic (RESIFLOW_LOG_CAPACITY_BLOCKED_EDGES=1): which
+    physical edges hit capacity and got dropped from the graph this
+    iteration, and how much demand was using them right before the drop
+    (acc_capacity -- what update_network_structure's own mask already
+    computes, previously only ever reduced to a bare count in the log).
+    Ranked by acc_capacity descending, i.e. the edges the most demand
+    depended on. Never raises -- a failure here must not affect assignment.
+    """
+    if not _env_flag("RESIFLOW_LOG_CAPACITY_BLOCKED_EDGES"):
+        return
+    try:
+        dropped = temp_edge_flow.loc[mask].merge(
+            road_links_valid[["e_id", "Road_Name", "assignment_tier", "lanes"]],
+            on="e_id",
+            how="left",
+        )
+        dropped = dropped.sort_values("acc_capacity", ascending=False).head(top_n)
+        for _, row in dropped.iterrows():
+            logging.info(
+                "Capacity-blocked edge [iter %s]: e_id=%s road=%s tier=%s lanes=%s "
+                "acc_capacity=%.2f current_capacity=%.2f",
+                iter_flag,
+                row.get("e_id"),
+                row.get("Road_Name"),
+                row.get("assignment_tier"),
+                row.get("lanes"),
+                float(row.get("acc_capacity", float("nan"))),
+                float(row.get("current_capacity", float("nan"))),
+            )
+        logging.info(
+            "Capacity-blocked edges [iter %s]: %d total dropped, top %d logged",
+            iter_flag, int(mask.sum()), min(top_n, int(mask.sum())),
+        )
+    except Exception:
+        logging.exception("Failed to log capacity-blocked edges [iter %s]", iter_flag)
     if _env_flag("NIRD_MEM_PROFILE_TOP_TYPES"):
         try:
             import gc as _gc
@@ -789,6 +834,8 @@ def update_network_structure(
     network: igraph.Graph,
     temp_edge_flow: pd.DataFrame,
     road_links: gpd.GeoDataFrame,
+    *,
+    iter_flag: int | None = None,
 ) -> igraph.Graph:
     """Drop fully utilised edges and Update edge weights.
 
@@ -797,6 +844,9 @@ def update_network_structure(
     network: igraph network
     temp_edge_flow: the remaining edge capacity at the current iteration
     road_links: road links
+    iter_flag: current iteration number, for the opt-in capacity-blocked-
+        edges diagnostic log (RESIFLOW_LOG_CAPACITY_BLOCKED_EDGES=1); purely
+        cosmetic (labels the log lines), omit and it still works.
 
     Returns
     -------
@@ -822,6 +872,7 @@ def update_network_structure(
     # been on the stricter pre-fix 0.1% threshold — see
     # notes/perf_findings/GOAL6_UPSTREAM_DRIFT_AUDIT.md)
     mask = (temp_edge_flow["acc_capacity"] < 1) | (ratio < 0.01)
+    _log_capacity_blocked_edges(iter_flag, temp_edge_flow, road_links_valid, mask)
     # drop fully utilised edges from the network
     zero_capacity_edges = set(
         temp_edge_flow.loc[
@@ -4115,7 +4166,7 @@ def network_flow_model(
         # %%
         # update network structure (nodes and edges) for next iteration
         network, road_links = update_network_structure(
-            number_of_edges, network, temp_edge_flow, road_links
+            number_of_edges, network, temp_edge_flow, road_links, iter_flag=iter_flag
         )
 
         del temp_edge_flow
