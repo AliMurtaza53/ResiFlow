@@ -228,7 +228,12 @@ def main() -> int:
 
     if isolated_od is not None and args.county_crosswalk is not None:
         crosswalk = pd.read_csv(args.county_crosswalk, dtype=str)
-        node_to_county = crosswalk.set_index("node_id")["county_fips"] if "node_id" in crosswalk.columns else None
+        county_col = next((c for c in ("county_fips", "county_id") if c in crosswalk.columns), None)
+        node_to_county = (
+            crosswalk.set_index("node_id")[county_col]
+            if "node_id" in crosswalk.columns and county_col
+            else None
+        )
         if node_to_county is not None:
             iso = isolated_od.copy()
             iso["origin_node"] = iso["origin_node"].astype(str)
