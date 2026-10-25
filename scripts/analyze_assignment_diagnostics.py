@@ -230,7 +230,11 @@ def main() -> int:
         crosswalk = pd.read_csv(args.county_crosswalk, dtype=str)
         county_col = next((c for c in ("county_fips", "county_id") if c in crosswalk.columns), None)
         node_to_county = (
-            crosswalk.set_index("node_id")[county_col]
+            # a node can appear more than once (e.g. CT's county->planning-
+            # region code transition left a couple of duplicate node_id
+            # rows) -- keep the first mapping rather than erroring on a
+            # non-unique index, a Series.map() requires
+            crosswalk.drop_duplicates(subset="node_id", keep="first").set_index("node_id")[county_col]
             if "node_id" in crosswalk.columns and county_col
             else None
         )
