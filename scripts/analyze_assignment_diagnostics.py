@@ -108,13 +108,21 @@ def classify_unassigned_demand(
     """
     import networkx as nx
 
+    # node ids are strings in the OD parquets throughout this project but
+    # int64 in road_links -- build the graph in whichever dtype the OD
+    # table actually uses (str), not the reverse, since mismatching these
+    # silently drops every single lookup to NaN (confirmed: a first run of
+    # this function classified 100% of a real 9.78M-row isolated-OD table
+    # as "structurally_unreachable", which is not plausible for a single
+    # largely-connected national network -- that was this bug, not a real
+    # finding).
     g = nx.Graph()
-    g.add_edges_from(zip(road_links["from_id"], road_links["to_id"]))
+    g.add_edges_from(zip(road_links["from_id"].astype(str), road_links["to_id"].astype(str)))
     components = {node: i for i, comp in enumerate(nx.connected_components(g)) for node in comp}
 
     out = isolated_od.copy()
-    out["origin_component"] = out["origin_node"].map(components)
-    out["destination_component"] = out["destination_node"].map(components)
+    out["origin_component"] = out["origin_node"].astype(str).map(components)
+    out["destination_component"] = out["destination_node"].astype(str).map(components)
     out["reachable_in_original_network"] = (
         out["origin_component"].notna()
         & out["destination_component"].notna()

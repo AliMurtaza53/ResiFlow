@@ -77,6 +77,23 @@ def test_classify_unassigned_demand_splits_reachable_from_unreachable():
     assert mapping[(4, 1)] == "structurally_unreachable"
 
 
+def test_classify_unassigned_demand_handles_mismatched_node_id_dtypes():
+    # regression: road_links node ids are int64 in this project's real
+    # parquets, OD tables carry them as strings -- a naive dict lookup
+    # silently drops EVERY row to "structurally_unreachable" (confirmed on
+    # a real 9.78M-row run) unless both sides are coerced to the same type.
+    road_links = pd.DataFrame({"from_id": [1, 2, 4], "to_id": [2, 3, 5]})  # int64
+    isolated_od = pd.DataFrame({
+        "origin_node": ["1", "4"],  # str, matching the real OD parquet convention
+        "destination_node": ["3", "1"],
+        "flow": [10.0, 5.0],
+    })
+    result = classify_unassigned_demand(isolated_od, road_links)
+    mapping = dict(zip(zip(result["origin_node"], result["destination_node"]), result["classification"]))
+    assert mapping[("1", "3")] == "reachable_but_unassigned"
+    assert mapping[("4", "1")] == "structurally_unreachable"
+
+
 def test_allocation_ratio_distribution_computes_full_percentiles_not_just_mean():
     original_od = pd.DataFrame({
         "origin_node": ["a", "b", "c"],
