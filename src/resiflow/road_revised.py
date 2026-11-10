@@ -732,6 +732,67 @@ def update_od_matrix(
     )
 
 
+# Module-level LCP worker state. ``_name_to_idx`` maps OD node tokens (int and
+# str forms of vs['name']) → igraph vertex index. Rebuilt whenever the shared
+# network is (re)loaded — never use bare ints as get_shortest_paths endpoints.
+shared_network = None
+_name_to_idx: Dict = {}
+
+
+def _rebuild_name_to_idx(network) -> None:
+    """Build O(1) OD-token → vertex-index map for the current shared network."""
+    global _name_to_idx
+    if network is None:
+        raise ValueError("_rebuild_name_to_idx requires a non-None network")
+    names = network.vs["name"]
+    m: Dict = {}
+    for i, name in enumerate(names):
+        m[name] = i
+        s = str(name)
+        m[s] = i
+        if not isinstance(name, str):
+            continue
+        try:
+            m[int(name)] = i
+        except (ValueError, TypeError):
+            pass
+    if len(names) == 0:
+        raise ValueError("_rebuild_name_to_idx: network has zero vertices")
+    _name_to_idx = m
+
+
+def _igraph_vertex_index(network, node) -> int:
+    """Resolve an OD node id to an igraph vertex index via ``_name_to_idx``.
+
+    python-igraph treats a bare ``int`` passed to ``get_shortest_paths`` as a
+    vertex *index* (0..vcount-1), not as a name. Our node_ids live in the name
+    attribute (FAF / HPMS / centroid ids) and can exceed ``vcount`` (e.g.
+    centroid ``600000``). Per-call ``vs.find`` over ~429k vertices was a ~40×
+    LCP regression; workers must use the dict built in ``worker_init_path`` /
+    ``refresh_worker_network``.
+    """
+    idx_map = _name_to_idx
+    if not idx_map:
+        # Tests / single-process callers that skipped worker_init.
+        _rebuild_name_to_idx(network)
+        idx_map = _name_to_idx
+    try:
+        return idx_map[node]
+    except KeyError:
+        pass
+    try:
+        return idx_map[int(node)]
+    except (KeyError, TypeError, ValueError):
+        pass
+    try:
+        return idx_map[str(node)]
+    except KeyError as exc:
+        raise ValueError(
+            f"OD node {node!r} not found in network vertex names "
+            f"(vcount={network.vcount()}, name_map={len(idx_map)})"
+        ) from exc
+
+
 def find_least_cost_path(
     params: Tuple,
 ) -> Tuple[int, List[str], List[int], List[float]]:
@@ -755,13 +816,15 @@ def find_least_cost_path(
     if dest_batch_size <= 0:
         dest_batch_size = len(destination_nodes) if destination_nodes else 1
 
+    origin_idx = _igraph_vertex_index(shared_network, origin_node)
     paths = []
     for start in range(0, len(destination_nodes), dest_batch_size):
         dest_batch = destination_nodes[start : start + dest_batch_size]
+        dest_idx = [_igraph_vertex_index(shared_network, d) for d in dest_batch]
         paths.extend(
             shared_network.get_shortest_paths(
-                v=origin_node,
-                to=dest_batch,
+                v=origin_idx,
+                to=dest_idx,
                 weights="weight",
                 mode="out",
                 output="epath",
@@ -792,7 +855,52 @@ def worker_init_path(
         The function sets the module-level ``shared_network`` variable in-place.
     """
     global shared_network
+    affinity_spec = os.environ.get("NIRD_WORKER_CPU_AFFINITY", "").strip()
+    if affinity_spec:
+        try:
+            import psutil
+
+            cores = [
+                int(c)
+                for c in affinity_spec.replace(",", " ").split()
+                if c.strip() != ""
+            ]
+            if cores:
+                psutil.Process().cpu_affinity(cores)
+                logging.info("Worker pinned to CPU affinity: %s", cores)
+        except Exception:
+            logging.exception("Failed to set worker CPU affinity; continuing unpinned.")
     shared_network = pickle.loads(shared_network_pkl)
+    _rebuild_name_to_idx(shared_network)
+    return None
+
+
+def refresh_worker_network(shared_network_pkl: bytes) -> None:
+    """Update the module-level ``shared_network`` in a persistent pool worker.
+
+    Used by the opt-in persistent-pool path (``NIRD_PERSISTENT_LCP_POOL``) to
+    push each iteration's updated network (edges dropped by
+    ``update_network_structure``) into already-running workers, instead of
+    respawning the pool (and re-pinning affinity, re-importing dependencies)
+    every iteration. CPU affinity is set once at worker startup in
+    ``worker_init_path`` and is not touched here.
+
+    Must rebuild ``_name_to_idx`` for the new graph — stale maps after edge
+    drops would resolve OD tokens to wrong (or invalid) vertex indices.
+    """
+    global shared_network
+    shared_network = pickle.loads(shared_network_pkl)
+    _rebuild_name_to_idx(shared_network)
+    assert _name_to_idx, (
+        "refresh_worker_network: _name_to_idx empty after rebuild "
+        f"(vcount={shared_network.vcount()})"
+    )
+    assert shared_network.vcount() > 0
+    # Every vertex name must round-trip through the map (int and/or str key).
+    sample_name = shared_network.vs[0]["name"]
+    assert sample_name in _name_to_idx or str(sample_name) in _name_to_idx, (
+        f"refresh_worker_network: sample name {sample_name!r} missing from _name_to_idx"
+    )
     return None
 
 
@@ -2856,6 +2964,7 @@ def network_flow_model(
         else:
             global shared_network
             shared_network = network
+            _rebuild_name_to_idx(network)
             if lcp_collect_pool:
                 pool_results = [find_least_cost_path(arg) for arg in args]
             else:
