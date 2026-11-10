@@ -874,11 +874,11 @@ def main():
         based on flood depth.
 
     Model Inputs:
-        - damage_ratio_road_flood.xlsx:
-            Excel file containing damage curves for various road classifications and
-                flow conditions.
-        - damage_cost_road_flood.xlsx:
-            Excel file containing asset damage values for roads, tunnels, and bridges.
+        - damage_ratio_road_flood.csv (preferred) or .xlsx (legacy):
+            Damage curves for various road classifications and flow conditions.
+        - damage_cost_road_flood/ (preferred, one CSV per sheet) or
+          damage_cost_road_flood.xlsx (legacy):
+            Asset damage values for roads, tunnels, and bridges.
         - faf5_road_links.gpq:
             GeoDataFrame of road network links with attributes.
         - intersections:
@@ -898,23 +898,32 @@ def main():
     """
     damage_ratio_path = first_existing(
         [
+            base_path / "damage_curves" / "damage_ratio_road_flood.csv",
             base_path / "damage_curves" / "damage_ratio_road_flood.xlsx",
+            base_path / "inputs" / "lookup" / "damage_ratio_road_flood.csv",
             base_path / "inputs" / "lookup" / "damage_ratio_road_flood.xlsx",
+            base_path / "tables" / "damage_ratio_road_flood.csv",
             base_path / "tables" / "damage_ratio_road_flood.xlsx",
         ]
     )
     if damage_ratio_path is None:
-        raise FileNotFoundError("Could not find damage_ratio_road_flood.xlsx in standard or toy lookup paths")
+        raise FileNotFoundError("Could not find damage_ratio_road_flood.csv/.xlsx in standard or toy lookup paths")
 
+    # Cost sheets are preferentially a directory of per-sheet CSVs
+    # (damage_cost_road_flood/roads.csv, etc.) -- the legacy multi-sheet
+    # .xlsx is still supported for any real data not yet converted.
     damage_cost_path = first_existing(
         [
+            base_path / "asset_costs" / "damage_cost_road_flood",
             base_path / "asset_costs" / "damage_cost_road_flood.xlsx",
+            base_path / "inputs" / "lookup" / "damage_cost_road_flood",
             base_path / "inputs" / "lookup" / "damage_cost_road_flood.xlsx",
+            base_path / "tables" / "damage_cost_road_flood",
             base_path / "tables" / "damage_cost_road_flood.xlsx",
         ]
     )
     if damage_cost_path is None:
-        raise FileNotFoundError("Could not find damage_cost_road_flood.xlsx in standard or toy lookup paths")
+        raise FileNotFoundError("Could not find damage_cost_road_flood/ (CSV) or .xlsx in standard or toy lookup paths")
     if active_overrides_path() is not None:
         print(f"Parameter overrides in force: {active_overrides_path()}")
 
@@ -926,7 +935,9 @@ def main():
             )
         )
     else:
-        damages_ratio_df = pd.read_excel(damage_ratio_path)
+        from resiflow.tables import read_damage_ratio_table
+
+        damages_ratio_df = read_damage_ratio_table(damage_ratio_path)
 
     # SA seam: optional vulnerability-curve perturbations, applied to the
     # loaded frame (the workbook itself stays pristine). Both parameters are
@@ -963,37 +974,38 @@ def main():
         road_links = road_links.reset_index(drop=True)
         road_links["hpms_urban_size_tier"] = profile["hpms_urban_size_tier"]
 
-    xls = pd.ExcelFile(damage_cost_path)
-    available_sheets = set(xls.sheet_names)
+    from resiflow.tables import damage_cost_sheet_names, read_damage_cost_sheet
+
+    available_sheets = damage_cost_sheet_names(damage_cost_path)
 
     def normalize_cost_df(df: pd.DataFrame) -> pd.DataFrame:
         out = df.copy()
         out.columns = [str(c).strip().lower() for c in out.columns]
         return out
 
-    road_damage_file = normalize_cost_df(pd.read_excel(damage_cost_path, sheet_name="roads"))
+    road_damage_file = normalize_cost_df(read_damage_cost_sheet(damage_cost_path, "roads"))
 
     if "tunnels" in available_sheets:
-        tunnel_damage_file = normalize_cost_df(pd.read_excel(damage_cost_path, sheet_name="tunnels"))
+        tunnel_damage_file = normalize_cost_df(read_damage_cost_sheet(damage_cost_path, "tunnels"))
     else:
         # Toy workbook fallback: reuse road costs for tunnel costs.
         tunnel_damage_file = road_damage_file.copy()
 
     if "bridges-surface" in available_sheets:
         bridge_surface_damage_file = normalize_cost_df(
-            pd.read_excel(damage_cost_path, sheet_name="bridges-surface")
+            read_damage_cost_sheet(damage_cost_path, "bridges-surface")
         )
     elif "bridges" in available_sheets:
-        bridge_surface_damage_file = normalize_cost_df(pd.read_excel(damage_cost_path, sheet_name="bridges"))
+        bridge_surface_damage_file = normalize_cost_df(read_damage_cost_sheet(damage_cost_path, "bridges"))
     else:
         raise FileNotFoundError("Bridge damage-cost sheet not found in damage_cost workbook")
 
     if "bridges-river" in available_sheets:
         bridge_river_damage_file = normalize_cost_df(
-            pd.read_excel(damage_cost_path, sheet_name="bridges-river")
+            read_damage_cost_sheet(damage_cost_path, "bridges-river")
         )
     elif "bridges" in available_sheets:
-        bridge_river_damage_file = normalize_cost_df(pd.read_excel(damage_cost_path, sheet_name="bridges"))
+        bridge_river_damage_file = normalize_cost_df(read_damage_cost_sheet(damage_cost_path, "bridges"))
     else:
         raise FileNotFoundError("Bridge damage-cost sheet not found in damage_cost workbook")
     dv_road_dict = defaultdict(lambda: defaultdict(float))

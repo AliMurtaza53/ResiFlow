@@ -321,15 +321,18 @@ def write_damage_workbooks(toy_data_dir: Path) -> None:
     bridges = pd.DataFrame({"label": ["bridge"], "min": [10.0], "max": [20.0], "mean": [15.0]})
 
     curves_dir = toy_data_dir / "damage_curves"
-    costs_dir = toy_data_dir / "asset_costs"
+    costs_dir = toy_data_dir / "asset_costs" / "damage_cost_road_flood"
     curves_dir.mkdir(parents=True, exist_ok=True)
     costs_dir.mkdir(parents=True, exist_ok=True)
 
-    ratio.to_excel(curves_dir / "damage_ratio_road_flood.xlsx", index=False)
-    with pd.ExcelWriter(costs_dir / "damage_cost_road_flood.xlsx") as writer:
-        roads.to_excel(writer, sheet_name="roads", index=False)
-        bridges.to_excel(writer, sheet_name="bridges-surface", index=False)
-        bridges.to_excel(writer, sheet_name="bridges-river", index=False)
+    # CSV, not .xlsx: writing a new .xlsx via openpyxl crashes natively on
+    # some Windows environments (see docs/CORRECTNESS_AND_PERFORMANCE_LESSONS.md).
+    # scripts/3_damage_analysis.py reads this directory-of-sheets form in
+    # preference to the legacy .xlsx.
+    ratio.to_csv(curves_dir / "damage_ratio_road_flood.csv", index=False)
+    roads.to_csv(costs_dir / "roads.csv", index=False)
+    bridges.to_csv(costs_dir / "bridges-surface.csv", index=False)
+    bridges.to_csv(costs_dir / "bridges-river.csv", index=False)
 
 
 def write_study_area(toy_data_dir: Path, road_links: gpd.GeoDataFrame) -> None:

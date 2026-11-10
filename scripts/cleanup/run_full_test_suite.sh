@@ -1,17 +1,23 @@
 #!/usr/bin/env bash
-# Run the real test suite against the real environment, working around a
-# known Windows-local issue: writing an .xlsx via openpyxl/pandas in this
-# conda env (pandas 3.0.3 + openpyxl 3.1.5) crashes the Python process with
-# a native access violation (not a Python exception -- pytest can't catch
-# or report it, it just kills the run). This is an environment problem, not
-# a code bug introduced by any recent change. See TASKS below for the fix.
+# RESOLVED 2026-11-10: the openpyxl/pandas native-crash issue this script
+# used to work around is gone -- the two test fixtures that wrote .xlsx
+# (tests/sioux_falls_fixtures.py, tests/toy_pipeline_fixtures.py) and the
+# one real script that did (scripts/testbed/run_multifactor_sensitivity_sioux_falls.py)
+# were all converted to write CSV instead (a directory of per-sheet CSVs
+# for the multi-sheet damage_cost_road_flood table), matching every other
+# parameter table in this project. scripts/3_damage_analysis.py's loader
+# (now via resiflow.tables.read_damage_ratio_table /
+# damage_cost_sheet_names / read_damage_cost_sheet) prefers CSV and falls
+# back to legacy .xlsx for any real data not yet converted -- reading an
+# existing .xlsx never crashed, only creating a new one did, so nothing
+# about real production data changed.
+#
+# This script is now just a plain full-suite runner; kept for convenience.
 #
 # Usage: bash scripts/cleanup/run_full_test_suite.sh
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-# Works from Git Bash (/c/...), WSL (/mnt/c/...), or native Windows paths --
-# pick whichever of these actually exists on this shell.
 for candidate in \
   "/mnt/c/Users/akothaw/AppData/Local/miniforge3/envs/nird/python.exe" \
   "/c/Users/akothaw/AppData/Local/miniforge3/envs/nird/python.exe" \
@@ -29,28 +35,4 @@ if [ -z "${PYTHON:-}" ]; then
 fi
 echo "Using: $PYTHON"
 
-# These test files call fixtures that write .xlsx workbooks and will crash
-# the whole pytest process on this machine until the openpyxl/pandas
-# incompatibility (see TASKS.md / AGENTS.md) is fixed. Excluded here so the
-# rest of the suite can actually finish and report real pass/fail.
-XLSX_CRASHING_TESTS=(
-  tests/test_phase0_summary_parity.py
-  tests/test_disruption_flood_parity.py
-  tests/test_hazards.py
-  tests/test_sioux_falls_pipeline_disruptions.py
-  tests/test_snow_pipeline_sioux_falls.py
-  tests/test_toy_pipeline_disruptions.py
-)
-
-IGNORE_ARGS=()
-for f in "${XLSX_CRASHING_TESTS[@]}"; do
-  IGNORE_ARGS+=(--ignore="$f")
-done
-
-echo "Running full suite minus ${#XLSX_CRASHING_TESTS[@]} xlsx-writing test files (native crash workaround)..."
-"$PYTHON" -m pytest tests/ -q --no-header "${IGNORE_ARGS[@]}" -rfE
-
-echo
-echo "NOT run above (crash on this machine until openpyxl/pandas fixed):"
-printf '  %s\n' "${XLSX_CRASHING_TESTS[@]}"
-echo "Run scripts/cleanup/try_fix_openpyxl_crash.sh to attempt a fix, then rerun one of them directly to confirm."
+"$PYTHON" -m pytest tests/ -q --no-header -rfE

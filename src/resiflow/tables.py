@@ -51,6 +51,37 @@ def tables_root(params_root: Path | str | None = None) -> Path:
     return Path(resolve_params_root(params_root)) / "tables"
 
 
+def read_damage_ratio_table(path: Path | str) -> pd.DataFrame:
+    """Read a ``damage_ratio_road_flood`` table: CSV (preferred) or the
+    legacy single-sheet ``.xlsx`` (still supported for any real data not
+    yet converted -- writing new ``.xlsx`` files crashes on some Windows
+    environments, see docs/CORRECTNESS_AND_PERFORMANCE_LESSONS.md; reading
+    an existing one does not, so old files keep working unconverted)."""
+    path = Path(path)
+    if path.suffix.lower() == ".csv":
+        return pd.read_csv(path)
+    return pd.read_excel(path)
+
+
+def damage_cost_sheet_names(path: Path | str) -> set[str]:
+    """Available sheet/table names for a ``damage_cost_road_flood`` source:
+    a directory of per-sheet CSVs (preferred) or the legacy multi-sheet
+    ``.xlsx``."""
+    path = Path(path)
+    if path.is_dir():
+        return {p.stem for p in path.glob("*.csv")}
+    return set(pd.ExcelFile(path).sheet_names)
+
+
+def read_damage_cost_sheet(path: Path | str, sheet_name: str) -> pd.DataFrame:
+    """Read one named sheet/table from a ``damage_cost_road_flood`` source:
+    a directory of per-sheet CSVs (preferred) or the legacy ``.xlsx``."""
+    path = Path(path)
+    if path.is_dir():
+        return pd.read_csv(path / f"{sheet_name}.csv")
+    return pd.read_excel(path, sheet_name=sheet_name)
+
+
 def _normalize_name(name: str) -> str:
     return name if name.endswith(".csv") else f"{name}.csv"
 

@@ -14,15 +14,20 @@
 # downgrading pandas is a bigger decision (affects the whole pipeline) and
 # is left for a human to decide if step 1 doesn't work.
 #
-# UPDATE 2026-11-10: a reinstall DID clear this script's simple one-row
-# repro, but the real crash still reproduces in the actual test fixtures
-# (tests/sioux_falls_fixtures.py::write_sioux_falls_damage_workbooks,
-# tests/toy_pipeline_fixtures.py::write_damage_workbooks) -- those write
-# multiple sheets with real styling, which this script's repro doesn't
-# exercise. The simple repro below is not sufficient evidence of a fix;
-# rerun one of the real crashing test files directly to confirm before
-# believing "FIXED". Still unresolved as of this date -- the 6 test files
-# listed in run_full_test_suite.sh still need excluding.
+# UPDATE 2026-11-10 (superseded): a reinstall cleared this script's simple
+# one-row repro but not the real crash in the actual test fixtures, which
+# write multiple sheets with styling this repro doesn't exercise. Rather
+# than keep chasing the openpyxl/pandas incompatibility itself, the three
+# call sites that wrote new .xlsx files (tests/sioux_falls_fixtures.py,
+# tests/toy_pipeline_fixtures.py, scripts/testbed/run_multifactor_sensitivity_sioux_falls.py)
+# were converted to write CSV instead -- see resiflow.tables's
+# read_damage_ratio_table/damage_cost_sheet_names/read_damage_cost_sheet
+# and scripts/3_damage_analysis.py's loader, which prefers CSV and falls
+# back to legacy .xlsx. Full suite now passes clean (466 passed, 3
+# skipped, 0 failed) with no crash and no exclusions needed. This script
+# is kept only in case the underlying openpyxl/pandas bug matters again
+# for some other reason (e.g. reading someone else's real .xlsx that
+# genuinely needs re-saving).
 set -euo pipefail
 
 # Works from Git Bash (/c/...), WSL (/mnt/c/...), or native Windows paths --

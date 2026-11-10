@@ -138,15 +138,20 @@ def _snapshot(toy_data: Path, staged_params: Path) -> Baselines:
         / "lodes_passenger_assignment_od_jt00_2022.parquet"
     )
     freight_path = toy_data / "inputs" / "census_datasets" / "faf5_od_matrix.pq"
-    ratio_path = toy_data / "damage_curves" / "damage_ratio_road_flood.xlsx"
-    cost_path = toy_data / "asset_costs" / "damage_cost_road_flood.xlsx"
+    from resiflow.tables import damage_cost_sheet_names, read_damage_cost_sheet, read_damage_ratio_table
+
+    ratio_path = toy_data / "damage_curves" / "damage_ratio_road_flood.csv"
+    cost_path = toy_data / "asset_costs" / "damage_cost_road_flood"
     raster_dir = toy_data / "inputs" / "test_141node_50m"
     unified_path = staged_params / "unified_parameters.json"
 
-    ratio_df = pd.read_excel(ratio_path)
+    ratio_df = read_damage_ratio_table(ratio_path)
     ratio_class_cols = [c for c in ratio_df.columns if c.lower() != "intensity"]
 
-    cost_sheets = pd.read_excel(cost_path, sheet_name=None)  # dict[str, DataFrame]
+    cost_sheets = {
+        name: read_damage_cost_sheet(cost_path, name)
+        for name in damage_cost_sheet_names(cost_path)
+    }
 
     raster_bands: dict[Path, np.ndarray] = {}
     raster_profiles: dict[Path, dict] = {}
@@ -217,16 +222,16 @@ def _apply_sample(base: Baselines, m: dict[str, float]) -> None:
     ratio = base.ratio_df.copy()
     for col in base.ratio_class_cols:
         ratio[col] = (ratio[col] * m["damage_ratio"]).clip(lower=0.0, upper=1.0)
-    ratio.to_excel(base.ratio_path, index=False)
+    ratio.to_csv(base.ratio_path, index=False)
 
     # --- unit asset costs (all sheets: roads + bridge variants) ---
-    with pd.ExcelWriter(base.cost_path) as writer:
-        for name, df in base.cost_sheets.items():
-            scaled = df.copy()
-            for col in ("min", "max", "mean"):
-                if col in scaled.columns:
-                    scaled[col] = scaled[col] * m["damage_value"]
-            scaled.to_excel(writer, sheet_name=name, index=False)
+    base.cost_path.mkdir(parents=True, exist_ok=True)
+    for name, df in base.cost_sheets.items():
+        scaled = df.copy()
+        for col in ("min", "max", "mean"):
+            if col in scaled.columns:
+                scaled[col] = scaled[col] * m["damage_value"]
+        scaled.to_csv(base.cost_path / f"{name}.csv", index=False)
 
     # --- hazard raster depths (all variants) ---
     for tif, band in base.raster_bands.items():
