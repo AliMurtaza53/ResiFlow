@@ -52,34 +52,53 @@ def tables_root(params_root: Path | str | None = None) -> Path:
 
 
 def read_damage_ratio_table(path: Path | str) -> pd.DataFrame:
-    """Read a ``damage_ratio_road_flood`` table: CSV (preferred) or the
-    legacy single-sheet ``.xlsx`` (still supported for any real data not
-    yet converted -- writing new ``.xlsx`` files crashes on some Windows
-    environments, see docs/CORRECTNESS_AND_PERFORMANCE_LESSONS.md; reading
-    an existing one does not, so old files keep working unconverted)."""
+    """Read a ``damage_ratio_road_flood.csv`` table.
+
+    CSV only, sealed 2026-11-10: every real copy on Hopper and locally was
+    converted from the legacy ``.xlsx`` (writing a new ``.xlsx`` crashed
+    natively on some Windows environments, see
+    docs/CORRECTNESS_AND_PERFORMANCE_LESSONS.md), verified byte-for-byte
+    equivalent, and no code path writes ``.xlsx`` for this table anymore.
+    An ``.xlsx`` found instead of ``.csv`` means a location was missed --
+    convert it (``pd.read_excel(path).to_csv(path.with_suffix('.csv'))``)
+    rather than silently falling back.
+    """
     path = Path(path)
-    if path.suffix.lower() == ".csv":
-        return pd.read_csv(path)
-    return pd.read_excel(path)
+    if path.suffix.lower() != ".csv":
+        raise ValueError(
+            f"Expected a CSV damage_ratio_road_flood table, got {path} -- "
+            "convert it (pd.read_excel(path).to_csv(...)) rather than "
+            "reading the legacy .xlsx; see read_damage_ratio_table's docstring."
+        )
+    return pd.read_csv(path)
 
 
 def damage_cost_sheet_names(path: Path | str) -> set[str]:
-    """Available sheet/table names for a ``damage_cost_road_flood`` source:
-    a directory of per-sheet CSVs (preferred) or the legacy multi-sheet
-    ``.xlsx``."""
+    """Available sheet/table names for a ``damage_cost_road_flood/``
+    directory of per-sheet CSVs. CSV only -- see read_damage_ratio_table's
+    docstring for why."""
     path = Path(path)
-    if path.is_dir():
-        return {p.stem for p in path.glob("*.csv")}
-    return set(pd.ExcelFile(path).sheet_names)
+    if not path.is_dir():
+        raise ValueError(
+            f"Expected a damage_cost_road_flood/ directory of per-sheet "
+            f"CSVs, got {path} -- convert the legacy .xlsx (one CSV per "
+            "sheet) rather than reading it directly."
+        )
+    return {p.stem for p in path.glob("*.csv")}
 
 
 def read_damage_cost_sheet(path: Path | str, sheet_name: str) -> pd.DataFrame:
-    """Read one named sheet/table from a ``damage_cost_road_flood`` source:
-    a directory of per-sheet CSVs (preferred) or the legacy ``.xlsx``."""
+    """Read one named sheet/table from a ``damage_cost_road_flood/``
+    directory of per-sheet CSVs. CSV only -- see read_damage_ratio_table's
+    docstring for why."""
     path = Path(path)
-    if path.is_dir():
-        return pd.read_csv(path / f"{sheet_name}.csv")
-    return pd.read_excel(path, sheet_name=sheet_name)
+    if not path.is_dir():
+        raise ValueError(
+            f"Expected a damage_cost_road_flood/ directory of per-sheet "
+            f"CSVs, got {path} -- convert the legacy .xlsx (one CSV per "
+            "sheet) rather than reading it directly."
+        )
+    return pd.read_csv(path / f"{sheet_name}.csv")
 
 
 def _normalize_name(name: str) -> str:

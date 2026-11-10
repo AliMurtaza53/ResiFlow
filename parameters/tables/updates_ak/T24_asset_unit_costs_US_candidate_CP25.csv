@@ -1,0 +1,834 @@
+source_exhibit,region,functional_class,subcategory_or_terrain,improvement_type,cost_thousand_2018usd_per_lane_mile,unit,source,status
+A-5,Rural,Interstate,Flat,Resurface Existing Lane,358,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Flat,Resurface and Widen Lane,1057,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Flat,Shoulder Improve as Part of Resurfacing,150,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Flat,Typical Reconstruct Existing Lane,1253,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Flat,Typical Reconstruct and Widen Lane,1965,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Flat,Total Reconstruct Existing Lane,1732,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Flat,Total Reconstruct and Widen Lane,2628,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Rolling,Resurface Existing Lane,424,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Rolling,Resurface and Widen Lane,1249,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Rolling,Shoulder Improve as Part of Resurfacing,175,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Rolling,Typical Reconstruct Existing Lane,1482,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Rolling,Typical Reconstruct and Widen Lane,2321,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Rolling,Total Reconstruct Existing Lane,2041,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Rolling,Total Reconstruct and Widen Lane,3096,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Mountainous,Resurface Existing Lane,540,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Mountainous,Resurface and Widen Lane,1584,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Mountainous,Shoulder Improve as Part of Resurfacing,217,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Mountainous,Typical Reconstruct Existing Lane,1879,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Mountainous,Typical Reconstruct and Widen Lane,2940,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Mountainous,Total Reconstruct Existing Lane,2583,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Interstate,Mountainous,Total Reconstruct and Widen Lane,3913,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Flat,Resurface Existing Lane,337,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Flat,Resurface and Widen Lane,948,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Flat,Shoulder Improve as Part of Resurfacing,130,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Flat,Typical Reconstruct Existing Lane,1182,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Flat,Typical Reconstruct and Widen Lane,1804,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Flat,Total Reconstruct Existing Lane,1660,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Flat,Total Reconstruct and Widen Lane,2455,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Rolling,Resurface Existing Lane,398,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Rolling,Resurface and Widen Lane,1116,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Rolling,Shoulder Improve as Part of Resurfacing,150,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Rolling,Typical Reconstruct Existing Lane,1396,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Rolling,Typical Reconstruct and Widen Lane,2128,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Rolling,Total Reconstruct Existing Lane,1955,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Rolling,Total Reconstruct and Widen Lane,2889,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Mountainous,Resurface Existing Lane,506,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Mountainous,Resurface and Widen Lane,1416,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Mountainous,Shoulder Improve as Part of Resurfacing,188,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Mountainous,Typical Reconstruct Existing Lane,1772,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Mountainous,Typical Reconstruct and Widen Lane,2697,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Mountainous,Total Reconstruct Existing Lane,2473,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Freeway and Expressway,Mountainous,Total Reconstruct and Widen Lane,3652,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Flat,Resurface Existing Lane,316,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Flat,Resurface and Widen Lane,862,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Flat,Shoulder Improve as Part of Resurfacing,111,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Flat,Typical Reconstruct Existing Lane,1113,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Flat,Typical Reconstruct and Widen Lane,1668,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Flat,Total Reconstruct Existing Lane,1589,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Flat,Total Reconstruct and Widen Lane,2310,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Rolling,Resurface Existing Lane,374,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Rolling,Resurface and Widen Lane,1017,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Rolling,Shoulder Improve as Part of Resurfacing,128,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Rolling,Typical Reconstruct Existing Lane,1314,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Rolling,Typical Reconstruct and Widen Lane,1968,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Rolling,Total Reconstruct Existing Lane,1871,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Rolling,Total Reconstruct and Widen Lane,2717,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Mountainous,Resurface Existing Lane,475,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Mountainous,Resurface and Widen Lane,1290,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Mountainous,Shoulder Improve as Part of Resurfacing,160,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Mountainous,Typical Reconstruct Existing Lane,1668,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Mountainous,Typical Reconstruct and Widen Lane,2494,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Mountainous,Total Reconstruct Existing Lane,2365,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Other Principal Arterial,Mountainous,Total Reconstruct and Widen Lane,3435,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Flat,Resurface Existing Lane,287,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Flat,Resurface and Widen Lane,763,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Flat,Shoulder Improve as Part of Resurfacing,92,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Flat,Typical Reconstruct Existing Lane,1014,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Flat,Typical Reconstruct and Widen Lane,1497,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Flat,Total Reconstruct Existing Lane,1450,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Flat,Total Reconstruct and Widen Lane,2087,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Rolling,Resurface Existing Lane,339,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Rolling,Resurface and Widen Lane,899,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Rolling,Shoulder Improve as Part of Resurfacing,106,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Rolling,Typical Reconstruct Existing Lane,1197,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Rolling,Typical Reconstruct and Widen Lane,1765,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Rolling,Total Reconstruct Existing Lane,1708,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Rolling,Total Reconstruct and Widen Lane,2457,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Mountainous,Resurface Existing Lane,431,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Mountainous,Resurface and Widen Lane,1138,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Mountainous,Shoulder Improve as Part of Resurfacing,131,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Mountainous,Typical Reconstruct Existing Lane,1517,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Mountainous,Typical Reconstruct and Widen Lane,2235,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Mountainous,Total Reconstruct Existing Lane,2157,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Arterial,Mountainous,Total Reconstruct and Widen Lane,3101,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Flat,Resurface Existing Lane,256,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Flat,Resurface and Widen Lane,667,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Flat,Shoulder Improve as Part of Resurfacing,74,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Flat,Typical Reconstruct Existing Lane,907,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Flat,Typical Reconstruct and Widen Lane,1324,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Flat,Total Reconstruct Existing Lane,1309,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Flat,Total Reconstruct and Widen Lane,1868,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Rolling,Resurface Existing Lane,302,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Rolling,Resurface and Widen Lane,787,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Rolling,Shoulder Improve as Part of Resurfacing,86,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Rolling,Typical Reconstruct Existing Lane,1071,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Rolling,Typical Reconstruct and Widen Lane,1562,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Rolling,Total Reconstruct Existing Lane,1540,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Rolling,Total Reconstruct and Widen Lane,2196,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Mountainous,Resurface Existing Lane,384,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Mountainous,Resurface and Widen Lane,996,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Mountainous,Shoulder Improve as Part of Resurfacing,107,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Mountainous,Typical Reconstruct Existing Lane,1357,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Mountainous,Typical Reconstruct and Widen Lane,1976,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Mountainous,Total Reconstruct Existing Lane,1944,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Major Collector,Mountainous,Total Reconstruct and Widen Lane,2771,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Flat,Resurface Existing Lane,226,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Flat,Resurface and Widen Lane,592,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Flat,Shoulder Improve as Part of Resurfacing,55,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Flat,Typical Reconstruct Existing Lane,812,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Flat,Typical Reconstruct and Widen Lane,1182,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Flat,Total Reconstruct Existing Lane,1191,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Flat,Total Reconstruct and Widen Lane,1700,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Rolling,Resurface Existing Lane,268,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Rolling,Resurface and Widen Lane,697,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Rolling,Shoulder Improve as Part of Resurfacing,64,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Rolling,Typical Reconstruct Existing Lane,958,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Rolling,Typical Reconstruct and Widen Lane,1392,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Rolling,Total Reconstruct Existing Lane,1400,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Rolling,Total Reconstruct and Widen Lane,1998,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Mountainous,Resurface Existing Lane,339,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Mountainous,Resurface and Widen Lane,882,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Mountainous,Shoulder Improve as Part of Resurfacing,79,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Mountainous,Typical Reconstruct Existing Lane,1214,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Mountainous,Typical Reconstruct and Widen Lane,1761,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Mountainous,Total Reconstruct Existing Lane,1767,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Minor Collector,Mountainous,Total Reconstruct and Widen Lane,2521,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Flat,Resurface Existing Lane,205,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Flat,Resurface and Widen Lane,540,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Flat,Shoulder Improve as Part of Resurfacing,41,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Flat,Typical Reconstruct Existing Lane,743,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Flat,Typical Reconstruct and Widen Lane,1081,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Flat,Total Reconstruct Existing Lane,1112,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Flat,Total Reconstruct and Widen Lane,1595,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Rolling,Resurface Existing Lane,241,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Rolling,Resurface and Widen Lane,635,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Rolling,Shoulder Improve as Part of Resurfacing,46,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Rolling,Typical Reconstruct Existing Lane,875,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Rolling,Typical Reconstruct and Widen Lane,1273,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Rolling,Total Reconstruct Existing Lane,1308,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Rolling,Total Reconstruct and Widen Lane,1874,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Mountainous,Resurface Existing Lane,304,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Mountainous,Resurface and Widen Lane,802,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Mountainous,Shoulder Improve as Part of Resurfacing,56,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Mountainous,Typical Reconstruct Existing Lane,1105,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Mountainous,Typical Reconstruct and Widen Lane,1606,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Mountainous,Total Reconstruct Existing Lane,1648,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-5,Rural,Local,Mountainous,Total Reconstruct and Widen Lane,2360,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urban,Resurface Existing Lane,628,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urban,Resurface and Widen Lane,2121,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urban,Shoulder Improve as Part of Resurfacing,437,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urban,Typical Reconstruct Existing Lane,1992,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urban,Typical Reconstruct and Widen Lane,3504,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urban,Total Reconstruct Existing Lane,2536,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urban,Total Reconstruct and Widen Lane,4290,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urbanized,Resurface Existing Lane,710,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urbanized,Resurface and Widen Lane,2418,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urbanized,Shoulder Improve as Part of Resurfacing,508,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urbanized,Typical Reconstruct Existing Lane,2276,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urbanized,Typical Reconstruct and Widen Lane,4011,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urbanized,Total Reconstruct Existing Lane,2943,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Small Urbanized,Total Reconstruct and Widen Lane,4960,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Large Urbanized,Resurface Existing Lane,850,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Large Urbanized,Resurface and Widen Lane,2979,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Large Urbanized,Shoulder Improve as Part of Resurfacing,674,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Large Urbanized,Typical Reconstruct Existing Lane,2782,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Large Urbanized,Typical Reconstruct and Widen Lane,4954,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Large Urbanized,Total Reconstruct Existing Lane,3618,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Large Urbanized,Total Reconstruct and Widen Lane,6121,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Major Urbanized,Resurface Existing Lane,900,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Major Urbanized,Resurface and Widen Lane,3270,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Major Urbanized,Shoulder Improve as Part of Resurfacing,798,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Major Urbanized,Typical Reconstruct Existing Lane,3013,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Major Urbanized,Typical Reconstruct and Widen Lane,5433,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Major Urbanized,Total Reconstruct Existing Lane,3892,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Interstate,Major Urbanized,Total Reconstruct and Widen Lane,6647,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urban,Resurface Existing Lane,594,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urban,Resurface and Widen Lane,1899,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urban,Shoulder Improve as Part of Resurfacing,384,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urban,Typical Reconstruct Existing Lane,1879,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urban,Typical Reconstruct and Widen Lane,3200,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urban,Total Reconstruct Existing Lane,2438,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urban,Total Reconstruct and Widen Lane,3996,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urbanized,Resurface Existing Lane,672,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urbanized,Resurface and Widen Lane,2166,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urbanized,Shoulder Improve as Part of Resurfacing,449,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urbanized,Typical Reconstruct Existing Lane,2147,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urbanized,Typical Reconstruct and Widen Lane,3666,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urbanized,Total Reconstruct Existing Lane,2828,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Small Urbanized,Total Reconstruct and Widen Lane,4623,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Large Urbanized,Resurface Existing Lane,803,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Large Urbanized,Resurface and Widen Lane,2662,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Large Urbanized,Shoulder Improve as Part of Resurfacing,593,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Large Urbanized,Typical Reconstruct Existing Lane,2620,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Large Urbanized,Typical Reconstruct and Widen Lane,4519,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Large Urbanized,Total Reconstruct Existing Lane,3473,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Large Urbanized,Total Reconstruct and Widen Lane,5700,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Major Urbanized,Resurface Existing Lane,852,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Major Urbanized,Resurface and Widen Lane,2923,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Major Urbanized,Shoulder Improve as Part of Resurfacing,705,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Major Urbanized,Typical Reconstruct Existing Lane,2837,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Major Urbanized,Typical Reconstruct and Widen Lane,4955,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Major Urbanized,Total Reconstruct Existing Lane,3735,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Freeway and Expressway,Major Urbanized,Total Reconstruct and Widen Lane,6187,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urban,Resurface Existing Lane,562,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urban,Resurface and Widen Lane,1713,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urban,Shoulder Improve as Part of Resurfacing,334,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urban,Typical Reconstruct Existing Lane,1772,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urban,Typical Reconstruct and Widen Lane,2938,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urban,Total Reconstruct Existing Lane,2344,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urban,Total Reconstruct and Widen Lane,3744,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urbanized,Resurface Existing Lane,635,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urbanized,Resurface and Widen Lane,1953,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urbanized,Shoulder Improve as Part of Resurfacing,391,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urbanized,Typical Reconstruct Existing Lane,2022,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urbanized,Typical Reconstruct and Widen Lane,3362,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urbanized,Total Reconstruct Existing Lane,2716,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Small Urbanized,Total Reconstruct and Widen Lane,4328,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Large Urbanized,Resurface Existing Lane,759,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Large Urbanized,Resurface and Widen Lane,2396,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Large Urbanized,Shoulder Improve as Part of Resurfacing,515,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Large Urbanized,Typical Reconstruct Existing Lane,2466,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Large Urbanized,Typical Reconstruct and Widen Lane,4138,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Large Urbanized,Total Reconstruct Existing Lane,3332,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Large Urbanized,Total Reconstruct and Widen Lane,5331,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Major Urbanized,Resurface Existing Lane,805,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Major Urbanized,Resurface and Widen Lane,2627,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Major Urbanized,Shoulder Improve as Part of Resurfacing,613,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Major Urbanized,Typical Reconstruct Existing Lane,2665,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Major Urbanized,Typical Reconstruct and Widen Lane,4529,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Major Urbanized,Total Reconstruct Existing Lane,3583,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Other Principal Arterial,Major Urbanized,Total Reconstruct and Widen Lane,5782,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urban,Resurface Existing Lane,507,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urban,Resurface and Widen Lane,1460,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urban,Shoulder Improve as Part of Resurfacing,267,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urban,Typical Reconstruct Existing Lane,1587,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urban,Typical Reconstruct and Widen Lane,2551,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urban,Total Reconstruct Existing Lane,2132,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urban,Total Reconstruct and Widen Lane,3310,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urbanized,Resurface Existing Lane,575,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urbanized,Resurface and Widen Lane,1660,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urbanized,Shoulder Improve as Part of Resurfacing,309,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urbanized,Typical Reconstruct Existing Lane,1807,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urbanized,Typical Reconstruct and Widen Lane,2909,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urbanized,Total Reconstruct Existing Lane,2457,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Small Urbanized,Total Reconstruct and Widen Lane,3809,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Large Urbanized,Resurface Existing Lane,688,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Large Urbanized,Resurface and Widen Lane,2033,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Large Urbanized,Shoulder Improve as Part of Resurfacing,407,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Large Urbanized,Typical Reconstruct Existing Lane,2198,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Large Urbanized,Typical Reconstruct and Widen Lane,3570,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Large Urbanized,Total Reconstruct Existing Lane,3002,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Large Urbanized,Total Reconstruct and Widen Lane,4672,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Major Urbanized,Resurface Existing Lane,729,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Major Urbanized,Resurface and Widen Lane,2216,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Major Urbanized,Shoulder Improve as Part of Resurfacing,478,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Major Urbanized,Typical Reconstruct Existing Lane,2368,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Major Urbanized,Typical Reconstruct and Widen Lane,3885,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Major Urbanized,Total Reconstruct Existing Lane,3220,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Arterial,Major Urbanized,Total Reconstruct and Widen Lane,5049,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urban,Resurface Existing Lane,442,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urban,Resurface and Widen Lane,1227,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urban,Shoulder Improve as Part of Resurfacing,225,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urban,Typical Reconstruct Existing Lane,1386,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urban,Typical Reconstruct and Widen Lane,2179,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urban,Total Reconstruct Existing Lane,1876,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urban,Total Reconstruct and Widen Lane,2854,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urbanized,Resurface Existing Lane,500,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urbanized,Resurface and Widen Lane,1393,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urbanized,Shoulder Improve as Part of Resurfacing,260,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urbanized,Typical Reconstruct Existing Lane,1577,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urbanized,Typical Reconstruct and Widen Lane,2483,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urbanized,Total Reconstruct Existing Lane,2154,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Small Urbanized,Total Reconstruct and Widen Lane,3273,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Large Urbanized,Resurface Existing Lane,587,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Large Urbanized,Resurface and Widen Lane,1683,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Large Urbanized,Shoulder Improve as Part of Resurfacing,341,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Large Urbanized,Typical Reconstruct Existing Lane,1887,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Large Urbanized,Typical Reconstruct and Widen Lane,3002,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Large Urbanized,Total Reconstruct Existing Lane,2582,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Large Urbanized,Total Reconstruct and Widen Lane,3945,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Major Urbanized,Resurface Existing Lane,624,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Major Urbanized,Resurface and Widen Lane,1838,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Major Urbanized,Shoulder Improve as Part of Resurfacing,402,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Major Urbanized,Typical Reconstruct Existing Lane,2032,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Major Urbanized,Typical Reconstruct and Widen Lane,3267,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Major Urbanized,Total Reconstruct Existing Lane,2765,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Major Collector,Major Urbanized,Total Reconstruct and Widen Lane,4261,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urban,Resurface Existing Lane,397,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urban,Resurface and Widen Lane,1071,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urban,Shoulder Improve as Part of Resurfacing,166,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urban,Typical Reconstruct Existing Lane,1230,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urban,Typical Reconstruct and Widen Lane,1911,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urban,Total Reconstruct Existing Lane,1706,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urban,Total Reconstruct and Widen Lane,2575,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urbanized,Resurface Existing Lane,447,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urbanized,Resurface and Widen Lane,1211,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urbanized,Shoulder Improve as Part of Resurfacing,191,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urbanized,Typical Reconstruct Existing Lane,1393,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urbanized,Typical Reconstruct and Widen Lane,2166,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urbanized,Total Reconstruct Existing Lane,1944,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Small Urbanized,Total Reconstruct and Widen Lane,2935,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Large Urbanized,Resurface Existing Lane,527,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Large Urbanized,Resurface and Widen Lane,1459,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Large Urbanized,Shoulder Improve as Part of Resurfacing,249,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Large Urbanized,Typical Reconstruct Existing Lane,1662,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Large Urbanized,Typical Reconstruct and Widen Lane,2607,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Large Urbanized,Total Reconstruct Existing Lane,2315,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Large Urbanized,Total Reconstruct and Widen Lane,3514,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Major Urbanized,Resurface Existing Lane,559,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Major Urbanized,Resurface and Widen Lane,1581,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Major Urbanized,Shoulder Improve as Part of Resurfacing,291,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Major Urbanized,Typical Reconstruct Existing Lane,1782,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Major Urbanized,Typical Reconstruct and Widen Lane,2820,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Major Urbanized,Total Reconstruct Existing Lane,2473,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Minor Collector,Major Urbanized,Total Reconstruct and Widen Lane,3775,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urban,Resurface Existing Lane,364,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urban,Resurface and Widen Lane,939,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urban,Shoulder Improve as Part of Resurfacing,128,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urban,Typical Reconstruct Existing Lane,1125,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urban,Typical Reconstruct and Widen Lane,1705,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urban,Total Reconstruct Existing Lane,1596,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urban,Total Reconstruct and Widen Lane,2359,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urbanized,Resurface Existing Lane,410,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urbanized,Resurface and Widen Lane,1064,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urbanized,Shoulder Improve as Part of Resurfacing,147,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urbanized,Typical Reconstruct Existing Lane,1273,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urbanized,Typical Reconstruct and Widen Lane,1931,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urbanized,Total Reconstruct Existing Lane,1811,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Small Urbanized,Total Reconstruct and Widen Lane,2677,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Large Urbanized,Resurface Existing Lane,483,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Large Urbanized,Resurface and Widen Lane,1275,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Large Urbanized,Shoulder Improve as Part of Resurfacing,192,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Large Urbanized,Typical Reconstruct Existing Lane,1512,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Large Urbanized,Typical Reconstruct and Widen Lane,2310,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Large Urbanized,Total Reconstruct Existing Lane,2143,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Large Urbanized,Total Reconstruct and Widen Lane,3183,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Major Urbanized,Resurface Existing Lane,513,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Major Urbanized,Resurface and Widen Lane,1380,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Major Urbanized,Shoulder Improve as Part of Resurfacing,225,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Major Urbanized,Typical Reconstruct Existing Lane,1620,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Major Urbanized,Typical Reconstruct and Widen Lane,2496,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Major Urbanized,Total Reconstruct Existing Lane,2283,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-6,Urban,Local,Major Urbanized,Total Reconstruct and Widen Lane,3411,$K/lane-mi 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,Add Lane If No Obstacles (Normal Cost),1732,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,Widening Obstacle A: Dense Development,4809,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,Widening Obstacle B: Major Transportation Facilities,6140,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,Widening Obstacle C: Other Public Facilities,6280,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,Widening Obstacle D: Terrain Restrictions,10391,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,Widening Obstacle E: Historic and Archaeological Sites,6906,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,Widening Obstacle F: Environmentally Sensitive Areas,4631,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,Widening Obstacle G: Parkland Areas,4487,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,New Construction New Alignment (Normal Cost),5622,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Flat,New Construction New Alignment (High Cost),19903,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,Add Lane If No Obstacles (Normal Cost),2041,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,Widening Obstacle A: Dense Development,6239,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,Widening Obstacle B: Major Transportation Facilities,7688,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,Widening Obstacle C: Other Public Facilities,7183,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,Widening Obstacle D: Terrain Restrictions,17824,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,Widening Obstacle E: Historic and Archaeological Sites,8417,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,Widening Obstacle F: Environmentally Sensitive Areas,6053,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,Widening Obstacle G: Parkland Areas,5854,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,New Construction New Alignment (Normal Cost),7765,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Rolling,New Construction New Alignment (High Cost),27487,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,Add Lane If No Obstacles (Normal Cost),2583,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,Widening Obstacle A: Dense Development,10245,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,Widening Obstacle B: Major Transportation Facilities,12387,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,Widening Obstacle C: Other Public Facilities,10769,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,Widening Obstacle D: Terrain Restrictions,28048,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,Widening Obstacle E: Historic and Archaeological Sites,13966,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,Widening Obstacle F: Environmentally Sensitive Areas,9835,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,Widening Obstacle G: Parkland Areas,9403,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,New Construction New Alignment (Normal Cost),12003,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Interstate,Mountainous,New Construction New Alignment (High Cost),42492,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,Add Lane If No Obstacles (Normal Cost),1660,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,Widening Obstacle A: Dense Development,4535,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,Widening Obstacle B: Major Transportation Facilities,5812,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,Widening Obstacle C: Other Public Facilities,5953,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,Widening Obstacle D: Terrain Restrictions,9959,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,Widening Obstacle E: Historic and Archaeological Sites,6564,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,Widening Obstacle F: Environmentally Sensitive Areas,4347,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,Widening Obstacle G: Parkland Areas,4227,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,New Construction New Alignment (Normal Cost),5311,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Flat,New Construction New Alignment (High Cost),18799,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,Add Lane If No Obstacles (Normal Cost),1955,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,Widening Obstacle A: Dense Development,5934,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,Widening Obstacle B: Major Transportation Facilities,7307,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,Widening Obstacle C: Other Public Facilities,6868,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,Widening Obstacle D: Terrain Restrictions,17078,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,Widening Obstacle E: Historic and Archaeological Sites,7988,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,Widening Obstacle F: Environmentally Sensitive Areas,5747,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,Widening Obstacle G: Parkland Areas,5576,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,New Construction New Alignment (Normal Cost),7372,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Rolling,New Construction New Alignment (High Cost),26097,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,Add Lane If No Obstacles (Normal Cost),2473,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,Widening Obstacle A: Dense Development,9648,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,Widening Obstacle B: Major Transportation Facilities,11591,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,Widening Obstacle C: Other Public Facilities,10211,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,Widening Obstacle D: Terrain Restrictions,26877,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,Widening Obstacle E: Historic and Archaeological Sites,13001,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,Widening Obstacle F: Environmentally Sensitive Areas,9273,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,Widening Obstacle G: Parkland Areas,8895,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,New Construction New Alignment (Normal Cost),11350,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Freeway and Expressway,Mountainous,New Construction New Alignment (High Cost),40179,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,Add Lane If No Obstacles (Normal Cost),1589,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,Widening Obstacle A: Dense Development,4342,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,Widening Obstacle B: Major Transportation Facilities,5570,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,Widening Obstacle C: Other Public Facilities,5704,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,Widening Obstacle D: Terrain Restrictions,9529,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,Widening Obstacle E: Historic and Archaeological Sites,6313,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,Widening Obstacle F: Environmentally Sensitive Areas,4157,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,Widening Obstacle G: Parkland Areas,4051,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,New Construction New Alignment (Normal Cost),5089,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Flat,New Construction New Alignment (High Cost),18015,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,Add Lane If No Obstacles (Normal Cost),1871,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,Widening Obstacle A: Dense Development,5686,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,Widening Obstacle B: Major Transportation Facilities,6992,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,Widening Obstacle C: Other Public Facilities,6611,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,Widening Obstacle D: Terrain Restrictions,16338,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,Widening Obstacle E: Historic and Archaeological Sites,7628,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,Widening Obstacle F: Environmentally Sensitive Areas,5508,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,Widening Obstacle G: Parkland Areas,5356,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,New Construction New Alignment (Normal Cost),7061,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Rolling,New Construction New Alignment (High Cost),24998,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,Add Lane If No Obstacles (Normal Cost),2365,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,Widening Obstacle A: Dense Development,9102,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,Widening Obstacle B: Major Transportation Facilities,10856,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,Widening Obstacle C: Other Public Facilities,9702,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,Widening Obstacle D: Terrain Restrictions,25709,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,Widening Obstacle E: Historic and Archaeological Sites,12109,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,Widening Obstacle F: Environmentally Sensitive Areas,8763,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,Widening Obstacle G: Parkland Areas,8433,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,New Construction New Alignment (Normal Cost),10796,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Other Principal Arterial,Mountainous,New Construction New Alignment (High Cost),38221,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,Add Lane If No Obstacles (Normal Cost),1450,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,Widening Obstacle A: Dense Development,3928,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,Widening Obstacle B: Major Transportation Facilities,5106,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,Widening Obstacle C: Other Public Facilities,5236,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,Widening Obstacle D: Terrain Restrictions,8960,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,Widening Obstacle E: Historic and Archaeological Sites,5840,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,Widening Obstacle F: Environmentally Sensitive Areas,3732,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,Widening Obstacle G: Parkland Areas,3649,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,New Construction New Alignment (Normal Cost),4651,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Flat,New Construction New Alignment (High Cost),16462,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,Add Lane If No Obstacles (Normal Cost),1708,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,Widening Obstacle A: Dense Development,5197,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,Widening Obstacle B: Major Transportation Facilities,6439,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,Widening Obstacle C: Other Public Facilities,6114,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,Widening Obstacle D: Terrain Restrictions,15500,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,Widening Obstacle E: Historic and Archaeological Sites,7036,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,Widening Obstacle F: Environmentally Sensitive Areas,5013,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,Widening Obstacle G: Parkland Areas,4888,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,New Construction New Alignment (Normal Cost),6527,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Rolling,New Construction New Alignment (High Cost),23108,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,Add Lane If No Obstacles (Normal Cost),2157,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,Widening Obstacle A: Dense Development,8268,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,Widening Obstacle B: Major Transportation Facilities,9857,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,Widening Obstacle C: Other Public Facilities,8906,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,Widening Obstacle D: Terrain Restrictions,24500,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,Widening Obstacle E: Historic and Archaeological Sites,10969,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,Widening Obstacle F: Environmentally Sensitive Areas,7952,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,Widening Obstacle G: Parkland Areas,7671,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,New Construction New Alignment (Normal Cost),9978,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Arterial,Mountainous,New Construction New Alignment (High Cost),35321,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,Add Lane If No Obstacles (Normal Cost),1309,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,Widening Obstacle A: Dense Development,3605,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,Widening Obstacle B: Major Transportation Facilities,4745,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,Widening Obstacle C: Other Public Facilities,4859,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,Widening Obstacle D: Terrain Restrictions,8390,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,Widening Obstacle E: Historic and Archaeological Sites,5476,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,Widening Obstacle F: Environmentally Sensitive Areas,3414,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,Widening Obstacle G: Parkland Areas,3340,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,New Construction New Alignment (Normal Cost),4325,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Flat,New Construction New Alignment (High Cost),15310,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,Add Lane If No Obstacles (Normal Cost),1540,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,Widening Obstacle A: Dense Development,4761,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,Widening Obstacle B: Major Transportation Facilities,5949,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,Widening Obstacle C: Other Public Facilities,5667,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,Widening Obstacle D: Terrain Restrictions,14659,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,Widening Obstacle E: Historic and Archaeological Sites,6514,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,Widening Obstacle F: Environmentally Sensitive Areas,4585,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,Widening Obstacle G: Parkland Areas,4473,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,New Construction New Alignment (Normal Cost),6090,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Rolling,New Construction New Alignment (High Cost),21560,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,Add Lane If No Obstacles (Normal Cost),1944,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,Widening Obstacle A: Dense Development,7468,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,Widening Obstacle B: Major Transportation Facilities,8902,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,Widening Obstacle C: Other Public Facilities,8144,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,Widening Obstacle D: Terrain Restrictions,23289,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,Widening Obstacle E: Historic and Archaeological Sites,9882,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,Widening Obstacle F: Environmentally Sensitive Areas,7183,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,Widening Obstacle G: Parkland Areas,6943,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,New Construction New Alignment (Normal Cost),9276,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Major Collector,Mountainous,New Construction New Alignment (High Cost),32838,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,Add Lane If No Obstacles (Normal Cost),1191,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,Widening Obstacle A: Dense Development,3247,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,Widening Obstacle B: Major Transportation Facilities,4339,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,Widening Obstacle C: Other Public Facilities,4446,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,Widening Obstacle D: Terrain Restrictions,7864,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,Widening Obstacle E: Historic and Archaeological Sites,5060,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,Widening Obstacle F: Environmentally Sensitive Areas,3049,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,Widening Obstacle G: Parkland Areas,2994,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,New Construction New Alignment (Normal Cost),3936,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Flat,New Construction New Alignment (High Cost),13933,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,Add Lane If No Obstacles (Normal Cost),1400,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,Widening Obstacle A: Dense Development,4324,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,Widening Obstacle B: Major Transportation Facilities,5454,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,Widening Obstacle C: Other Public Facilities,5220,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,Widening Obstacle D: Terrain Restrictions,13851,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,Widening Obstacle E: Historic and Archaeological Sites,5986,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,Widening Obstacle F: Environmentally Sensitive Areas,4144,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,Widening Obstacle G: Parkland Areas,4054,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,New Construction New Alignment (Normal Cost),5604,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Rolling,New Construction New Alignment (High Cost),19838,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,Add Lane If No Obstacles (Normal Cost),1767,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,Widening Obstacle A: Dense Development,6714,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,Widening Obstacle B: Major Transportation Facilities,7999,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,Widening Obstacle C: Other Public Facilities,7427,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,Widening Obstacle D: Terrain Restrictions,22093,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,Widening Obstacle E: Historic and Archaeological Sites,8854,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,Widening Obstacle F: Environmentally Sensitive Areas,6447,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,Widening Obstacle G: Parkland Areas,6252,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,New Construction New Alignment (Normal Cost),8522,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Minor Collector,Mountainous,New Construction New Alignment (High Cost),30165,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,Add Lane If No Obstacles (Normal Cost),1112,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,Widening Obstacle A: Dense Development,2993,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,Widening Obstacle B: Major Transportation Facilities,4037,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,Widening Obstacle C: Other Public Facilities,4138,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,Widening Obstacle D: Terrain Restrictions,7418,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,Widening Obstacle E: Historic and Archaeological Sites,4749,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,Widening Obstacle F: Environmentally Sensitive Areas,2794,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,Widening Obstacle G: Parkland Areas,2756,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,New Construction New Alignment (Normal Cost),3641,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Flat,New Construction New Alignment (High Cost),12892,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,Add Lane If No Obstacles (Normal Cost),1308,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,Widening Obstacle A: Dense Development,4012,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,Widening Obstacle B: Major Transportation Facilities,5086,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,Widening Obstacle C: Other Public Facilities,4899,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,Widening Obstacle D: Terrain Restrictions,13099,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,Widening Obstacle E: Historic and Archaeological Sites,5584,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,Widening Obstacle F: Environmentally Sensitive Areas,3831,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,Widening Obstacle G: Parkland Areas,3762,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,New Construction New Alignment (Normal Cost),5220,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Rolling,New Construction New Alignment (High Cost),18479,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,Add Lane If No Obstacles (Normal Cost),1648,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,Widening Obstacle A: Dense Development,6128,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,Widening Obstacle B: Major Transportation Facilities,7275,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,Widening Obstacle C: Other Public Facilities,6879,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,Widening Obstacle D: Terrain Restrictions,20919,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,Widening Obstacle E: Historic and Archaeological Sites,8013,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,Widening Obstacle F: Environmentally Sensitive Areas,5881,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,Widening Obstacle G: Parkland Areas,5728,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,New Construction New Alignment (Normal Cost),7894,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-7,Rural,Local,Mountainous,New Construction New Alignment (High Cost),27944,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,Add Lane If No Obstacles (Normal Cost),2536,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,Widening Obstacle A: Dense Development,6234,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,Widening Obstacle B: Major Transportation Facilities,8055,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,Widening Obstacle C: Other Public Facilities,8118,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,Widening Obstacle D: Terrain Restrictions,15286,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,Widening Obstacle E: Historic and Archaeological Sites,8797,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,Widening Obstacle F: Environmentally Sensitive Areas,6014,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,Widening Obstacle G: Parkland Areas,5807,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,New Construction New Alignment (Normal Cost),7540,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urban,New Construction New Alignment (High Cost),26691,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,Add Lane If No Obstacles (Normal Cost),2943,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,Widening Obstacle A: Dense Development,8103,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,Widening Obstacle B: Major Transportation Facilities,9924,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,Widening Obstacle C: Other Public Facilities,9590,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,Widening Obstacle D: Terrain Restrictions,19711,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,Widening Obstacle E: Historic and Archaeological Sites,10874,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,7839,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,Widening Obstacle G: Parkland Areas,7584,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,New Construction New Alignment (Normal Cost),9410,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Small Urbanized,New Construction New Alignment (High Cost),33310,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,Add Lane If No Obstacles (Normal Cost),3618,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,Widening Obstacle A: Dense Development,10097,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,Widening Obstacle B: Major Transportation Facilities,12550,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,Widening Obstacle C: Other Public Facilities,11147,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,Widening Obstacle D: Terrain Restrictions,22998,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,Widening Obstacle E: Historic and Archaeological Sites,14041,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,9659,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,Widening Obstacle G: Parkland Areas,9192,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,New Construction New Alignment (Normal Cost),11278,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Large Urbanized,New Construction New Alignment (High Cost),39927,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,Add Lane If No Obstacles (Normal Cost),3892,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,Widening Obstacle A: Dense Development,11909,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,Widening Obstacle B: Major Transportation Facilities,15052,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,Widening Obstacle C: Other Public Facilities,13663,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,Widening Obstacle D: Terrain Restrictions,30674,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,Widening Obstacle E: Historic and Archaeological Sites,17804,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,11142,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,Widening Obstacle G: Parkland Areas,10472,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,New Construction New Alignment (Normal Cost),14271,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Interstate,Major Urbanized,New Construction New Alignment (High Cost),50519,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,Add Lane If No Obstacles (Normal Cost),2438,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,Widening Obstacle A: Dense Development,5733,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,Widening Obstacle B: Major Transportation Facilities,7479,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,Widening Obstacle C: Other Public Facilities,7511,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,Widening Obstacle D: Terrain Restrictions,14682,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,Widening Obstacle E: Historic and Archaeological Sites,8223,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,Widening Obstacle F: Environmentally Sensitive Areas,5496,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,Widening Obstacle G: Parkland Areas,5317,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,New Construction New Alignment (Normal Cost),7083,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urban,New Construction New Alignment (High Cost),25071,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,Add Lane If No Obstacles (Normal Cost),2828,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,Widening Obstacle A: Dense Development,7559,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,Widening Obstacle B: Major Transportation Facilities,9309,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,Widening Obstacle C: Other Public Facilities,8998,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,Widening Obstacle D: Terrain Restrictions,18927,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,Widening Obstacle E: Historic and Archaeological Sites,10229,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,7287,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,Widening Obstacle G: Parkland Areas,7059,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,New Construction New Alignment (Normal Cost),8886,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Small Urbanized,New Construction New Alignment (High Cost),31459,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,Add Lane If No Obstacles (Normal Cost),3473,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,Widening Obstacle A: Dense Development,9621,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,Widening Obstacle B: Major Transportation Facilities,11914,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,Widening Obstacle C: Other Public Facilities,10682,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,Widening Obstacle D: Terrain Restrictions,22078,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,Widening Obstacle E: Historic and Archaeological Sites,13279,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,9199,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,Widening Obstacle G: Parkland Areas,8781,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,New Construction New Alignment (Normal Cost),10730,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Large Urbanized,New Construction New Alignment (High Cost),37987,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,Add Lane If No Obstacles (Normal Cost),3735,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,Widening Obstacle A: Dense Development,11312,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,Widening Obstacle B: Major Transportation Facilities,14228,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,Widening Obstacle C: Other Public Facilities,13163,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,Widening Obstacle D: Terrain Restrictions,29446,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,Widening Obstacle E: Historic and Archaeological Sites,16855,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,10572,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,Widening Obstacle G: Parkland Areas,9975,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,New Construction New Alignment (Normal Cost),13550,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Freeway and Expressway,Major Urbanized,New Construction New Alignment (High Cost),47968,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,Add Lane If No Obstacles (Normal Cost),2344,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,Widening Obstacle A: Dense Development,5350,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,Widening Obstacle B: Major Transportation Facilities,7022,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,Widening Obstacle C: Other Public Facilities,7023,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,Widening Obstacle D: Terrain Restrictions,14086,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,Widening Obstacle E: Historic and Archaeological Sites,7768,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,Widening Obstacle F: Environmentally Sensitive Areas,5119,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,Widening Obstacle G: Parkland Areas,4955,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,New Construction New Alignment (Normal Cost),6734,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urban,New Construction New Alignment (High Cost),23839,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,Add Lane If No Obstacles (Normal Cost),2716,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,Widening Obstacle A: Dense Development,7113,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,Widening Obstacle B: Major Transportation Facilities,8791,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,Widening Obstacle C: Other Public Facilities,8503,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,Widening Obstacle D: Terrain Restrictions,18148,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,Widening Obstacle E: Historic and Archaeological Sites,9684,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,6848,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,Widening Obstacle G: Parkland Areas,6637,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,New Construction New Alignment (Normal Cost),8468,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Small Urbanized,New Construction New Alignment (High Cost),29978,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,Add Lane If No Obstacles (Normal Cost),3332,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,Widening Obstacle A: Dense Development,9212,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,Widening Obstacle B: Major Transportation Facilities,11349,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,Widening Obstacle C: Other Public Facilities,10287,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,Widening Obstacle D: Terrain Restrictions,21162,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,Widening Obstacle E: Historic and Archaeological Sites,12591,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,8818,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,Widening Obstacle G: Parkland Areas,8441,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,New Construction New Alignment (Normal Cost),10281,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Large Urbanized,New Construction New Alignment (High Cost),36394,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,Add Lane If No Obstacles (Normal Cost),3583,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,Widening Obstacle A: Dense Development,10824,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,Widening Obstacle B: Major Transportation Facilities,13512,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,Widening Obstacle C: Other Public Facilities,12772,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,Widening Obstacle D: Terrain Restrictions,28220,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,Widening Obstacle E: Historic and Archaeological Sites,16016,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,10122,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,Widening Obstacle G: Parkland Areas,9589,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,New Construction New Alignment (Normal Cost),12984,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Other Principal Arterial,Major Urbanized,New Construction New Alignment (High Cost),45963,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,Add Lane If No Obstacles (Normal Cost),2132,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,Widening Obstacle A: Dense Development,4695,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,Widening Obstacle B: Major Transportation Facilities,6288,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,Widening Obstacle C: Other Public Facilities,6262,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,Widening Obstacle D: Terrain Restrictions,13253,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,Widening Obstacle E: Historic and Archaeological Sites,7031,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,Widening Obstacle F: Environmentally Sensitive Areas,4445,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,Widening Obstacle G: Parkland Areas,4312,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,New Construction New Alignment (Normal Cost),6107,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urban,New Construction New Alignment (High Cost),21617,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,Add Lane If No Obstacles (Normal Cost),2457,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,Widening Obstacle A: Dense Development,6319,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,Widening Obstacle B: Major Transportation Facilities,7926,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,Widening Obstacle C: Other Public Facilities,7661,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,Widening Obstacle D: Terrain Restrictions,17133,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,Widening Obstacle E: Historic and Archaeological Sites,8789,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,6042,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,Widening Obstacle G: Parkland Areas,5861,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,New Construction New Alignment (Normal Cost),7721,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Small Urbanized,New Construction New Alignment (High Cost),27332,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,Add Lane If No Obstacles (Normal Cost),3002,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,Widening Obstacle A: Dense Development,8382,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,Widening Obstacle B: Major Transportation Facilities,10370,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,Widening Obstacle C: Other Public Facilities,9468,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,Widening Obstacle D: Terrain Restrictions,20056,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,Widening Obstacle E: Historic and Archaeological Sites,11494,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,7997,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,Widening Obstacle G: Parkland Areas,7669,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,New Construction New Alignment (Normal Cost),9456,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Large Urbanized,New Construction New Alignment (High Cost),33476,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,Add Lane If No Obstacles (Normal Cost),3220,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,Widening Obstacle A: Dense Development,9873,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,Widening Obstacle B: Major Transportation Facilities,12360,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,Widening Obstacle C: Other Public Facilities,11917,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,Widening Obstacle D: Terrain Restrictions,26911,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,Widening Obstacle E: Historic and Archaeological Sites,14763,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,9183,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,Widening Obstacle G: Parkland Areas,8721,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,New Construction New Alignment (Normal Cost),11988,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Arterial,Major Urbanized,New Construction New Alignment (High Cost),42441,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,Add Lane If No Obstacles (Normal Cost),1876,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,Widening Obstacle A: Dense Development,4110,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,Widening Obstacle B: Major Transportation Facilities,5632,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,Widening Obstacle C: Other Public Facilities,5572,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,Widening Obstacle D: Terrain Restrictions,12333,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,Widening Obstacle E: Historic and Archaeological Sites,6376,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,Widening Obstacle F: Environmentally Sensitive Areas,3872,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,Widening Obstacle G: Parkland Areas,3750,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,New Construction New Alignment (Normal Cost),5553,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urban,New Construction New Alignment (High Cost),19657,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,Add Lane If No Obstacles (Normal Cost),2154,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,Widening Obstacle A: Dense Development,5560,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,Widening Obstacle B: Major Transportation Facilities,7095,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,Widening Obstacle C: Other Public Facilities,6854,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,Widening Obstacle D: Terrain Restrictions,16048,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,Widening Obstacle E: Historic and Archaeological Sites,7932,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,5294,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,Widening Obstacle G: Parkland Areas,5129,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,New Construction New Alignment (Normal Cost),7041,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Small Urbanized,New Construction New Alignment (High Cost),24926,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,Add Lane If No Obstacles (Normal Cost),2582,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,Widening Obstacle A: Dense Development,7432,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,Widening Obstacle B: Major Transportation Facilities,9260,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,Widening Obstacle C: Other Public Facilities,8530,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,Widening Obstacle D: Terrain Restrictions,18860,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,Widening Obstacle E: Historic and Archaeological Sites,10258,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,7076,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,Widening Obstacle G: Parkland Areas,6789,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,New Construction New Alignment (Normal Cost),8616,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Large Urbanized,New Construction New Alignment (High Cost),30504,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,Add Lane If No Obstacles (Normal Cost),2765,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,Widening Obstacle A: Dense Development,8887,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,Widening Obstacle B: Major Transportation Facilities,11172,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,Widening Obstacle C: Other Public Facilities,11028,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,Widening Obstacle D: Terrain Restrictions,25564,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,Widening Obstacle E: Historic and Archaeological Sites,13471,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,8230,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,Widening Obstacle G: Parkland Areas,7828,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,New Construction New Alignment (Normal Cost),11079,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Major Collector,Major Urbanized,New Construction New Alignment (High Cost),39218,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,Add Lane If No Obstacles (Normal Cost),1706,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,Widening Obstacle A: Dense Development,3586,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,Widening Obstacle B: Major Transportation Facilities,5026,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,Widening Obstacle C: Other Public Facilities,4942,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,Widening Obstacle D: Terrain Restrictions,11582,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,Widening Obstacle E: Historic and Archaeological Sites,5764,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,Widening Obstacle F: Environmentally Sensitive Areas,3341,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,Widening Obstacle G: Parkland Areas,3245,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,New Construction New Alignment (Normal Cost),5023,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urban,New Construction New Alignment (High Cost),17783,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,Add Lane If No Obstacles (Normal Cost),1944,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,Widening Obstacle A: Dense Development,4909,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,Widening Obstacle B: Major Transportation Facilities,6368,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,Widening Obstacle C: Other Public Facilities,6154,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,Widening Obstacle D: Terrain Restrictions,15113,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,Widening Obstacle E: Historic and Archaeological Sites,7173,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,4636,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,Widening Obstacle G: Parkland Areas,4497,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,New Construction New Alignment (Normal Cost),6400,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Small Urbanized,New Construction New Alignment (High Cost),22656,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,Add Lane If No Obstacles (Normal Cost),2315,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,Widening Obstacle A: Dense Development,6678,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,Widening Obstacle B: Major Transportation Facilities,8365,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,Widening Obstacle C: Other Public Facilities,7788,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,Widening Obstacle D: Terrain Restrictions,17819,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,Widening Obstacle E: Historic and Archaeological Sites,9251,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,6332,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,Widening Obstacle G: Parkland Areas,6091,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,New Construction New Alignment (Normal Cost),7875,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Large Urbanized,New Construction New Alignment (High Cost),27875,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,Add Lane If No Obstacles (Normal Cost),2473,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,Widening Obstacle A: Dense Development,8004,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,Widening Obstacle B: Major Transportation Facilities,10115,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,Widening Obstacle C: Other Public Facilities,10240,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,Widening Obstacle D: Terrain Restrictions,24282,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,Widening Obstacle E: Historic and Archaeological Sites,12336,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,7352,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,Widening Obstacle G: Parkland Areas,7014,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,New Construction New Alignment (Normal Cost),10166,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Minor Collector,Major Urbanized,New Construction New Alignment (High Cost),35990,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,Add Lane If No Obstacles (Normal Cost),1596,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,Widening Obstacle A: Dense Development,3201,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,Widening Obstacle B: Major Transportation Facilities,4559,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,Widening Obstacle C: Other Public Facilities,4453,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,Widening Obstacle D: Terrain Restrictions,10955,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,Widening Obstacle E: Historic and Archaeological Sites,5291,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,Widening Obstacle F: Environmentally Sensitive Areas,2959,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,Widening Obstacle G: Parkland Areas,2882,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,New Construction New Alignment (Normal Cost),4621,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urban,New Construction New Alignment (High Cost),16358,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,Add Lane If No Obstacles (Normal Cost),1811,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,Widening Obstacle A: Dense Development,4436,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,Widening Obstacle B: Major Transportation Facilities,5822,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,Widening Obstacle C: Other Public Facilities,5633,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,Widening Obstacle D: Terrain Restrictions,14299,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,Widening Obstacle E: Historic and Archaeological Sites,6597,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,4163,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,Widening Obstacle G: Parkland Areas,4047,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,New Construction New Alignment (Normal Cost),5909,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Small Urbanized,New Construction New Alignment (High Cost),20918,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,Add Lane If No Obstacles (Normal Cost),2143,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,Widening Obstacle A: Dense Development,6122,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,Widening Obstacle B: Major Transportation Facilities,7677,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,Widening Obstacle C: Other Public Facilities,7242,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,Widening Obstacle D: Terrain Restrictions,16872,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,Widening Obstacle E: Historic and Archaeological Sites,8461,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,5787,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,Widening Obstacle G: Parkland Areas,5587,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,New Construction New Alignment (Normal Cost),7296,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Large Urbanized,New Construction New Alignment (High Cost),25825,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,Add Lane If No Obstacles (Normal Cost),2283,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,Widening Obstacle A: Dense Development,7216,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,Widening Obstacle B: Major Transportation Facilities,8853,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,Widening Obstacle C: Other Public Facilities,9496,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,Widening Obstacle D: Terrain Restrictions,23042,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,Widening Obstacle E: Historic and Archaeological Sites,10867,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,Widening Obstacle F: Environmentally Sensitive Areas,6656,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,Widening Obstacle G: Parkland Areas,6461,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,New Construction New Alignment (Normal Cost),9346,$K/lane 2018,HERS via 25th C&P Report,VERIFIED
+A-8,Urban,Local,Major Urbanized,New Construction New Alignment (High Cost),33083,$K/lane 2018,HERS via 25th C&P Report,VERIFIED

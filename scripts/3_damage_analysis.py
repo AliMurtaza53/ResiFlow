@@ -874,10 +874,10 @@ def main():
         based on flood depth.
 
     Model Inputs:
-        - damage_ratio_road_flood.csv (preferred) or .xlsx (legacy):
+        - damage_ratio_road_flood.csv:
             Damage curves for various road classifications and flow conditions.
-        - damage_cost_road_flood/ (preferred, one CSV per sheet) or
-          damage_cost_road_flood.xlsx (legacy):
+        - damage_cost_road_flood/ (one CSV per sheet: roads, tunnels,
+          bridges-surface, bridges-river):
             Asset damage values for roads, tunnels, and bridges.
         - faf5_road_links.gpq:
             GeoDataFrame of road network links with attributes.
@@ -899,31 +899,32 @@ def main():
     damage_ratio_path = first_existing(
         [
             base_path / "damage_curves" / "damage_ratio_road_flood.csv",
-            base_path / "damage_curves" / "damage_ratio_road_flood.xlsx",
             base_path / "inputs" / "lookup" / "damage_ratio_road_flood.csv",
-            base_path / "inputs" / "lookup" / "damage_ratio_road_flood.xlsx",
             base_path / "tables" / "damage_ratio_road_flood.csv",
-            base_path / "tables" / "damage_ratio_road_flood.xlsx",
         ]
     )
     if damage_ratio_path is None:
-        raise FileNotFoundError("Could not find damage_ratio_road_flood.csv/.xlsx in standard or toy lookup paths")
+        raise FileNotFoundError(
+            "Could not find damage_ratio_road_flood.csv in standard or toy lookup "
+            "paths. If only a legacy .xlsx exists, convert it: "
+            "pd.read_excel(xlsx_path).to_csv(xlsx_path.with_suffix('.csv'), index=False)"
+        )
 
-    # Cost sheets are preferentially a directory of per-sheet CSVs
-    # (damage_cost_road_flood/roads.csv, etc.) -- the legacy multi-sheet
-    # .xlsx is still supported for any real data not yet converted.
+    # Cost sheets are a directory of per-sheet CSVs (damage_cost_road_flood/roads.csv,
+    # etc.) -- CSV only, sealed 2026-11-10 (see resiflow.tables.read_damage_cost_sheet).
     damage_cost_path = first_existing(
         [
             base_path / "asset_costs" / "damage_cost_road_flood",
-            base_path / "asset_costs" / "damage_cost_road_flood.xlsx",
             base_path / "inputs" / "lookup" / "damage_cost_road_flood",
-            base_path / "inputs" / "lookup" / "damage_cost_road_flood.xlsx",
             base_path / "tables" / "damage_cost_road_flood",
-            base_path / "tables" / "damage_cost_road_flood.xlsx",
         ]
     )
     if damage_cost_path is None:
-        raise FileNotFoundError("Could not find damage_cost_road_flood/ (CSV) or .xlsx in standard or toy lookup paths")
+        raise FileNotFoundError(
+            "Could not find damage_cost_road_flood/ in standard or toy lookup "
+            "paths. If only a legacy .xlsx exists, convert it: one CSV per "
+            "sheet, named <sheet>.csv, in a damage_cost_road_flood/ directory."
+        )
     if active_overrides_path() is not None:
         print(f"Parameter overrides in force: {active_overrides_path()}")
 

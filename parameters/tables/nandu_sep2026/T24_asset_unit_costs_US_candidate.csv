@@ -1,0 +1,12 @@
+# T24 - US CANDIDATE asset unit costs. STATUS: order-of-magnitude ranges pending exact HERS-ST/NBI extraction (matrix rows 23-24).
+# Escalate all values from their source year with FHWA NHCCI (fhwa.dot.gov/policy/otps/nhcci), never a flat %/yr.
+# The UK-current workbook (damage_cost_road_flood.xlsx) is NOT in the git repo and its GBP/USD provenance is unresolved - extract and archive it
+# as T24_asset_unit_costs_UK_current.csv with its own provenance header before replacement (top audit priority).
+asset,road_class,setting,cost_item,low,high,units,price_year,source,status
+road,interstate/freeway,rural,reconstruct_lane_mile,2.0,6.0,million USD/lane-mile,2020s,FHWA HERS-ST improvement cost tables (Tech Report: rosap.ntl.bts.gov/view/dot/72703),APPROXIMATE_VERIFY
+road,interstate/freeway,urban,reconstruct_lane_mile,8.0,15.0,million USD/lane-mile,2020s,HERS-ST + state DOT bid tabs,APPROXIMATE_VERIFY
+road,arterial,rural,reconstruct_lane_mile,1.5,4.0,million USD/lane-mile,2020s,HERS-ST,APPROXIMATE_VERIFY
+road,arterial,urban,reconstruct_lane_mile,4.0,10.0,million USD/lane-mile,2020s,HERS-ST + bid tabs,APPROXIMATE_VERIFY
+road,collector/local,rural,reconstruct_lane_mile,0.8,2.5,million USD/lane-mile,2020s,HERS-ST,APPROXIMATE_VERIFY
+bridge,all,all,replace_deck_area,200,400,USD/sq-ft deck,2020s,FHWA NBI-derived state replacement unit costs (fhwa.dot.gov/bridge/nbi.cfm),APPROXIMATE_VERIFY
+tunnel,all,all,replace,-,-,-,-,"No national unit-cost source identified; do NOT reuse road costs (current toy fallback, matrix row 23)",OPEN
