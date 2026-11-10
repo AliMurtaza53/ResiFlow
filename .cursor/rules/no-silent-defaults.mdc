@@ -1,0 +1,40 @@
+---
+description: No silent defaults — missing inputs/config must raise clear errors.
+alwaysApply: true
+---
+
+# No silent defaults
+
+Do **not** paper over missing or invalid inputs with fallback defaults (magic numbers, empty paths, “use baseline,” invent scenario IDs, invent columns, coerce `None` to `0`, etc.).
+
+## Required behavior
+
+- If a required path, column, config key, scenario, env flag, or artifact is missing or invalid → **raise** (or fail the CLI/test) with a **descriptive** error: what was expected, what was found, and where to fix it.
+- Prefer explicit required arguments over optional kwargs that quietly substitute.
+- `KeyError` / `FileNotFoundError` / `ValueError` with a clear message beats a silent default that produces plausible garbage.
+- Logging a warning and continuing is **not** a substitute unless the user explicitly asked for best-effort mode.
+
+## Examples
+
+```python
+# BAD
+path = config.get("results_dir", "results/default")
+scenario = scenario_id or 301
+lanes = row.get("lanes") or 2
+
+# GOOD
+if "results_dir" not in config:
+    raise KeyError("config missing required key 'results_dir'")
+if scenario_id is None:
+    raise ValueError("scenario_id is required; refuse to guess a hazard scenario")
+if "lanes" not in row or row["lanes"] is None:
+    raise ValueError(f"link {row.get('id')!r} missing required 'lanes'")
+```
+
+## Allowed exceptions
+
+- Caller-documented optional features with an explicit opt-in (e.g. env flag `RESIFLOW_ENABLE_PASSENGER_REROUTING`).
+- Truly optional display labels that do not change numeric results.
+- Tests that intentionally inject fixtures — still no production silent defaults.
+
+When unsure whether something is required: **require it and error**, do not invent a default.
