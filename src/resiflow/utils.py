@@ -19,6 +19,15 @@ from scipy.spatial import cKDTree
 def components(
     edges: pd.DataFrame, nodes: pd.DataFrame, node_id_col: str
 ) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    # node_id_col and edges.from_node/to_node must agree on dtype (e.g. both
+    # str) before building the graph, or isin() membership checks below will
+    # silently miss nodes whose id round-trips through a different dtype.
+    nodes = nodes.copy()
+    edges = edges.copy()
+    nodes[node_id_col] = nodes[node_id_col].astype(str)
+    edges["from_node"] = edges["from_node"].astype(str)
+    edges["to_node"] = edges["to_node"].astype(str)
+
     G = networkx.Graph()
     G.add_nodes_from(
         (getattr(n, node_id_col), {"geometry": n.geometry}) for n in nodes.itertuples()
@@ -221,8 +230,19 @@ def network_od_path_estimations(
         estimated generalised costs of routes
 
     """
+    # igraph treats a bare int passed to get_shortest_paths as a vertex
+    # *index*, not a name. Our node ids live in the name attribute and can
+    # exceed vcount, so resolve through name->index first. See the ~40x LCP
+    # regression this exact landmine caused in road_revised.py.
+    name_to_idx: Dict = {}
+    for i, name in enumerate(graph.vs["name"]):
+        name_to_idx[name] = i
+        name_to_idx[str(name)] = i
+    source_idx = name_to_idx.get(source, source)
+    target_idx = name_to_idx.get(target, target)
+
     paths = graph.get_shortest_paths(
-        source, target, weights=cost_criteria, output="epath"
+        source_idx, target_idx, weights=cost_criteria, output="epath"
     )
 
     edge_path_list = []
