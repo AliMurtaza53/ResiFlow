@@ -42,7 +42,12 @@ def _iter_data_lines(path: Path) -> list[str]:
 
 
 def read_tntp_nodes(path: str | Path) -> pd.DataFrame:
-    """Parse a TNTP node coordinate file."""
+    """Parse a TNTP node coordinate file (or a GeoJSON Point layer with an ``id`` property)."""
+    if Path(path).suffix.lower() == ".geojson":
+        gdf = gpd.read_file(path)
+        return pd.DataFrame(
+            {"node": gdf["id"].astype(str), "x": gdf.geometry.x, "y": gdf.geometry.y}
+        )
     rows: list[dict[str, Any]] = []
     for line in _iter_data_lines(Path(path)):
         stripped = line.strip()
@@ -83,6 +88,23 @@ def read_tntp_links(path: str | Path) -> pd.DataFrame:
     if not rows:
         raise ValueError(f"No links parsed from {path}")
     return pd.DataFrame(rows)
+
+
+def read_link_geojson(path: str | Path, links: pd.DataFrame) -> list[LineString]:
+    """Read per-link polylines from a TNTP GeoJSON, in net-file row order.
+
+    Fails loudly if the file does not line up row-for-row with ``links``
+    (same count and same init/term nodes), since geometry is matched by position.
+    """
+    gdf = gpd.read_file(path)
+    if len(gdf) != len(links):
+        raise ValueError(f"{path}: {len(gdf)} features vs {len(links)} net links")
+    same = (gdf["init_node"].astype(str).to_numpy() == links["init_node"].astype(str).to_numpy()) & (
+        gdf["term_node"].astype(str).to_numpy() == links["term_node"].astype(str).to_numpy()
+    )
+    if not same.all():
+        raise ValueError(f"{path}: link order differs from net file at row {int((~same).argmax())}")
+    return list(gdf.geometry)
 
 
 def read_tntp_trips(
@@ -166,8 +188,13 @@ def links_to_geodataframe(
     output_crs: str | None = None,
     road_class_fn: Callable[[float], str] | None = None,
     urban: int = 1,
+    link_geometries: list[LineString] | None = None,
 ) -> gpd.GeoDataFrame:
-    """Convert TNTP nodes/links to a ResiFlow-compatible link GeoDataFrame."""
+    """Convert TNTP nodes/links to a ResiFlow-compatible link GeoDataFrame.
+
+    ``link_geometries`` (net-file order, e.g. from :func:`read_link_geojson`)
+    replaces the straight node-to-node line with the real link polyline.
+    """
     fmt = node_id_formatter or (lambda raw: str(raw))
     class_fn = road_class_fn or tntp_capacity_to_road_class
     node_geoms = build_node_geometries(nodes, node_id_formatter=fmt)
@@ -204,7 +231,11 @@ def links_to_geodataframe(
                 "average_toll_cost": float(row.toll),
                 "free_flow_speeds": min(speed_mph, 45.0),
                 "network_source": "tntp",
-                "geometry": LineString([node_geoms[from_id], node_geoms[to_id]]),
+                "geometry": (
+                    link_geometries[idx]
+                    if link_geometries is not None
+                    else LineString([node_geoms[from_id], node_geoms[to_id]])
+                ),
             }
         )
 

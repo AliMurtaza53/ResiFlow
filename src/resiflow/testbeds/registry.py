@@ -20,6 +20,7 @@ class TestbedSpec:
     node_file: str
     trips_file: str
     reference_geojson: str | None = None
+    link_geojson: str | None = None
     node_id_prefix: str = ""
     source_crs: str = "EPSG:4326"
     output_crs: str = "EPSG:9311"
@@ -42,6 +43,9 @@ class TestbedSpec:
 
     def node_path(self) -> Path:
         return self.data_dir / self.node_file
+
+    def link_geojson_path(self) -> Path | None:
+        return self.data_dir / self.link_geojson if self.link_geojson else None
 
     def trips_path(self) -> Path:
         return self.data_dir / self.trips_file
@@ -71,6 +75,7 @@ def load_testbed(testbed_id: str, *, testbeds_dir: Path | None = None) -> Testbe
         node_file=raw["node_file"],
         trips_file=raw["trips_file"],
         reference_geojson=raw.get("reference_geojson"),
+        link_geojson=raw.get("link_geojson"),
         node_id_prefix=raw.get("node_id_prefix", ""),
         source_crs=raw.get("source_crs", "EPSG:4326"),
         output_crs=raw.get("output_crs", "EPSG:9311"),

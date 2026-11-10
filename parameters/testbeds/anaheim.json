@@ -1,0 +1,16 @@
+{
+  "testbed_id": "anaheim",
+  "description": "TNTP Anaheim (38 zones, 416 nodes, 914 links incl. 118 centroid connectors) with real link polylines from anaheim.geojson; assignment-diagnostics testbed",
+  "network_source": "tntp",
+  "data_dir": "tests/data/anaheim_tntp",
+  "net_file": "Anaheim_net.tntp",
+  "node_file": "anaheim_nodes.geojson",
+  "trips_file": "Anaheim_trips.tntp",
+  "link_geojson": "anaheim.geojson",
+  "node_id_prefix": "an_",
+  "source_crs": "EPSG:4326",
+  "output_crs": "EPSG:9311",
+  "demand_scale": 1.0,
+  "freight_share_of_passenger": 0.09,
+  "results_variant": "toy_anaheim"
+}

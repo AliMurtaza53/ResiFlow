@@ -30,3 +30,11 @@ python scripts/compare_ue_capconstrained.py --testbed sioux_falls
 Expect **correlation**, not identity: UE uses link-specific BPR parameters from the TNTP net file; ResiFlow uses tier-based piecewise speed–flow curves from `assignment_profiles.json`. ResiFlow's baseline assignment graph is **undirected**, so compare undirected link totals (sum of both directions) for routing-pattern similarity; directed correlation is usually lower.
 
 Tests: `tests/test_ue_vs_capconstrained_sioux_falls.py` (marked `slow` for the full comparison).
+
+## Anaheim (assignment-diagnostics testbed)
+
+- Data: `tests/data/anaheim_tntp/` (TNTP net/trips/best-known flow + `anaheim.geojson` link polylines + `anaheim_nodes.geojson`)
+- Registry: `parameters/testbeds/anaheim.json` (`node_file` is the node GeoJSON; `link_geojson` supplies real link geometry)
+- 38 zones, 416 nodes, 914 links, of which 118 are zone-centroid connectors (nodes 1-38)
+- `read_tntp_nodes` accepts a `.geojson` Point layer; `read_link_geojson` matches polylines to net links by row order and raises if the order or count differs
+- Tests: `tests/test_anaheim_testbed.py`

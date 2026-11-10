@@ -13,7 +13,12 @@ from resiflow.assignment.ue_bpr import links_from_tntp, solve_user_equilibrium
 from resiflow.demand.load import align_od_node_dtype
 from resiflow.demand.tntp import load_tntp_trips
 from resiflow.networks import load_assignment_profiles, normalize_network_links
-from resiflow.networks.tntp import links_to_geodataframe, read_tntp_links, read_tntp_nodes
+from resiflow.networks.tntp import (
+    links_to_geodataframe,
+    read_link_geojson,
+    read_tntp_links,
+    read_tntp_nodes,
+)
 from resiflow.testbeds import load_testbed
 
 _REPO_PARAMETERS = Path(__file__).resolve().parents[3] / "parameters"
@@ -61,6 +66,9 @@ def run_resiflow_capconstrained_from_testbed(
         node_id_formatter=node_fmt,
         source_crs=spec.source_crs,
         output_crs=spec.output_crs,
+        link_geometries=(
+            read_link_geojson(spec.link_geojson_path(), links_df) if spec.link_geojson else None
+        ),
     )
     profiles = load_assignment_profiles(resolved_params)
     road_links = normalize_network_links(
