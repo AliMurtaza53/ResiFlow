@@ -1,0 +1,105 @@
+﻿const map = L.map('map', { preferCanvas: true }).setView([34.05, -118.25], 10);
+L.tileLayer('https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png?key=cb1_4axg_1_493e7afc1d931b5de675fd87', {
+  attribution: '&copy; OpenStreetMap contributors &copy; CARTO', maxZoom: 19,
+}).addTo(map);
+
+const canvasRenderer = L.canvas({ padding: 0.5 });
+
+// ---- layer groups (toggleable) ----
+const roadLayer = L.layerGroup();
+const boundaryLayer = L.layerGroup();
+const workLayer = L.layerGroup();
+const homeLayer = L.layerGroup();
+const connectorLayer = L.layerGroup();
+
+// ---- all LA road edges (background) ----
+const tierColors = { freeway: '#c77dab', arterial: '#2ca02c', collector: '#ff7f0e', local_access: '#999999' };
+const tierWeight = { freeway: 1.2, arterial: 1.6, collector: 1.2, local_access: 0.7 };
+ALL_EDGES.forEach(e => {
+  const latlngs = e.coords.map(c => [c[1], c[0]]);
+  L.polyline(latlngs, {
+    renderer: canvasRenderer, color: tierColors[e.tier] || '#bbb', weight: tierWeight[e.tier] || 0.8, opacity: 0.5,
+  }).addTo(roadLayer).bindPopup(`e_id ${e.e_id} &middot; ${e.tier}`);
+});
+
+// ---- LA county boundary (real Census TIGERweb polygon, MultiPolygon rings) ----
+DATA.la_boundary_rings.forEach(ring => {
+  L.polygon(ring.map(c => [c[1], c[0]]), { color: '#1b1b1b', weight: 2.5, fill: false, dashArray: '8 5' })
+    .addTo(boundaryLayer).bindPopup('Los Angeles County (FIPS 06037) — Census TIGERweb boundary');
+});
+
+function subareaPopup(label, p, numConnectors) {
+  return `<table class="popup-table">
+    <tr><td class="label">Set</td><td>${label}-end</td></tr>
+    <tr><td class="label">Subarea rank</td><td>${p.rank}</td></tr>
+    <tr><td class="label">Node id (old direct-snap)</td><td>${p.node_id}</td></tr>
+    <tr><td class="label">Demand share</td><td>${(p.weight*100).toFixed(1)}%</td></tr>
+    <tr><td class="label">Connectors</td><td>${numConnectors}</td></tr>
+  </table>`;
+}
+const connectorCount = {};
+DATA.connectors.forEach(c => {
+  const key = `${c.endpoint}_${c.rank}`;
+  connectorCount[key] = (connectorCount[key] || 0) + 1;
+});
+[["Work", DATA.work, "#d62728", workLayer], ["Home", DATA.home, "#1f77b4", homeLayer]].forEach(([label, pts, color, layer]) => {
+  pts.forEach(p => {
+    const key = `${label.toLowerCase()}_${p.rank}`;
+    const n = connectorCount[key] || 0;
+    const marker = L.circleMarker([p.lat, p.lon], {
+      radius: 7 + p.weight * 14, color: '#222', weight: 1.5, fillColor: color, fillOpacity: 0.9,
+    }).addTo(layer);
+    marker.bindTooltip(`${label} #${p.rank} (${n})`, { permanent: true, direction: 'top', className: 'rank-label', offset: [0, -6] });
+    marker.bindPopup(subareaPopup(label, p, n));
+  });
+});
+
+// ---- built connectors ----
+DATA.connectors.forEach(c => {
+  L.polyline([[c.centroid[1], c.centroid[0]], [c.mid[1], c.mid[0]]], {
+    color: '#9467bd', weight: 4, opacity: 0.95,
+  }).addTo(connectorLayer).bindPopup(`
+    <table class="popup-table">
+      <tr><td class="label">Subarea</td><td>${c.endpoint} #${c.rank} (was node ${c.old_node})</td></tr>
+      <tr><td class="label">Attaches to</td><td>${c.road_name} (${c.tier})</td></tr>
+      <tr><td class="label">Connector length</td><td>${c.length_m.toFixed(0)} m</td></tr>
+    </table>
+  `);
+  L.circleMarker([c.mid[1], c.mid[0]], { radius: 5, color: '#222', weight: 1.5, fillColor: '#9467bd', fillOpacity: 1 })
+    .addTo(connectorLayer).bindTooltip(`attachment: ${c.road_name}`, { direction: 'right' });
+});
+
+roadLayer.addTo(map);
+boundaryLayer.addTo(map);
+workLayer.addTo(map);
+homeLayer.addTo(map);
+connectorLayer.addTo(map);
+
+L.control.layers(null, {
+  'Road network (11,219 edges)': roadLayer,
+  'LA County boundary': boundaryLayer,
+  'Work-end centroids': workLayer,
+  'Home-end centroids': homeLayer,
+  'Built connectors (12)': connectorLayer,
+}, { collapsed: false }).addTo(map);
+
+const legend = L.control({ position: 'bottomleft' });
+legend.onAdd = function() {
+  const div = L.DomUtil.create('div', 'legend-box');
+  div.innerHTML = `
+    <b>Legend</b><br>
+    <span class="dot" style="background:#d62728"></span> Work-end centroid (size = demand share, (n)=connector count)<br>
+    <span class="dot" style="background:#1f77b4"></span> Home-end centroid<br>
+    <span class="sw" style="background:#9467bd"></span> Connector: 1 per enclosing-block side, or 1 nearest if unenclosed<br>
+    <span class="sw dashed" style="border-color:#1b1b1b"></span> LA County boundary (Census TIGERweb)<br>
+    <i>All 12/12 subareas got exactly 1 connector in this run &mdash; every
+    centroid tested came back genuinely unenclosed by eligible roads
+    within 3km (confirmed via direct polygonize diagnostics, not a cap
+    artifact). Toggle on "Road network" and zoom to any centroid
+    (e.g. home #1 / node 40426) to inspect the real local topology
+    yourself.</i>
+  `;
+  return div;
+};
+legend.addTo(map);
+

@@ -1,0 +1,1256 @@
+{
+  "network": "hpms_la_links_noded (arterial/freeway/collector; locals excluded)",
+  "search_radius_m": 3000.0,
+  "max_face_area_m2": 300000.0,
+  "corridor_dedup_m": 50.0,
+  "rows": [
+    {
+      "endpoint": "work",
+      "subarea_rank": 0,
+      "faf5_node_id": 45844,
+      "weight": 0.307515,
+      "centroid_lonlat": [
+        -118.263906,
+        34.100231
+      ],
+      "n_local_edges_3km": 1331,
+      "n_eligible_edges_3km": 971,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 3,
+      "num_connectors_unique_segment": 4,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_21576",
+          "parent_e_id": "hpms_45642",
+          "route_id": "LA_LA_ARMSTRONG AVE_P",
+          "segment_key": "route:LA_LA_ARMSTRONG AVE_P",
+          "fraction": 0.5,
+          "length_m": 257.6174720144479,
+          "mid_lonlat": [
+            -118.2623844702477,
+            34.10220450855163
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_21576",
+          "parent_e_id": "hpms_45642",
+          "route_id": "LA_LA_ARMSTRONG AVE_P",
+          "segment_key": "route:LA_LA_ARMSTRONG AVE_P",
+          "fraction": 0.5,
+          "length_m": 257.6174720144479,
+          "mid_lonlat": [
+            -118.2623844702477,
+            34.10220450855163
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_45625",
+          "parent_e_id": "hpms_81768",
+          "route_id": "LA_LA_W SILVER LAKE DR_P",
+          "segment_key": "route:LA_LA_W SILVER LAKE DR_P",
+          "fraction": 0.5,
+          "length_m": 330.5378736099505,
+          "mid_lonlat": [
+            -118.26654421541436,
+            34.098162431303685
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_40185",
+          "parent_e_id": "hpms_74578",
+          "route_id": "LA_LA_SILVER LAKE BLVD_P",
+          "segment_key": "route:LA_LA_SILVER LAKE BLVD_P",
+          "fraction": 0.5,
+          "length_m": 687.1336511835492,
+          "mid_lonlat": [
+            -118.2632960550052,
+            34.094089540177656
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_40711",
+          "parent_e_id": "hpms_75690",
+          "route_id": "LA_LA_TESLA AVE_P",
+          "segment_key": "route:LA_LA_TESLA AVE_P",
+          "fraction": 0.5,
+          "length_m": 452.97039122963946,
+          "mid_lonlat": [
+            -118.2651754242493,
+            34.104138335422014
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Corridor/parent dedupe removed 1 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 4 unique-segment connectors (hits the 2\u20134 target)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "work",
+      "subarea_rank": 1,
+      "faf5_node_id": 43715,
+      "weight": 0.219108,
+      "centroid_lonlat": [
+        -118.408262,
+        34.008832
+      ],
+      "n_local_edges_3km": 1859,
+      "n_eligible_edges_3km": 1282,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 1,
+      "num_connectors_unique_segment": 2,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_23968",
+          "parent_e_id": "hpms_50564",
+          "route_id": "LA_LA_CULVER BLVD_P",
+          "segment_key": "route:LA_LA_CULVER BLVD_P",
+          "fraction": 0.5,
+          "length_m": 147.76876905551993,
+          "mid_lonlat": [
+            -118.40727033540897,
+            34.007808238624854
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_23968",
+          "parent_e_id": "hpms_50564",
+          "route_id": "LA_LA_CULVER BLVD_P",
+          "segment_key": "route:LA_LA_CULVER BLVD_P",
+          "fraction": 0.5,
+          "length_m": 147.76876905551993,
+          "mid_lonlat": [
+            -118.40727033540897,
+            34.007808238624854
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_3409",
+          "parent_e_id": "hpms_8606",
+          "route_id": "LA_CLC_ELENDA ST_P",
+          "segment_key": "route:LA_CLC_ELENDA ST_P",
+          "fraction": 0.5,
+          "length_m": 313.84755451613046,
+          "mid_lonlat": [
+            -118.40763081622148,
+            34.011616002700904
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Corridor/parent dedupe removed 3 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 2 unique-segment connectors (in/near 2\u20134 band, shy of 4)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "work",
+      "subarea_rank": 2,
+      "faf5_node_id": 42799,
+      "weight": 0.199567,
+      "centroid_lonlat": [
+        -118.194196,
+        33.872063
+      ],
+      "n_local_edges_3km": 1311,
+      "n_eligible_edges_3km": 860,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 1,
+      "num_connectors_unique_segment": 3,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_12038",
+          "parent_e_id": "hpms_27604",
+          "route_id": "LA_COM_E ARTESIA BLVD_P",
+          "segment_key": "route:LA_COM_E ARTESIA BLVD_P",
+          "fraction": 0.5,
+          "length_m": 253.12117657490043,
+          "mid_lonlat": [
+            -118.19405552397876,
+            33.87433779619407
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_12038",
+          "parent_e_id": "hpms_27604",
+          "route_id": "LA_COM_E ARTESIA BLVD_P",
+          "segment_key": "route:LA_COM_E ARTESIA BLVD_P",
+          "fraction": 0.5,
+          "length_m": 253.12117657490043,
+          "mid_lonlat": [
+            -118.19405552397876,
+            33.87433779619407
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_50056",
+          "parent_e_id": "hpms_89769",
+          "route_id": "LA_LBCH_E HARDING ST_P",
+          "segment_key": "route:LA_LBCH_E HARDING ST_P",
+          "fraction": 0.5,
+          "length_m": 749.6099979697001,
+          "mid_lonlat": [
+            -118.18855719541499,
+            33.86732674328156
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_51015",
+          "parent_e_id": "hpms_91545",
+          "route_id": "LA_LBCH_N LONG BEACH BLVD_P",
+          "segment_key": "route:LA_LBCH_N LONG BEACH BLVD_P",
+          "fraction": 0.5,
+          "length_m": 697.3517311048474,
+          "mid_lonlat": [
+            -118.20145188502123,
+            33.870162007608215
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Corridor/parent dedupe removed 3 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 3 unique-segment connectors (in/near 2\u20134 band, shy of 4)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "work",
+      "subarea_rank": 3,
+      "faf5_node_id": 36599,
+      "weight": 0.131229,
+      "centroid_lonlat": [
+        -118.534965,
+        34.235351
+      ],
+      "n_local_edges_3km": 740,
+      "n_eligible_edges_3km": 717,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [
+        324088.8746771093
+      ],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 2,
+      "num_connectors_unique_segment": 3,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_33651",
+          "parent_e_id": "hpms_66307",
+          "route_id": "LA_LA_NORDHOFF ST_P",
+          "segment_key": "route:LA_LA_NORDHOFF ST_P",
+          "fraction": 0.5,
+          "length_m": 18.580908933775653,
+          "mid_lonlat": [
+            -118.53507111944388,
+            34.23549100333156
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_33651",
+          "parent_e_id": "hpms_66307",
+          "route_id": "LA_LA_NORDHOFF ST_P",
+          "segment_key": "route:LA_LA_NORDHOFF ST_P",
+          "fraction": 0.5,
+          "length_m": 18.580908933775653,
+          "mid_lonlat": [
+            -118.53507111944388,
+            34.23549100333156
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_34917",
+          "parent_e_id": "hpms_68459",
+          "route_id": "LA_LA_RESEDA BLVD_P",
+          "segment_key": "route:LA_LA_RESEDA BLVD_P",
+          "fraction": 0.5,
+          "length_m": 210.65219224835838,
+          "mid_lonlat": [
+            -118.53608449672743,
+            34.23367700538652
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_24087",
+          "parent_e_id": "hpms_50792",
+          "route_id": "LA_LA_DARBY AVE_P",
+          "segment_key": "route:LA_LA_DARBY AVE_P",
+          "fraction": 0.5,
+          "length_m": 107.33885070695393,
+          "mid_lonlat": [
+            -118.53381952658698,
+            34.23556618586733
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Containing face exists but area=324,089 m\u00b2 exceeds max_face_area_m2=300,000 (superblock \u2192 treated as unenclosed).",
+        "Corridor/parent dedupe removed 2 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 3 unique-segment connectors (in/near 2\u20134 band, shy of 4)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "work",
+      "subarea_rank": 4,
+      "faf5_node_id": 39337,
+      "weight": 0.122637,
+      "centroid_lonlat": [
+        -117.935382,
+        34.06268
+      ],
+      "n_local_edges_3km": 912,
+      "n_eligible_edges_3km": 746,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [
+        352492.0141266136
+      ],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 2,
+      "num_connectors_unique_segment": 4,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_70403",
+          "parent_e_id": "hpms_130123",
+          "route_id": "LA_WCOV_S CALIFORNIA AVE_P",
+          "segment_key": "route:LA_WCOV_S CALIFORNIA AVE_P",
+          "fraction": 0.5,
+          "length_m": 242.20701018420579,
+          "mid_lonlat": [
+            -117.93758450522644,
+            34.06144629327426
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_70403",
+          "parent_e_id": "hpms_130123",
+          "route_id": "LA_WCOV_S CALIFORNIA AVE_P",
+          "segment_key": "route:LA_WCOV_S CALIFORNIA AVE_P",
+          "fraction": 0.5,
+          "length_m": 242.20701018420579,
+          "mid_lonlat": [
+            -117.93758450522644,
+            34.06144629327426
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_70583",
+          "parent_e_id": "hpms_130626",
+          "route_id": "LA_WCOV_W CAMERON AVE_P",
+          "segment_key": "route:LA_WCOV_W CAMERON AVE_P",
+          "fraction": 0.5,
+          "length_m": 188.50588460664625,
+          "mid_lonlat": [
+            -117.93333430347371,
+            34.06272510370476
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_70445",
+          "parent_e_id": "hpms_130221",
+          "route_id": "LA_WCOV_S GLENDORA AVE_P",
+          "segment_key": "route:LA_WCOV_S GLENDORA AVE_P",
+          "fraction": 0.5,
+          "length_m": 339.1091205748616,
+          "mid_lonlat": [
+            -117.93281322967518,
+            34.06054570265641
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_70098",
+          "parent_e_id": "hpms_129222",
+          "route_id": "LA_WCOV_E CAMERON AVE_P",
+          "segment_key": "route:LA_WCOV_E CAMERON AVE_P",
+          "fraction": 0.5,
+          "length_m": 647.6907383662085,
+          "mid_lonlat": [
+            -117.92859134953176,
+            34.061289551196936
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Containing face exists but area=352,492 m\u00b2 exceeds max_face_area_m2=300,000 (superblock \u2192 treated as unenclosed).",
+        "Corridor/parent dedupe removed 2 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 4 unique-segment connectors (hits the 2\u20134 target)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "work",
+      "subarea_rank": 5,
+      "faf5_node_id": 47926,
+      "weight": 0.019944,
+      "centroid_lonlat": [
+        -118.133075,
+        34.639578
+      ],
+      "n_local_edges_3km": 342,
+      "n_eligible_edges_3km": 269,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 1,
+      "num_connectors_unique_segment": 2,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_64262",
+          "parent_e_id": "hpms_118662",
+          "route_id": "LA_SCTA_SIERRA HWY_P",
+          "segment_key": "route:LA_SCTA_SIERRA HWY_P",
+          "fraction": 0.5,
+          "length_m": 528.9814872348559,
+          "mid_lonlat": [
+            -118.1274654173095,
+            34.64085790884547
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_64262",
+          "parent_e_id": "hpms_118662",
+          "route_id": "LA_SCTA_SIERRA HWY_P",
+          "segment_key": "route:LA_SCTA_SIERRA HWY_P",
+          "fraction": 0.5,
+          "length_m": 528.9814872348559,
+          "mid_lonlat": [
+            -118.1274654173095,
+            34.64085790884547
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_11369",
+          "parent_e_id": "hpms_26505",
+          "route_id": "LA_CO_W AVE M_P",
+          "segment_key": "route:LA_CO_W AVE M_P",
+          "fraction": 0.5,
+          "length_m": 697.9197704122352,
+          "mid_lonlat": [
+            -118.13243998052187,
+            34.64583681932229
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Corridor/parent dedupe removed 3 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 2 unique-segment connectors (in/near 2\u20134 band, shy of 4)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "home",
+      "subarea_rank": 0,
+      "faf5_node_id": 41702,
+      "weight": 0.247134,
+      "centroid_lonlat": [
+        -118.356911,
+        34.04949
+      ],
+      "n_local_edges_3km": 1680,
+      "n_eligible_edges_3km": 1527,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [
+        330320.9933822724
+      ],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 2,
+      "num_connectors_unique_segment": 2,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_28128",
+          "parent_e_id": "hpms_57250",
+          "route_id": "LA_LA_HAUSER BLVD_P",
+          "segment_key": "route:LA_LA_HAUSER BLVD_P",
+          "fraction": 0.5,
+          "length_m": 76.75305132869342,
+          "mid_lonlat": [
+            -118.35624590666998,
+            34.04991929040868
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_28128",
+          "parent_e_id": "hpms_57250",
+          "route_id": "LA_LA_HAUSER BLVD_P",
+          "segment_key": "route:LA_LA_HAUSER BLVD_P",
+          "fraction": 0.5,
+          "length_m": 76.75305132869342,
+          "mid_lonlat": [
+            -118.35624590666998,
+            34.04991929040868
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_45494",
+          "parent_e_id": "hpms_81616",
+          "route_id": "LA_LA_W PICO BLVD_P",
+          "segment_key": "route:LA_LA_W PICO BLVD_P",
+          "fraction": 0.5,
+          "length_m": 84.84666486768853,
+          "mid_lonlat": [
+            -118.35719935943374,
+            34.04876010438012
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Containing face exists but area=330,321 m\u00b2 exceeds max_face_area_m2=300,000 (superblock \u2192 treated as unenclosed).",
+        "Corridor/parent dedupe removed 2 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 2 unique-segment connectors (in/near 2\u20134 band, shy of 4)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "home",
+      "subarea_rank": 1,
+      "faf5_node_id": 40426,
+      "weight": 0.242627,
+      "centroid_lonlat": [
+        -118.224029,
+        33.863455
+      ],
+      "n_local_edges_3km": 915,
+      "n_eligible_edges_3km": 601,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 3,
+      "num_connectors_unique_segment": 4,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_12274",
+          "parent_e_id": "hpms_27953",
+          "route_id": "LA_COM_E VICTORIA ST_P",
+          "segment_key": "route:LA_COM_E VICTORIA ST_P",
+          "fraction": 0.5,
+          "length_m": 195.30185364133695,
+          "mid_lonlat": [
+            -118.22216685555713,
+            33.86432706564935
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_12274",
+          "parent_e_id": "hpms_27953",
+          "route_id": "LA_COM_E VICTORIA ST_P",
+          "segment_key": "route:LA_COM_E VICTORIA ST_P",
+          "fraction": 0.5,
+          "length_m": 195.30185364133695,
+          "mid_lonlat": [
+            -118.22216685555713,
+            33.86432706564935
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_12933",
+          "parent_e_id": "hpms_29039",
+          "route_id": "LA_COM_W VICTORIA ST_P",
+          "segment_key": "route:LA_COM_W VICTORIA ST_P",
+          "fraction": 0.5,
+          "length_m": 781.3861193079558,
+          "mid_lonlat": [
+            -118.23112321824932,
+            33.867146242949005
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_13777",
+          "parent_e_id": "hpms_31044",
+          "route_id": "LA_CRSN_S ALAMEDA ST_P",
+          "segment_key": "route:LA_CRSN_S ALAMEDA ST_P",
+          "fraction": 0.5,
+          "length_m": 696.7152839673236,
+          "mid_lonlat": [
+            -118.21693643441358,
+            33.8614513142346
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_13579",
+          "parent_e_id": "hpms_30607",
+          "route_id": "LA_CRSN_E UNIVERSITY DR_P",
+          "segment_key": "route:LA_CRSN_E UNIVERSITY DR_P",
+          "fraction": 0.5,
+          "length_m": 914.76320188732,
+          "mid_lonlat": [
+            -118.23171906189398,
+            33.858110978426005
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Corridor/parent dedupe removed 1 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 4 unique-segment connectors (hits the 2\u20134 target)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "home",
+      "subarea_rank": 2,
+      "faf5_node_id": 36607,
+      "weight": 0.17701,
+      "centroid_lonlat": [
+        -118.506728,
+        34.254543
+      ],
+      "n_local_edges_3km": 938,
+      "n_eligible_edges_3km": 768,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [
+        323914.0159629107
+      ],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 3,
+      "num_connectors_unique_segment": 4,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_21424",
+          "parent_e_id": "hpms_45270",
+          "route_id": "LA_LA_AMESTOY AVE_P",
+          "segment_key": "route:LA_LA_AMESTOY AVE_P",
+          "fraction": 0.5,
+          "length_m": 132.13188979940745,
+          "mid_lonlat": [
+            -118.50672032508027,
+            34.25573006791535
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_21424",
+          "parent_e_id": "hpms_45270",
+          "route_id": "LA_LA_AMESTOY AVE_P",
+          "segment_key": "route:LA_LA_AMESTOY AVE_P",
+          "fraction": 0.5,
+          "length_m": 132.13188979940745,
+          "mid_lonlat": [
+            -118.50672032508027,
+            34.25573006791535
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_31363",
+          "parent_e_id": "hpms_62627",
+          "route_id": "LA_LA_MAYALL ST_P",
+          "segment_key": "route:LA_LA_MAYALL ST_P",
+          "fraction": 0.5,
+          "length_m": 69.78406958024354,
+          "mid_lonlat": [
+            -118.50673699278875,
+            34.253915998928825
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_24334",
+          "parent_e_id": "hpms_51353",
+          "route_id": "LA_LA_DEVONSHIRE ST_P",
+          "segment_key": "route:LA_LA_DEVONSHIRE ST_P",
+          "fraction": 0.5,
+          "length_m": 340.0893929289483,
+          "mid_lonlat": [
+            -118.50591041989512,
+            34.257538915056436
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_22006",
+          "parent_e_id": "hpms_46269",
+          "route_id": "LA_LA_BALBOA BLVD_P",
+          "segment_key": "route:LA_LA_BALBOA BLVD_P",
+          "fraction": 0.5,
+          "length_m": 402.19772983916755,
+          "mid_lonlat": [
+            -118.5023652619788,
+            34.25429919107928
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Containing face exists but area=323,914 m\u00b2 exceeds max_face_area_m2=300,000 (superblock \u2192 treated as unenclosed).",
+        "Corridor/parent dedupe removed 1 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 4 unique-segment connectors (hits the 2\u20134 target)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "home",
+      "subarea_rank": 3,
+      "faf5_node_id": 45215,
+      "weight": 0.16568,
+      "centroid_lonlat": [
+        -118.160318,
+        34.090073
+      ],
+      "n_local_edges_3km": 982,
+      "n_eligible_edges_3km": 806,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 2,
+      "num_connectors_unique_segment": 3,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_34692",
+          "parent_e_id": "hpms_67910",
+          "route_id": "LA_LA_POPLAR BLVD_P",
+          "segment_key": "route:LA_LA_POPLAR BLVD_P",
+          "fraction": 0.5,
+          "length_m": 392.3904971786321,
+          "mid_lonlat": [
+            -118.15608487213441,
+            34.08972972922005
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_34692",
+          "parent_e_id": "hpms_67910",
+          "route_id": "LA_LA_POPLAR BLVD_P",
+          "segment_key": "route:LA_LA_POPLAR BLVD_P",
+          "fraction": 0.5,
+          "length_m": 392.3904971786321,
+          "mid_lonlat": [
+            -118.15608487213441,
+            34.08972972922005
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_28614",
+          "parent_e_id": "hpms_58054",
+          "route_id": "LA_LA_HUNTINGTON DR N_P",
+          "segment_key": "route:LA_LA_HUNTINGTON DR N_P",
+          "fraction": 0.5,
+          "length_m": 298.4423561111142,
+          "mid_lonlat": [
+            -118.16289271546572,
+            34.091653179455136
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_811",
+          "parent_e_id": "hpms_2932",
+          "route_id": "LA_ALH_W COMMONWEALTH AVE_P",
+          "segment_key": "route:LA_ALH_W COMMONWEALTH AVE_P",
+          "fraction": 0.5,
+          "length_m": 505.19549886427006,
+          "mid_lonlat": [
+            -118.15621262666508,
+            34.08713971938827
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Corridor/parent dedupe removed 2 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 3 unique-segment connectors (in/near 2\u20134 band, shy of 4)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "home",
+      "subarea_rank": 4,
+      "faf5_node_id": 39339,
+      "weight": 0.131132,
+      "centroid_lonlat": [
+        -117.912559,
+        34.048708
+      ],
+      "n_local_edges_3km": 610,
+      "n_eligible_edges_3km": 501,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 2,
+      "num_connectors_unique_segment": 3,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_6305",
+          "parent_e_id": "hpms_15232",
+          "route_id": "LA_CO_E FRANCISQUITO AVE_P",
+          "segment_key": "route:LA_CO_E FRANCISQUITO AVE_P",
+          "fraction": 0.5,
+          "length_m": 200.62068813422204,
+          "mid_lonlat": [
+            -117.91135152822736,
+            34.050232459752735
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_6305",
+          "parent_e_id": "hpms_15232",
+          "route_id": "LA_CO_E FRANCISQUITO AVE_P",
+          "segment_key": "route:LA_CO_E FRANCISQUITO AVE_P",
+          "fraction": 0.5,
+          "length_m": 200.62068813422204,
+          "mid_lonlat": [
+            -117.91135152822736,
+            34.050232459752735
+          ],
+          "road_name": null,
+          "tier": "collector",
+          "hpms_fclass": 5,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_7263",
+          "parent_e_id": "hpms_18259",
+          "route_id": "LA_CO_LARK ELLEN AVE_P",
+          "segment_key": "route:LA_CO_LARK ELLEN AVE_P",
+          "fraction": 0.5,
+          "length_m": 403.83869546401337,
+          "mid_lonlat": [
+            -117.91686008999218,
+            34.04933495470711
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_5012",
+          "parent_e_id": "hpms_11658",
+          "route_id": "LA_CO_AZUSA AVE_P",
+          "segment_key": "route:LA_CO_AZUSA AVE_P",
+          "fraction": 0.5,
+          "length_m": 428.3196408221144,
+          "mid_lonlat": [
+            -117.90793257194109,
+            34.049200418642236
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Corridor/parent dedupe removed 2 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 3 unique-segment connectors (in/near 2\u20134 band, shy of 4)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    },
+    {
+      "endpoint": "home",
+      "subarea_rank": 5,
+      "faf5_node_id": 36922,
+      "weight": 0.036417,
+      "centroid_lonlat": [
+        -118.125249,
+        34.624056
+      ],
+      "n_local_edges_3km": 410,
+      "n_eligible_edges_3km": 306,
+      "enclosed": false,
+      "enclosing_face_area_m2": null,
+      "containing_oversized_face_areas_m2": [],
+      "num_connectors_uncapped": 1,
+      "num_connectors_target_k4_raw_deduped": 1,
+      "num_connectors_unique_segment": 2,
+      "connectors_uncapped": [
+        {
+          "e_id": "hpmsn_64249",
+          "parent_e_id": "hpms_118649",
+          "route_id": "LA_SCTA_SIERRA HWY_P",
+          "segment_key": "route:LA_SCTA_SIERRA HWY_P",
+          "fraction": 0.5,
+          "length_m": 68.34674151537368,
+          "mid_lonlat": [
+            -118.12473202381801,
+            34.62362206434576
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "connectors_unique_segment": [
+        {
+          "e_id": "hpmsn_64249",
+          "parent_e_id": "hpms_118649",
+          "route_id": "LA_SCTA_SIERRA HWY_P",
+          "segment_key": "route:LA_SCTA_SIERRA HWY_P",
+          "fraction": 0.5,
+          "length_m": 68.34674151537368,
+          "mid_lonlat": [
+            -118.12473202381801,
+            34.62362206434576
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 3,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        },
+        {
+          "e_id": "hpmsn_58750",
+          "parent_e_id": "hpms_106701",
+          "route_id": "LA_PMDL_DIVISION ST_P",
+          "segment_key": "route:LA_PMDL_DIVISION ST_P",
+          "fraction": 0.5,
+          "length_m": 527.595153144398,
+          "mid_lonlat": [
+            -118.1300855951651,
+            34.62137820705444
+          ],
+          "road_name": null,
+          "tier": "arterial",
+          "hpms_fclass": 4,
+          "road_bridge": "no",
+          "road_tunnel": "no"
+        }
+      ],
+      "short_of_2_to_4": false,
+      "reasons": [
+        "Centroid NOT inside a polygonized eligible-road block face \u2264 300,000 m\u00b2 \u2014 uncapped rule returns nearest eligible edge only.",
+        "Corridor/parent dedupe removed 3 of 4 raw target_k=4 candidates (same parent_e_id or <50m apart).",
+        "Have 2 unique-segment connectors (in/near 2\u20134 band, shy of 4)."
+      ],
+      "rules": {
+        "max_per_route_id": 1,
+        "max_per_parent_e_id": 1,
+        "corridor_dedup_m": 50.0,
+        "eligibility": "is_eligible_attachment_edge (no freeway/ramp/bridge/tunnel)",
+        "fraction": 0.5
+      }
+    }
+  ]
+}

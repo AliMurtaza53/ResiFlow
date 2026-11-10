@@ -1,0 +1,7 @@
+{
+  "paths": {
+    "soge_clusters": "/scratch/akothaw/multimodal_hazard_data/scratch_tests/hpms_la_challenger/isolated_base",
+    "base_path": "/scratch/akothaw/multimodal_hazard_data/scratch_tests/hpms_la_challenger/isolated_base",
+    "output_path": "/scratch/akothaw/multimodal_hazard_data/results"
+  }
+}

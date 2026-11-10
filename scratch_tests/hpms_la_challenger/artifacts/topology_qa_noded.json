@@ -1,0 +1,30 @@
+{
+  "n_directed_edges": 182307,
+  "n_physical_edges": 91671,
+  "n_nodes": 84393,
+  "n_components": 421,
+  "largest_component_frac_nodes": 0.9804486154064911,
+  "top5_component_sizes": [
+    82743,
+    97,
+    81,
+    58,
+    40
+  ],
+  "n_junction_nodes_deg_ge3": 11339,
+  "junction_frac_nodes": 0.13435948479139265,
+  "degree_histogram": {
+    "1": 4734,
+    "2": 68320,
+    "3": 3525,
+    "4": 7787,
+    "5": 23,
+    "6": 4
+  },
+  "tier_counts_physical": {
+    "arterial": 60309,
+    "freeway": 17926,
+    "collector": 13436
+  },
+  "unmatched_segments": 0
+}

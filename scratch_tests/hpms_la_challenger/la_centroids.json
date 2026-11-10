@@ -1,0 +1,19 @@
+{
+  "_source": "Hopper v3_vehicle_trips passenger_{home,work}_crosswalk.csv filtered county_fips=6037",
+  "home": [
+    {"subarea_rank": 0, "lon": -118.356911, "lat": 34.049490, "weight": 0.247134, "faf5_node_id": 41702},
+    {"subarea_rank": 1, "lon": -118.224029, "lat": 33.863455, "weight": 0.242627, "faf5_node_id": 40426},
+    {"subarea_rank": 2, "lon": -118.506728, "lat": 34.254543, "weight": 0.177010, "faf5_node_id": 36607},
+    {"subarea_rank": 3, "lon": -118.160318, "lat": 34.090073, "weight": 0.165680, "faf5_node_id": 45215},
+    {"subarea_rank": 4, "lon": -117.912559, "lat": 34.048708, "weight": 0.131132, "faf5_node_id": 39339},
+    {"subarea_rank": 5, "lon": -118.125249, "lat": 34.624056, "weight": 0.036417, "faf5_node_id": 36922}
+  ],
+  "work": [
+    {"subarea_rank": 0, "lon": -118.263906, "lat": 34.100231, "weight": 0.307515, "faf5_node_id": 45844},
+    {"subarea_rank": 1, "lon": -118.408262, "lat": 34.008832, "weight": 0.219108, "faf5_node_id": 43715},
+    {"subarea_rank": 2, "lon": -118.194196, "lat": 33.872063, "weight": 0.199567, "faf5_node_id": 42799},
+    {"subarea_rank": 3, "lon": -118.534965, "lat": 34.235351, "weight": 0.131229, "faf5_node_id": 36599},
+    {"subarea_rank": 4, "lon": -117.935382, "lat": 34.062680, "weight": 0.122637, "faf5_node_id": 39337},
+    {"subarea_rank": 5, "lon": -118.133075, "lat": 34.639578, "weight": 0.019944, "faf5_node_id": 47926}
+  ]
+}

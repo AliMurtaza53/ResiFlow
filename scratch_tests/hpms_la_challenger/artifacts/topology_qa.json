@@ -1,0 +1,35 @@
+{
+  "snap_m": 1.0,
+  "n_directed_edges": 153487,
+  "n_physical_edges": 77121,
+  "n_nodes": 79355,
+  "skipped_geoms": 3541,
+  "n_components": 2669,
+  "largest_component_nodes": 61522,
+  "largest_component_frac_nodes": 0.7752756600088211,
+  "top5_component_sizes": [
+    61522,
+    1282,
+    702,
+    548,
+    496
+  ],
+  "n_junction_nodes_deg_ge3": 1856,
+  "junction_frac_nodes": 0.02338857034843425,
+  "degree_histogram": {
+    "1": 7012,
+    "2": 70482,
+    "3": 1201,
+    "4": 650,
+    "5": 5
+  },
+  "tier_counts_physical": {
+    "arterial": 51802,
+    "freeway": 17029,
+    "collector": 8290
+  },
+  "n_missing_tier": 0,
+  "n_bridge": 5611,
+  "n_tunnel": 0,
+  "n_oneway_facility": 755
+}
