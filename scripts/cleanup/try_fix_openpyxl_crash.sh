@@ -14,7 +14,25 @@
 # downgrading pandas is a bigger decision (affects the whole pipeline) and
 # is left for a human to decide if step 1 doesn't work.
 set -euo pipefail
-PYTHON="C:\Users\akothaw\AppData\Local\miniforge3\envs\nird\python.exe"
+
+# Works from Git Bash (/c/...), WSL (/mnt/c/...), or native Windows paths --
+# pick whichever of these actually exists on this shell.
+for candidate in \
+  "/mnt/c/Users/akothaw/AppData/Local/miniforge3/envs/nird/python.exe" \
+  "/c/Users/akothaw/AppData/Local/miniforge3/envs/nird/python.exe" \
+  "C:\Users\akothaw\AppData\Local\miniforge3\envs\nird\python.exe"
+do
+  if [ -e "$candidate" ]; then
+    PYTHON="$candidate"
+    break
+  fi
+done
+if [ -z "${PYTHON:-}" ]; then
+  echo "Could not find the nird env's python.exe from this shell. Edit the" >&2
+  echo "candidate list at the top of this script to match your path." >&2
+  exit 1
+fi
+echo "Using: $PYTHON"
 
 repro() {
   "$PYTHON" -c "

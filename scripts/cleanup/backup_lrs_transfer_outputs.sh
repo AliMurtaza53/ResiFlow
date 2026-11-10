@@ -9,10 +9,21 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-SRC="/c/Users/akothaw/Desktop/data/faf5_data/network_data/hpms_transfer"
+# Works from Git Bash (/c/...), WSL (/mnt/c/...), or native Windows paths.
+SRC=""
+for candidate in \
+  "/mnt/c/Users/akothaw/Desktop/data/faf5_data/network_data/hpms_transfer" \
+  "/c/Users/akothaw/Desktop/data/faf5_data/network_data/hpms_transfer" \
+  "C:\Users\akothaw\Desktop\data\faf5_data\network_data\hpms_transfer"
+do
+  if [ -d "$candidate" ]; then
+    SRC="$candidate"
+    break
+  fi
+done
 DEST="parameters/tables/_backup_hpms_lrs_transfer_$(date +%Y%m%d)"
 
-if [ ! -d "$SRC" ]; then
+if [ -z "$SRC" ] || [ ! -d "$SRC" ]; then
   echo "Source not found at $SRC -- nothing to back up (already moved/lost?)."
   exit 1
 fi
