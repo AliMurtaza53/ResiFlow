@@ -13,6 +13,16 @@
 # reports whether each step clears the repro. It does NOT change pandas --
 # downgrading pandas is a bigger decision (affects the whole pipeline) and
 # is left for a human to decide if step 1 doesn't work.
+#
+# UPDATE 2026-11-10: a reinstall DID clear this script's simple one-row
+# repro, but the real crash still reproduces in the actual test fixtures
+# (tests/sioux_falls_fixtures.py::write_sioux_falls_damage_workbooks,
+# tests/toy_pipeline_fixtures.py::write_damage_workbooks) -- those write
+# multiple sheets with real styling, which this script's repro doesn't
+# exercise. The simple repro below is not sufficient evidence of a fix;
+# rerun one of the real crashing test files directly to confirm before
+# believing "FIXED". Still unresolved as of this date -- the 6 test files
+# listed in run_full_test_suite.sh still need excluding.
 set -euo pipefail
 
 # Works from Git Bash (/c/...), WSL (/mnt/c/...), or native Windows paths --
