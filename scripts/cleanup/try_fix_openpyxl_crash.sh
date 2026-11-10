@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Diagnose/attempt a fix for the native access-violation crash when pandas
+# writes an .xlsx via openpyxl in the `nird` conda env. Confirmed repro:
+#   python -c "import pandas as pd; pd.DataFrame({'a':[1]}).to_excel('x.xlsx')"
+# crashes with "Windows fatal exception: access violation" inside
+# openpyxl's workbook._setup_styles -> copy.copy on this machine, with
+# pandas 3.0.3 + openpyxl 3.1.5. pandas 3.0 is a very recent major version;
+# this smells like an openpyxl/pandas ABI mismatch rather than a ResiFlow
+# bug (every test that fails this way fails in the Excel-writing fixture
+# code, never in anything this project wrote).
+#
+# This script tries the cheapest fix first (reinstall openpyxl clean) and
+# reports whether each step clears the repro. It does NOT change pandas --
+# downgrading pandas is a bigger decision (affects the whole pipeline) and
+# is left for a human to decide if step 1 doesn't work.
+set -euo pipefail
+PYTHON="C:\Users\akothaw\AppData\Local\miniforge3\envs\nird\python.exe"
+
+repro() {
+  "$PYTHON" -c "
+import pandas as pd, tempfile, os
+p = os.path.join(tempfile.gettempdir(), 'resiflow_openpyxl_repro.xlsx')
+pd.DataFrame({'a':[1]}).to_excel(p)
+print('OK: xlsx write succeeded')
+" 2>&1
+}
+
+echo "=== baseline repro ==="
+repro || true
+
+echo
+echo "=== step 1: clean reinstall of openpyxl ==="
+"$PYTHON" -m pip uninstall -y openpyxl
+"$PYTHON" -m pip install --no-cache-dir openpyxl
+repro && { echo "FIXED by reinstalling openpyxl."; exit 0; } || true
+
+echo
+echo "=== step 2: try the latest openpyxl release explicitly ==="
+"$PYTHON" -m pip install --no-cache-dir --upgrade openpyxl
+repro && { echo "FIXED by upgrading openpyxl."; exit 0; } || true
+
+echo
+echo "Neither step fixed it. Next option (not automated here -- bigger call):"
+echo "  pin pandas to <3.0 in environment.yml/pyproject.toml and recreate the env,"
+echo "  since pandas 3.0 is very new and openpyxl 3.1.5 predates it."
+echo "Report back to the user with these results rather than guessing further."
