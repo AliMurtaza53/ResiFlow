@@ -58,3 +58,13 @@ scripts/figures/*.pdf
 .vscode/
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Accidental shell redirects (e.g. `cmd > $LOG`)
+/$LOG
+
+# One-off local viz experiments (not ResiFlow product code)
+interactive_map_work/
+
+# HPMS-LA challenger: keep scripts/config/QA JSON; ignore bulky regenerable parquet
+scratch_tests/**/artifacts/*.parquet
