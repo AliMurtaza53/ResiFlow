@@ -1,3 +1,8 @@
+**See `docs/CORRECTNESS_AND_PERFORMANCE_LESSONS.md` for recurring bug classes
+(node-id dtype mismatches, timing-vs-correctness conflation, `--time` budgeting)
+that have cost real compute on this pipeline more than once — check it before
+trusting a new "speedup."**
+
 ## CONUS-scale performance: bottlenecks and mitigation options
 
 ResiFlow’s CONUS path is a **four-stage, CPU-bound geospatial + network-assignment pipeline** on the full FAF5 road layer (~**484k directed links**; Script 2 logs show raster prefilter from ~484k → hazard extent subset) with county-level freight OD (optionally merged with LODES passenger OD). Current smoke configuration (`scripts/run_conus_smoke_50k.ps1`) subsamples to **50k OD rows**, caps assignment to **2 iterations**, runs **freight + passenger**, and executes **Pass A → Script 2 (×3 events) → Script 3 → Pass B → Script 4 (×3 events)**. Sioux Falls multihazard (24 nodes, 6 hazards) completes in **~5 min**; CONUS smoke at 50k OD is **~1.5–3 h** wall-clock on a single workstation (order-of-magnitude; dominated by Scripts 1 and 4). Full CONUS with unconstrained OD and full equilibrium convergence is not yet a practical single-machine run without further algorithmic or infrastructure changes.
