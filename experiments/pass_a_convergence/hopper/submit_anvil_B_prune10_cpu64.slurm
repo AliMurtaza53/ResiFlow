@@ -6,12 +6,13 @@
 # Tests: H7 does a coarser prune shorten the tail (delivered_frac_cum at iteration 3 vs 0.7727 baseline), H3 scaling point at 64 workers (per-phase rates), H4 memory at 64 workers, H2 hardware.
 # Runtime factors (workers, memory, node type) do not change the numbers (proven on Hopper through iteration 3), so each run varies
 # one algorithm setting AND one runtime setting at once; compare trajectories to the Hopper baseline, compare per-phase rates for runtime.
+# NOTE: --mem=240G was rejected by sbatch ("CPU count per node can not be satisfied": memory inflates the CPU count past a node), 220G is the value that worked for the earlier 64-core Anvil job.
 # ANVIL GOTCHAS: worker count is a LITERAL on the python line (a large --mem can inflate CPUs on shared); shared bills memory as a core
-# fraction (~2 GB/core), so --mem=240G bills like ~120 cores/hour whatever --cpus-per-task is.
+# fraction (~2 GB/core), so --mem=220G bills like ~110 cores/hour whatever --cpus-per-task is.
 # --time=06:00:00 is a ceiling, not a prediction (Hopper streaming NumCpu=8: ~1.0-1.4 h per iteration).
 #SBATCH --time=06:00:00
 #SBATCH --cpus-per-task=64
-#SBATCH --mem=240G
+#SBATCH --mem=220G
 #SBATCH --output=/home/x-akothawala/multimodal_hazard_project/logs_anvil_B_prune10_cpu64_%j.out
 #SBATCH --error=/home/x-akothawala/multimodal_hazard_project/logs_anvil_B_prune10_cpu64_%j.err
 module purge
