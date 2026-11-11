@@ -871,7 +871,8 @@ def update_network_structure(
     # capacity (matches upstream DAFNI-NIRD df56a1d, 2026-02-25; ResiFlow had
     # been on the stricter pre-fix 0.1% threshold — see
     # notes/perf_findings/GOAL6_UPSTREAM_DRIFT_AUDIT.md)
-    mask = (temp_edge_flow["acc_capacity"] < 1) | (ratio < 0.01)
+    # threshold is RESIFLOW_EDGE_PRUNE_RATIO (default 0.01)
+    mask = (temp_edge_flow["acc_capacity"] < 1) | (ratio < _edge_prune_ratio())
     _log_capacity_blocked_edges(iter_flag, temp_edge_flow, road_links_valid, mask)
     # drop fully utilised edges from the network
     zero_capacity_edges = set(
@@ -2915,6 +2916,115 @@ def itter_path(
     return
 
 
+def _edge_prune_ratio() -> float:
+    """Residual/original capacity ratio below which an edge is pruned (env ``RESIFLOW_EDGE_PRUNE_RATIO``, default 0.01)."""
+    raw = os.environ.get("RESIFLOW_EDGE_PRUNE_RATIO", "0.01")
+    ratio = float(raw)
+    if not 0.0 <= ratio <= 1.0:
+        raise ValueError(f"RESIFLOW_EDGE_PRUNE_RATIO must be in [0, 1], got {raw!r}")
+    return ratio
+
+
+def _invariant_raise_enabled() -> bool:
+    return _env_flag("RESIFLOW_INVARIANT_RAISE")
+
+
+def _check_capacity_invariant(road_links, iteration: int) -> dict:
+    """Log whether any edge was loaded past its capacity (``acc_capacity`` below zero).
+
+    Format: ``INVARIANT capacity ok=<bool> iteration=<k> violating_edges=<n> max_overshoot=<f>``.
+    Logs at WARNING on violation; raises AssertionError if RESIFLOW_INVARIANT_RAISE=1.
+    """
+    resid = pd.to_numeric(road_links["acc_capacity"], errors="coerce")
+    cap = pd.to_numeric(road_links["current_capacity"], errors="coerce").abs()
+    overshoot = (-resid).clip(lower=0.0)
+    bad = overshoot > (1e-6 * cap + 1e-6)
+    n_bad = int(bad.sum())
+    max_over = float(overshoot.max()) if len(overshoot) else 0.0
+    ok = n_bad == 0
+    logging.log(
+        logging.INFO if ok else logging.WARNING,
+        "INVARIANT capacity ok=%s iteration=%d violating_edges=%d max_overshoot=%.6g",
+        ok, iteration, n_bad, max_over,
+    )
+    if not ok and _invariant_raise_enabled():
+        raise AssertionError(f"capacity invariant violated at iteration {iteration}: {n_bad} edges")
+    return {"ok": ok, "violating_edges": n_bad, "max_overshoot": max_over}
+
+
+def _emit_iteration_audit(
+    conn,
+    network,
+    *,
+    iteration: int,
+    initial: float,
+    delivered: float,
+    delivered_cum: float,
+    iso_struct: float,
+    iso_cong: float,
+    iso_struct_cum: float,
+    iso_cong_cum: float,
+    wall_s: float,
+    edges_deleted: Optional[int] = None,
+) -> dict:
+    """Log one ``ITER_AUDIT`` line and the demand-conservation invariant for an iteration.
+
+    ``ITER_AUDIT`` is space-separated ``key=value`` (stable; parse by key, not position)::
+
+        ITER_AUDIT iteration=<k> delivered=<f> delivered_cum=<f> delivered_frac_cum=<f>
+          isolated_structural=<f> isolated_congestion=<f>
+          isolated_structural_cum=<f> isolated_congestion_cum=<f>
+          remain=<f> remain_frac=<f> edges_deleted=<int|NA> origins_no_out_edges=<int>
+          iter_wall_s=<f>
+
+    ``delivered`` is flow actually loaded this iteration (the ``Post-realization
+    assigned_iter_sum`` value), unlike the older ``assigned_delta``/``assigned_fraction``
+    lines, which measure the drop in ``remain_od`` and so include newly isolated demand.
+    ``isolated_structural`` is demand with no path (or an absent node) at iteration 1;
+    ``isolated_congestion`` is the same after edges were deleted in earlier iterations.
+    ``edges_deleted`` is NA on stop iterations (no pruning step runs).
+
+    Then ``INVARIANT conservation ok=<bool> iteration=<k> residual=<f> tol=<f>`` where
+    ``residual = initial - (delivered_cum + isolated_*_cum + remain)``; tolerance is
+    ``RESIFLOW_INVARIANT_REL_TOL`` (default 1e-6) times initial demand. WARNING on
+    violation; AssertionError if RESIFLOW_INVARIANT_RAISE=1.
+    """
+    remain = float(
+        conn.execute("SELECT COALESCE(SUM(Car21), 0.0) FROM remain_od").fetchone()[0] or 0.0
+    )
+    origins = [r[0] for r in conn.execute("SELECT DISTINCT origin_node FROM remain_od").fetchall()]
+    name_idx = {str(n): i for i, n in enumerate(network.vs["name"])}
+    out_deg = network.degree(mode="out")
+    no_out = 0
+    for origin in origins:
+        idx = name_idx.get(str(origin))
+        if idx is None or out_deg[idx] == 0:
+            no_out += 1
+    frac = (lambda x: x / initial) if initial > 0 else (lambda x: 0.0)
+    logging.info(
+        "ITER_AUDIT iteration=%d delivered=%.10g delivered_cum=%.10g delivered_frac_cum=%.8f "
+        "isolated_structural=%.10g isolated_congestion=%.10g "
+        "isolated_structural_cum=%.10g isolated_congestion_cum=%.10g "
+        "remain=%.10g remain_frac=%.8f edges_deleted=%s origins_no_out_edges=%d iter_wall_s=%.2f",
+        iteration, delivered, delivered_cum, frac(delivered_cum),
+        iso_struct, iso_cong, iso_struct_cum, iso_cong_cum,
+        remain, frac(remain), "NA" if edges_deleted is None else edges_deleted, no_out, wall_s,
+    )
+    residual = initial - (delivered_cum + iso_struct_cum + iso_cong_cum + remain)
+    tol = float(os.environ.get("RESIFLOW_INVARIANT_REL_TOL", "1e-6")) * max(initial, 1.0)
+    ok = abs(residual) <= tol
+    logging.log(
+        logging.INFO if ok else logging.WARNING,
+        "INVARIANT conservation ok=%s iteration=%d residual=%.6g tol=%.6g",
+        ok, iteration, residual, tol,
+    )
+    if not ok and _invariant_raise_enabled():
+        raise AssertionError(
+            f"demand conservation violated at iteration {iteration}: residual={residual}"
+        )
+    return {"remain": remain, "origins_no_out_edges": no_out, "residual": residual, "ok": ok}
+
+
 def network_flow_model(
     road_links: gpd.GeoDataFrame,
     network: igraph.Graph,
@@ -3229,8 +3339,12 @@ def network_flow_model(
             "Persistent LCP worker pool created once (num_of_cpu=%s).", num_of_cpu
         )
 
+    iso_struct_cum = 0.0
+    iso_cong_cum = 0.0
     while total_remain > 0:
         previous_total_remain = total_remain
+        iter_t0 = time.time()
+        assigned_iter_sum = 0.0
         logging.info(f"No.{iter_flag} iteration starts:")
         _log_rss(f"iter{iter_flag}_start")
         # remove OD pairs whose nodes are not present in the current network
@@ -3266,6 +3380,7 @@ def network_flow_model(
         conn.unregister("current_valid_nodes")
         conn.execute("DROP TABLE IF EXISTS isolated_tmp")
         logging.info(f"Initial isolated flows: {temp_isolation}")
+        iso_nodes = temp_isolation
 
         # dump the network and edge weight for shared use in multiprocessing
         # (only needed when actually spawning worker processes; skip the
@@ -3612,6 +3727,11 @@ def network_flow_model(
             or 0.0
         )
         logging.info(f"Non_allocated_flow: {temp_isolation}")
+        iter_iso = iso_nodes + temp_isolation
+        iter_iso_struct = iter_iso if iter_flag == 1 else 0.0
+        iter_iso_cong = 0.0 if iter_flag == 1 else iter_iso
+        iso_struct_cum += iter_iso_struct
+        iso_cong_cum += iter_iso_cong
         if temp_isolation > 0:
             conn.execute(
                 """
@@ -3643,6 +3763,13 @@ def network_flow_model(
             or 0
         )
         if temp_flow_count == 0:
+            _emit_iteration_audit(
+                conn, network, iteration=iter_flag, initial=initial_sumod,
+                delivered=0.0, delivered_cum=assigned_sumod,
+                iso_struct=iter_iso_struct, iso_cong=iter_iso_cong,
+                iso_struct_cum=iso_struct_cum, iso_cong_cum=iso_cong_cum,
+                wall_s=time.time() - iter_t0, edges_deleted=None,
+            )
             logging.info("Stop: no remaining flows!")
             conn.execute("DROP TABLE IF EXISTS temp_flow_matrix_input")
             break
@@ -4068,6 +4195,7 @@ def network_flow_model(
         road_links["flow"] = road_links["flow"].fillna(0.0)
         road_links["acc_flow"] += road_links["flow"]
         road_links["acc_capacity"] = road_links["acc_capacity"] - road_links["flow"]
+        _check_capacity_invariant(road_links, iter_flag)
 
         # Recalculate edge speeds for edges that changed (vectorized if possible)
         logging.info("Updating edge speeds: ")
@@ -4145,6 +4273,16 @@ def network_flow_model(
             f"progress_rel={progress_rel:.8%}, "
             f"stagnant_iterations={stagnant_iterations}/{stagnant_limit}."
         )
+
+        def _audit(edges_deleted=None):
+            return _emit_iteration_audit(
+                conn, network, iteration=iter_flag, initial=initial_sumod,
+                delivered=assigned_iter_sum, delivered_cum=assigned_sumod,
+                iso_struct=iter_iso_struct, iso_cong=iter_iso_cong,
+                iso_struct_cum=iso_struct_cum, iso_cong_cum=iso_cong_cum,
+                wall_s=time.time() - iter_t0, edges_deleted=edges_deleted,
+            )
+
         logging.info("Cleaning transient path-realization tables for iteration %s...", iter_flag)
         for transient_table in [
             "od_results_iter",
@@ -4169,6 +4307,7 @@ def network_flow_model(
         # %%
         # check point for next iteration
         if percentage_sumod >= 0.99:
+            _audit()
             temp_isolation = (
                 conn.execute(
                     "SELECT COALESCE(SUM(Car21), 0.0) FROM remain_od"
@@ -4193,6 +4332,7 @@ def network_flow_model(
             break
 
         if max_iterations > 0 and iter_flag >= max_iterations:
+            _audit()
             temp_isolation = (
                 conn.execute(
                     "SELECT COALESCE(SUM(Car21), 0.0) FROM remain_od"
@@ -4218,6 +4358,7 @@ def network_flow_model(
             break
 
         if stagnant_limit > 0 and stagnant_iterations >= stagnant_limit:
+            _audit()
             temp_isolation = (
                 conn.execute(
                     "SELECT COALESCE(SUM(Car21), 0.0) FROM remain_od"
@@ -4244,9 +4385,11 @@ def network_flow_model(
 
         # %%
         # update network structure (nodes and edges) for next iteration
+        edges_before_prune = network.ecount()
         network, road_links = update_network_structure(
             number_of_edges, network, temp_edge_flow, road_links, iter_flag=iter_flag
         )
+        _audit(edges_deleted=edges_before_prune - network.ecount())
 
         del temp_edge_flow
         gc.collect()
