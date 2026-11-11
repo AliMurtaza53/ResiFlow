@@ -43,7 +43,7 @@ _SECRET_HINTS = ("TOKEN", "KEY", "SECRET", "PASSWORD")
 ATTR_CANDIDATES: Dict[str, List[str]] = {
     "road_name": ["Road_Name", "road_name", "ROAD_NAME"],
     "state": ["STATE", "state", "State", "state_fips", "STATEFIPS", "STFIPS", "state_abbr"],
-    "county": ["county_fips", "COUNTY", "county", "County", "COUNTYFIPS", "CTFIPS", "CNTYFIPS", "county_name"],
+    "county": ["county_fips", "COUNTY", "county", "County", "COUNTYFIPS", "CTFIPS", "CNTYFIPS", "county_name", "County_Name"],
     "tier": ["assignment_tier"],
     "lanes": ["lanes"],
     "road_class": ["network_class", "road_classification", "Class", "FAF_Class"],

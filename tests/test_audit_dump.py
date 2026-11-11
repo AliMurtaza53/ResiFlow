@@ -268,3 +268,19 @@ def test_ratio_sink_quantiles_and_binding_attribution():
     bod = sink.binding_od(1).set_index("e_id")
     assert bod.loc["eA", "n_od_bound"] == 2 and bod.loc["eA", "flow_lost"] == pytest.approx(300 - 100)
     assert bod.loc["eB", "flow_lost"] == pytest.approx(95)
+
+
+def test_conus_road_link_columns_resolve():
+    """The real CONUS road table (checked on Hopper edge_flows.gpq, 2026-11-11) names these columns; mapping is case-sensitive."""
+    from resiflow.audit_dump import ATTR_CANDIDATES
+
+    conus = ["e_id", "Road_Name", "STATE", "County_Name", "FAFZONE", "assignment_tier", "lanes", "network_class", "road_classification"]
+    got = {field: next((c for c in cands if c in conus), None) for field, cands in ATTR_CANDIDATES.items()}
+    assert got == {
+        "road_name": "Road_Name",
+        "state": "STATE",
+        "county": "County_Name",
+        "tier": "assignment_tier",
+        "lanes": "lanes",
+        "road_class": "network_class",
+    }
