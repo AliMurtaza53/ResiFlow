@@ -6,7 +6,7 @@ capacity, and compares (a) the flow the Script 4 rule would flag, replicated fro
 floored at 0) with (b) the link-load excess (load minus damaged capacity). The rule is replicated, not
 executed through Script 4.
 
-Usage: python scripts/testbed/hazard_stage_rule_check.py --out <dir> [--demand-scale 20]
+Usage: python scripts/diagnostics/hazard_stage_rule_check.py --out <dir> [--demand-scale 20]
 """
 import argparse, importlib.util
 from pathlib import Path

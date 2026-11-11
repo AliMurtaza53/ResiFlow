@@ -5,7 +5,7 @@ stage kept from the baseline link table (``current_flow``, ``current_capacity`` 
 ``acc_capacity``) and (2) how many links would exceed physical capacity if background flow were added back
 to the rerouted flow (``baseline - released + rerouted``; capacity is the undamaged physical capacity).
 
-Usage: python scripts/testbed/sioux_falls_background_flow_check.py --out <dir> [--scale 3]
+Usage: python scripts/diagnostics/sioux_falls_background_flow_check.py --out <dir> [--scale 3]
 """
 import argparse, shutil, sys
 from pathlib import Path

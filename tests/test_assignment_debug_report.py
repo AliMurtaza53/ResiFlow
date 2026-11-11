@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "testbed" / "assignment_debug_report.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "diagnostics" / "assignment_debug_report.py"
 
 
 @pytest.fixture(scope="module")

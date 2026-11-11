@@ -1,6 +1,6 @@
 # Assignment iteration dump: specification (draft, not implemented)
 
-Status: draft for review. No code written. Scope: additive, env-gated output from `network_flow_model` (`src/resiflow/road_revised.py`) so that results can be inspected and plotted at CONUS scale without holding per-path data in memory. Companion to `docs/ASSIGNMENT_AUDIT_LOG.md` (the `ITER_AUDIT` lines) and `scripts/testbed/assignment_debug_report.py` (the Anaheim reference viewer).
+Status: draft for review. No code written. Scope: additive, env-gated output from `network_flow_model` (`src/resiflow/road_revised.py`) so that results can be inspected and plotted at CONUS scale without holding per-path data in memory. Companion to `docs/ASSIGNMENT_AUDIT_LOG.md` (the `ITER_AUDIT` lines) and `scripts/diagnostics/assignment_debug_report.py` (the Anaheim reference viewer).
 
 ## 1. Goals and constraints
 
@@ -95,10 +95,37 @@ At CONUS scale only deleted and binding edges are drawn (plus a thinned base net
 ## 8. Open questions
 
 - Node-to-zone-to-state map: source and keying for CONUS (see section 3).
-- Which path-realization strategy the CONUS runs use (decides which tables the hook reads).
+- ~~Which path-realization strategy the CONUS runs use~~ Resolved, see section 8a.
 - Whether `is_connector` can be derived from the network files or needs the connector-insertion module's output.
-- Whether the hazard stage (Script 4, per event and recovery day) gets an analogous dump: link state, OD classification and rerouting outcomes per day. Out of scope here; the same file conventions would apply.
+- ~~Hazard-stage dump~~ Specified in section 8b; cost not yet measured.
 - Zone granularity retained per iteration at CONUS (state only, or county for selected states).
+
+## 8a. Path-realization strategy in past CONUS runs (answer to open question 2)
+
+Read from the SLURM scripts and `notes/perf_findings/`, not from a run log, so treat as the intended setting per script:
+
+| Where | `NIRD_PATH_REALIZATION_STRATEGY` |
+|---|---|
+| `experiments/pass_a_convergence/hopper/*.slurm` (all 12, incl. `submit_cpu8_convergence.slurm`) | `duckdb_chunked_compact` |
+| `experiments/conus_multihazard/hopper/` earthquake 401, flood 301, Harvey 304, landslide 501, winter bigmem | `duckdb_chunked_compact` |
+| same folder: Cascadia 404/502, Sandy 305, winter storm 603 | `streaming_arrays` |
+| `scripts/run_conus_multihazard.py` | `setdefault("duckdb_chunked_compact")` |
+| Script 1 / `road_revised.py` code default | `legacy_compact_sql` |
+| `notes/perf_findings/REPORT_FOR_TOM.md` "operational lock" | `streaming_arrays`, NumCpu=1 |
+
+Notes: `GOAL8_FULL_QUEUE_RESULTS.md` calls `duckdb_chunked_compact` a dead end (slower than `streaming_arrays`) yet the convergence SLURMs still set it, chosen there to avoid an OOM in `legacy_compact_sql`. So the tail runs we are diagnosing used `duckdb_chunked_compact`, and Stage 2's strategy comparison must include it.
+
+Hook consequence: in both strategies the edge totals reach the loop as a pandas frame `temp_edge_flow(e_id, flow)` (`road_revised.py`, "aggregate edge flows from realized paths"), so `edge_iter` and `summary` hook there and are strategy independent. `ITER_AUDIT` reads only `remain_od` and loop counters, also strategy independent. Per-OD data (`ratio_iter`, `zonepair_iter`, `od_final`) comes from `temp_od_assignment` (streaming) or `temp_flow_matrix` (others) and needs one reader per strategy.
+
+## 8b. Hazard-stage (Script 4) dump
+
+Same conventions (env-gated, off by default, parquet, warn-once-and-disable). Layout: `hazard_dump/event=<id>/day=<d>/`.
+
+- `link_state.parquet`: `e_id, original_capacity, damaged_capacity, seed_current_flow, seed_acc_flow, is_deleted`. One row per edge; about the size of `edge_attrs`, so cheap at CONUS if limited to damaged edges plus deleted edges (`level=binding`).
+- `od_class.parquet`: per OD, `baseline_flow, disrupted_flow (per-OD rule), rerouted_delivered, isolated, remain`. At roughly 9.7M OD rows per day this is not cheap, so default is zone-pair aggregation (`zonepair`), full OD only for chosen events.
+- Reuses `ITER_AUDIT` / `INVARIANT` lines per recovery iteration.
+
+Purpose: make the two hazard-stage findings in `HAZARD_STAGE_CHECKS.md` (background flow dropped; per-OD rule misses partial capacity loss) visible on real events. Cost is estimated from row counts only; not measured.
 
 ## 9. Implementation phases
 

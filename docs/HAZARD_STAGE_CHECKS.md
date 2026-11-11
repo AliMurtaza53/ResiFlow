@@ -6,7 +6,7 @@ Two checks on how the rerouting stage treats baseline traffic and partial capaci
 
 Script 1 writes `edge_flows.gpq` with both `acc_*` (loaded flow, residual capacity) and `current_*` (initial state: flow 0, original capacity). `resiflow.disruption.pipeline` renames `acc_*` to `current_*` only when `current_*` is absent; when both exist it drops `acc_*`. So the disruption stage sees `current_flow = 0` and `current_capacity = original capacity`, and Script 4 starts rerouting with no background load.
 
-Sioux Falls, full Script 1 to 4 chain (`scripts/testbed/sioux_falls_background_flow_check.py`):
+Sioux Falls, full Script 1 to 4 chain (`scripts/diagnostics/sioux_falls_background_flow_check.py`):
 
 | | baseline table | disruption-stage table |
 |---|---|---|
@@ -19,7 +19,7 @@ Does it matter? It depends on baseline load. At the fixture's default demand (ma
 
 Script 4 flags `disrupted_flow = (flow - acc_capacity).clip(lower=0)` per path row, where `acc_capacity` is the minimum damaged-link capacity on that path. It compares one path's flow with the link capacity, not the link's total load.
 
-Anaheim baseline at 20x demand, the 10 most loaded links damaged (`scripts/testbed/hazard_stage_rule_check.py`; the rule is replicated from the script, not executed through it):
+Anaheim baseline at 20x demand, the 10 most loaded links damaged (`scripts/diagnostics/hazard_stage_rule_check.py`; the rule is replicated from the script, not executed through it):
 
 | capacity kept | link-load excess | flow the rule flags | overloaded links with no path flagged |
 |---|---|---|---|

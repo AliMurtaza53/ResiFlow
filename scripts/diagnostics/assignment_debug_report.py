@@ -10,7 +10,7 @@ Runs ``run_resiflow_capconstrained_from_testbed`` unchanged (wrappers only obser
 * ``network_maps.png``      links by iteration of deletion (zone connectors dashed) and final volume/capacity
 * ``deletions_by_iter.png`` small multiples of what was deleted at each iteration
 
-Usage:  python scripts/testbed/assignment_debug_report.py anaheim --demand-scale 40 --out <dir>
+Usage:  python scripts/diagnostics/assignment_debug_report.py anaheim --demand-scale 40 --out <dir>
 Link geometry comes from the testbed's ``link_geojson`` when registered.
 """
 
