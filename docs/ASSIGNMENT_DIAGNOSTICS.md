@@ -7,7 +7,7 @@ Entry point for debugging convergence of the ResiFlow traffic assignment (Script
 | What | Where |
 |---|---|
 | Per-iteration log lines (`ITER_AUDIT`, `INVARIANT`) | `docs/ASSIGNMENT_AUDIT_LOG.md` (spec), emitted by `network_flow_model` into the normal job log |
-| Dump of per-iteration data for CONUS (draft, not implemented) | `docs/ASSIGNMENT_DUMP_SPEC.md` |
+| Per-iteration dump (phase 1 implemented: `summary`, `binding`) | `docs/ASSIGNMENT_DUMP_SPEC.md` section 3a; code `src/resiflow/audit_dump.py` |
 | Hazard-stage checks and findings | `docs/HAZARD_STAGE_CHECKS.md` |
 | Anaheim visual report | `scripts/diagnostics/assignment_debug_report.py` |
 | Hazard-stage rule check (Anaheim) | `scripts/diagnostics/hazard_stage_rule_check.py` |
@@ -20,7 +20,7 @@ Outputs always go to a directory you pass with `--out`; nothing is written into 
 
 1. **Any run (Anaheim or CONUS):** grep the job log. `grep ITER_AUDIT job.err` gives one line per iteration; `grep "INVARIANT.*ok=False"` should return nothing. Parse with `experiments/pass_a_convergence/parse_assignment_log.py` (unchanged) or load the `key=value` pairs into pandas.
 2. **Anaheim, to see the mechanics:** `python scripts/diagnostics/assignment_debug_report.py anaheim --demand-scale 40 --out <dir>` writes `iteration_table.csv`, `od_delivery.csv`, `trajectory.png`, `od_matrix.png`, `network_maps.png`, `deletions_by_iter.png`. Open the PNGs; use the CSVs for numbers. Raise `--demand-scale` until the network binds.
-3. **CONUS:** log lines now; the dump plus a state-level viewer once `ASSIGNMENT_DUMP_SPEC.md` is implemented. Spatial maps at CONUS need the dump's binding/deleted edges, not the full per-path data.
+3. **Any run, edge level:** set `RESIFLOW_AUDIT_DUMP_DIR=<dir>` (optional `RESIFLOW_AUDIT_DUMP_LEVEL=summary|binding`). Then `pd.read_parquet('<dir>/edge_iter/iter=0007.parquet')` lists the edges that bound or were deleted in iteration 7, with road name, state, county, tier, lanes and `is_connector`; `iteration_summary.parquet` is the per-iteration table; `ratio_iter` shows how hard capacity throttled OD flow; `manifest.json` records the code commit and every knob. Join to the network geometry by `e_id` to draw maps. A zone-pair matrix and the Script 4 dump are not implemented yet.
 
 ## What to read first in a tail
 

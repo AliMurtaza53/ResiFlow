@@ -1,6 +1,6 @@
-# Assignment iteration dump: specification (draft, not implemented)
+# Assignment iteration dump: specification
 
-Status: draft for review. No code written. Scope: additive, env-gated output from `network_flow_model` (`src/resiflow/road_revised.py`) so that results can be inspected and plotted at CONUS scale without holding per-path data in memory. Companion to `docs/ASSIGNMENT_AUDIT_LOG.md` (the `ITER_AUDIT` lines) and `scripts/diagnostics/assignment_debug_report.py` (the Anaheim reference viewer).
+Status: phase 1 (levels `summary` and `binding`) implemented in `src/resiflow/audit_dump.py`; see section 3a for the schemas as written. Levels `zonepair`, `full`, `od_final` and the hazard-stage dump are not implemented. Scope: additive, env-gated output from `network_flow_model` (`src/resiflow/road_revised.py`) so that results can be inspected and plotted at CONUS scale without holding per-path data in memory. Companion to `docs/ASSIGNMENT_AUDIT_LOG.md` (the `ITER_AUDIT` lines) and `scripts/diagnostics/assignment_debug_report.py` (the Anaheim reference viewer).
 
 ## 1. Goals and constraints
 
@@ -56,6 +56,32 @@ audit_dump/
 
 Zone map input (needed for `zonepair_iter`): `RESIFLOW_NODE_ZONE_MAP` points to a parquet with `node, zone_id, state_fips`. For TNTP testbeds zone equals node. Not verified: where the CONUS node-to-county mapping currently lives (candidates: `src/preprocess/map_bts_od_to_network_centroids.py` and the county OD files). IDs must be coerced to string on both sides before any join (Lesson 1 in `docs/CORRECTNESS_AND_PERFORMANCE_LESSONS.md`).
 
+## 3a. Phase 1 as implemented (schema_version 1)
+
+Enable with `RESIFLOW_AUDIT_DUMP_DIR=<dir>`; `RESIFLOW_AUDIT_DUMP_LEVEL=summary|binding` (default `binding`). `zonepair` and `full` warn and write `binding`; any other value warns and disables the dump. If the same directory is used twice in one process (for example Script 1 then Script 4), the later call writes to `<dir>/call_NN/`. Files are written to a `.tmp` name and renamed, so a killed job never leaves a half file. Hooks run before the per-iteration tables are dropped; the dump reads, never writes, assignment state.
+
+```
+<dir>/manifest.json
+<dir>/iteration_summary.parquet          rewritten each iteration
+<dir>/edge_iter/iter=0007.parquet        level binding
+<dir>/ratio_iter/iter=0007.parquet       level binding
+<dir>/binding_od_iter/iter=0007.parquet  level binding, streaming_arrays only
+```
+
+`manifest.json`: `schema_version`, `git_commit` (from `git rev-parse`, or env `RESIFLOW_GIT_COMMIT`, else null), `started_utc`, `finished_utc`, `level`, `level_requested`, `strategy`, `strategy_capabilities`, `initial_demand`, `n_edges`, `n_od_pairs`, `env` (every `RESIFLOW_*` and `NIRD_*` variable set, minus names containing TOKEN, KEY, SECRET or PASSWORD), `edge_attribute_source_columns`, `ratio_histogram_bins`, `files` (count and bytes per directory), `iterations_written`, `iterations_completed`, `stop_reason` (`delivered_99pct`, `max_iterations`, `stagnation`, `no_remaining_flows`, `loop_condition_no_remaining_demand`), `dump_wall_s_total`, `finished`. It is rewritten every iteration, so an interrupted job still has a valid one with `finished=false`.
+
+`iteration_summary.parquet` (one row per iteration): `iteration, delivered, delivered_cum, isolated_structural, isolated_congestion, isolated_structural_cum, isolated_congestion_cum, remain, edges_deleted, prune_applied, origins_no_out_edges, iter_wall_s, requested_flow` (remain at the start of the iteration), `legacy_assigned_fraction` (1 minus remain over initial, i.e. what the old `assigned_fraction` line prints), `edges_loaded` (edges with flow > 0), `edges_binding`, `edges_meeting_prune_rule`, `dump_wall_s` (time spent in the dump hooks this iteration, excluding the summary and manifest rewrite). `reachable_flow` from section 3 is not written.
+
+`edge_iter/iter=NNNN.parquet`: rows only for edges with `edge_ratio < 1` (binding) or meeting the prune rule. Columns: `iteration, e_id, flow` (adjusted flow loaded this iteration), `total_candidate_flow` (all-or-nothing demand wanting the edge, before the ratio cut), `edge_ratio` (`min(acc_capacity_before / total_candidate_flow, 1)`), `acc_capacity_before` (residual before this iteration), `acc_capacity_after` (residual after loading, the value `update_network_structure` sees), `current_capacity` (original), `remaining_ratio` (`acc_capacity_after / current_capacity`), `is_binding`, `is_deleted` (the prune rule from `_edge_prune_frame`, the same function `update_network_structure` calls; on a stop iteration, `prune_applied=0` means these edges were flagged but the loop ended before deleting them), `road_name, state, county, tier, lanes, road_class` (null when the edge table has no such column), `is_connector`. Sorted deleted first, then by `total_candidate_flow` descending. This is the answer to "which edges were deleted in which iteration": filter `is_deleted`.
+
+`ratio_iter/iter=NNNN.parquet` (long format): `iteration, metric, value, resolution, source`. Metrics: `n_od`, `flow_candidate`, `flow_adjusted` (equals `delivered` for the iteration, a cross-check), quantiles `q0, q0.01, q0.05, q0.25, q0.5, q0.75, q1` of `adjust_r` weighted by candidate flow (`q0` and `q1` exact; the others are the upper edge of a 0.001-wide bin), and `share_flow_r_lt_0.1`, `share_flow_r_lt_0.5`, `share_flow_r_lt_1` (share of candidate flow with `adjust_r` below the threshold; the last is the share of requested flow that was throttled).
+
+`binding_od_iter/iter=NNNN.parquet` (streaming only): per edge that was the minimum-ratio edge on at least one OD path: `iteration, e_id, n_od_bound, flow_candidate, flow_adjusted, flow_lost`, sorted by `flow_lost`. Ties pick the first edge on the path.
+
+What each strategy can supply (also in the manifest as `strategy_capabilities`): `edge_iter` and `iteration_summary` are the same for all three. `ratio_iter` comes from an inline pass in the realization loop for `streaming_arrays` and from a SQL histogram over `od_results_iter` joined to `od_adjustment` for `duckdb_chunked_compact` and `legacy_compact_sql`; both weight by candidate flow and agree to 1e-9 on Anaheim (tested). `binding_od_iter` is unavailable under the two SQL strategies (it needs an argmin over exploded paths) and is not written.
+
+Expected size and cost at CONUS scale (not measured; the first Hopper probe should check): `edge_iter` is at most the edges loaded per iteration (about 450k rows, so under roughly 50 MB per iteration at the very worst) and should be far smaller, since only binding and deleted edges are kept (on Anaheim at 40x, 175 of 522 loaded edges were binding in iteration 1; the CONUS probe saw about 4 deleted per iteration). `ratio_iter` is 13 rows. `binding_od_iter` is at most the number of binding edges. Expect well under 100 MB over a 59-iteration run. Time: the streaming sink adds roughly a microsecond per OD pair (on the order of 10 to 20 seconds per iteration at 9.7 million ODs), the SQL histogram is one join and group-by over `od_results_iter`, and `edge_iter` is a pandas merge of about 450k rows. Anaheim measured `dump_wall_s` of 0.01 to 0.02 s on iterations of 0.15 to 0.25 s (under 10%), which is parquet fixed cost on a tiny network and says nothing about CONUS. Target to confirm: under 5% of `iter_wall_s`.
+
 ## 4. Levels and knobs
 
 | Env var | Values | Default | Meaning |
@@ -94,11 +120,11 @@ At CONUS scale only deleted and binding edges are drawn (plus a thinned base net
 
 ## 8. Open questions
 
-- Node-to-zone-to-state map: source and keying for CONUS (see section 3).
+- Node-to-zone-to-state map: still open (needed only for `zonepair`). For phase 1, `edge_iter` takes `state` and `county` from the edge table if present (first match of `STATE`, `state`, `State`, `state_fips`, `STATEFIPS`, `STFIPS`, `state_abbr`; county: `county_fips`, `COUNTY`, `county`, `County`, `COUNTYFIPS`, `CTFIPS`, `CNTYFIPS`, `county_name`) and writes null otherwise; the manifest records which column was used. Question for the user: which column on the CONUS `road_links` holds state and county (the earlier probe analysis found AR, MO, OH, IA, so some mapping exists)?
 - ~~Which path-realization strategy the CONUS runs use~~ Resolved, see section 8a.
-- Whether `is_connector` can be derived from the network files or needs the connector-insertion module's output.
+- ~~`is_connector`~~ Answered: `network_connector_insertion.py` sets `assignment_tier = "centroid_connector"` on connector edges, so `edge_iter.is_connector` is `tier == "centroid_connector"`.
 - ~~Hazard-stage dump~~ Specified in section 8b; cost not yet measured.
-- Zone granularity retained per iteration at CONUS (state only, or county for selected states).
+- Zone granularity retained per iteration at CONUS (state only, or county for selected states). Open, needed for `zonepair`.
 
 ## 8a. Path-realization strategy in past CONUS runs (answer to open question 2)
 

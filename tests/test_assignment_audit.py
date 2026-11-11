@@ -100,17 +100,18 @@ def test_iteration_audit_line_and_conservation_ok(caplog):
         "isolated_structural", "isolated_congestion",
         "isolated_structural_cum", "isolated_congestion_cum",
         "remain", "remain_frac", "edges_deleted", "origins_no_out_edges", "iter_wall_s",
+        "prune_applied",
     ]
     assert float(kv["remain"]) == 30.0 and kv["edges_deleted"] == "3"
     assert kv["origins_no_out_edges"] == "1"  # origin z has no outgoing edge
     assert out["ok"] and "INVARIANT conservation ok=True" in caplog.text
 
 
-def test_audit_edges_deleted_na_on_stop_iteration(caplog):
+def test_audit_edges_deleted_na_only_when_no_flow_was_loaded(caplog):
     conn, g = _audit_inputs()
     caplog.set_level(logging.INFO)
-    _audit(conn, g, edges_deleted=None)
-    assert "edges_deleted=NA" in caplog.text
+    _audit(conn, g, edges_deleted=None, prune_applied=False)
+    assert "edges_deleted=NA" in caplog.text and "prune_applied=0" in caplog.text
 
 
 def test_conservation_violation_warns_then_raises(monkeypatch, caplog):
@@ -152,7 +153,9 @@ def test_anaheim_multi_iteration_audit_conserves_demand(monkeypatch, caplog):
     audits, total = _run_anaheim(monkeypatch, caplog, 6.0)  # binds capacity: 3 iterations
     assert [a["iteration"] for a in audits] == ["1", "2", "3"]
     assert sum(float(a["delivered"]) for a in audits) == pytest.approx(total, rel=1e-9)
-    assert audits[-1]["edges_deleted"] == "NA" and float(audits[-1]["remain"]) == 0.0
+    # stop iteration: edges meeting the prune rule are counted (not NA) but not removed
+    assert audits[-1]["edges_deleted"].isdigit() and audits[-1]["prune_applied"] == "0"
+    assert float(audits[-1]["remain"]) == 0.0
 
 
 def test_anaheim_congestion_isolation_is_not_counted_as_delivered(monkeypatch, caplog):

@@ -13,13 +13,15 @@ ITER_AUDIT iteration=<k> delivered=<f> delivered_cum=<f> delivered_frac_cum=<f>
   isolated_structural=<f> isolated_congestion=<f>
   isolated_structural_cum=<f> isolated_congestion_cum=<f>
   remain=<f> remain_frac=<f> edges_deleted=<int|NA> origins_no_out_edges=<int> iter_wall_s=<f>
+  prune_applied=<0|1>
 ```
 
 - `delivered`: flow actually loaded this iteration (the `Post-realization assigned_iter_sum` value).
 - `isolated_structural`: demand with no path, or an absent node, at iteration 1.
 - `isolated_congestion`: the same at iteration 2 or later, i.e. after edges were deleted.
 - `remain`: demand still in `remain_od` after the iteration.
-- `edges_deleted`: edges pruned this iteration; `NA` on stop iterations, where no pruning runs.
+- `edges_deleted`: edges that meet the prune rule this iteration. On a stop iteration the loop ends before `update_network_structure`, so they are counted but not removed (`prune_applied=0`). `NA` only when the iteration loaded no flow ("no remaining flows").
+- `prune_applied` (added after the first Hopper runs; always the last key): 1 if those edges were actually deleted from the graph, 0 on stop iterations.
 - `origins_no_out_edges`: distinct origins still in `remain_od` whose vertex has no outgoing edge (or is absent).
 
 ## `INVARIANT` lines
