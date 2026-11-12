@@ -129,7 +129,7 @@ for i in d.index[d["file"].str.contains("cascadia_m9_scenario")]:
 for i in d.index[d["file"].str.contains("mineral")]:
     d.at[i, "update_note"] = "Aligned 50 m is an interpolation of a ~1.5-1.8 km native grid"
 for i in d.index[d["file"].str.startswith("winter_storm")]:
-    d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; SINGLE_DAILY_SNAPSHOT_NOT_STORM_INCREASE (includes seasonal snowpack); NO_BASELINE_SUBTRACTION"
+    d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; SINGLE_DAILY_SNAPSHOT (physical snow depth incl. seasonal pack, by design: hazard kept separate from operational response)"
     d.at[i, "update_note"] = ("SNODAS product 1036 per NSIDC guide: big-endian int16, 'Meters / 1000' so stored integers are mm (matches code); -9999 and 32767 masked; georeferenced from each file's own header "
                               "(handles the 2013 origin shift). Prep: scripts/prepare_snodas_depth.py. Raw files: winter_storm/<event>/snodas_3day and depth_mm.tif")
 # ---- decisions and sensitivity options (owner decisions 2026-11-12)
@@ -155,10 +155,11 @@ for i in d.index:
         d.at[i, "decision"] = "Follows the Cascadia median PGA"
         d.at[i, "sensitivity_run_option"] = "Recompute displacement from the 16th/84th percentile PGA if the Cascadia sensitivity is run (compute_landslide_pgd.py --magnitude 9.0)"
     elif f.startswith("winter_storm"):
-        d.at[i, "decision"] = ("PENDING_CHECK: owner position 2026-11-12 is that seasonal mountain snowpack should not matter because freight and most commutes avoid it; "
-                               "caveat: the model applies the depth at every link location, including mountain-pass interstates, so deep pack there would read as disruption")
-        d.at[i, "sensitivity_run_option"] = ("OPTIONAL: storm-increase raster (window maximum of daily SNODAS 1036 snapshots minus a pre-storm baseline day) "
-                                             "or measure how many links in mountain passes exceed the closure thresholds with the current rasters")
+        d.at[i, "decision"] = ("KEEP the physical SNODAS snow depth unmodified (owner decision 2026-11-12): no baseline subtraction, no mountain masking. "
+                               "Direct costs and delays from snowpack are modelled separately from the hazard: clearance priority T33, day-of-reopening by road rank x damage level x region T34, "
+                               "post-reopening speed recovery T35, cost function T32. The hazard is not adjusted to stand in for operational response")
+        d.at[i, "sensitivity_run_option"] = ("NONE PLANNED. Rejected: a baseline-subtracted storm-increase raster, because it would change the physical hazard that the response tables are keyed on. "
+                                             "Verification item (not a change): confirm the T34 region classification covers high-snow mountain regions")
 d.to_csv(S, index=False, encoding="utf-8")
 
 # sources_and_units.csv: keep in step for the rows whose status changed
