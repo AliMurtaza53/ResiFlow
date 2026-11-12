@@ -4,8 +4,8 @@
 # Harvey and Sandy aligned flood-depth rasters were written in FEET but labelled and consumed as metres (confirmed 2026-11-12).
 # This job produces metre versions WITHOUT touching the old files' data: each old event_1.tif is renamed to
 # event_1_feet_unconverted.tif (a rename, no rewrite; other hard links to the old inode are unaffected) and a NEW event_1.tif is written.
-#  - Harvey: aligned file x 0.3048 via the existing align_hazard_rasters.py --unit-scale (same grid, nearest). Exact, because the
-#    50 m raster was made with Resampling.average (linear), so scaling after averaging equals averaging after scaling.
+#  - Harvey: aligned file x 0.3048 by a direct read-multiply-write. Exact, because the 50 m raster was made with Resampling.average
+#    (linear), so scaling after averaging equals averaging after scaling. (First attempt via align_hazard_rasters.py failed the check.)
 #  - Sandy: re-run the patched prepare_sandy_depths.py (default --unit-scale 0.3048) and cross-check it against old x 0.3048.
 # Both results are checked against the old files (grid, CRS, nodata mask, ratio) and written to results/flood_rescale_check.txt.
 #SBATCH --time=01:00:00
@@ -34,12 +34,18 @@ for h in flood_harvey_houston flood_sandy_northeast; do
   ls -la "$ALIGNED/$h"
 done
 
-echo "== Harvey: old x 0.3048"
-python "$REPO/scripts/align_hazard_rasters.py" \
-  --input "$ALIGNED/flood_harvey_houston/$BK" \
-  --reference "$ALIGNED/flood_harvey_houston/$BK" \
-  --nearest --unit-scale 0.3048 \
-  --output "$ALIGNED/flood_harvey_houston/event_1.tif"
+echo "== Harvey: old x 0.3048 (direct read-multiply-write; align_hazard_rasters.py --reference <same file> is NOT an identity op and shifted pixels)"
+python - <<'PY'
+import numpy as np, rasterio
+A="/scratch/akothaw/multimodal_hazard_data/soge_clusters/inputs/multihazard_aligned/flood_harvey_houston"
+with rasterio.open(f"{A}/event_1_feet_unconverted.tif") as s:
+    prof=s.profile; a=s.read(1); tags=s.tags()
+b=(a*np.float32(0.3048)).astype("float32")   # NaN stays NaN
+prof.update(compress="deflate")
+with rasterio.open(f"{A}/event_1.tif","w",**prof) as d:
+    d.write(b,1); d.update_tags(**tags, UNIT="metre", SOURCE_UNIT="foot", UNIT_SCALE="0.3048")
+print("wrote", f"{A}/event_1.tif")
+PY
 
 echo "== Sandy: patched prep (feet -> metres)"
 python "$PATCHED/prepare_sandy_depths.py" \
