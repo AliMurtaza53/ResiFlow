@@ -1,0 +1,54 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Freight OD flows</title>
+<script src="https://unpkg.com/deck.gl@8.9.35/dist.min.js"></script>
+<style>
+html,body{margin:0;height:100%;background:#0b0f14;font:13px system-ui,sans-serif;color:#e6edf3}
+#map{position:absolute;inset:0}
+#panel{position:absolute;top:12px;left:12px;background:#111821e6;padding:12px 14px;border-radius:8px;width:270px;z-index:5}
+#panel h1{font-size:15px;margin:0 0 8px}
+#panel label{display:block;margin:8px 0 2px;color:#9fb0c3}
+#panel input[type=range]{width:100%}
+button{background:#1f2a37;color:#e6edf3;border:1px solid #33424f;border-radius:6px;padding:5px 10px;margin-right:4px;cursor:pointer}
+button.on{background:#2f6fdb;border-color:#2f6fdb}
+#tip{position:absolute;pointer-events:none;background:#000c;padding:6px 8px;border-radius:6px;z-index:6;display:none}
+small{color:#7d8da0}
+</style></head><body>
+<div id="map"></div><div id="tip"></div>
+<div id="panel">
+ <h1>Freight OD flows (trucks/day)</h1>
+ <div><button id="bC" class="on">County to county</button><button id="bS">State to state</button></div>
+ <label>Show top <span id="nv"></span> flows</label><input id="n" type="range" min="50" max="15000" value="3000">
+ <label>Line width</label><input id="w" type="range" min="1" max="10" value="3">
+ <label><input id="dots" type="checkbox" checked> County total dots (in + out)</label>
+ <small id="info"></small>
+</div>
+<script>
+const COUNTY=__COUNTY__, STATE=__STATE__, DOTS=__DOTS__, NAMES=__NAMES__;
+const TOTAL=__TOTAL__;
+let mode='C';
+const $=id=>document.getElementById(id);
+const nm=f=>NAMES[f]||(f<100?('state '+f):f);
+const deckgl=new deck.DeckGL({container:'map',mapStyle:'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+  initialViewState:{longitude:-96,latitude:38,zoom:3.6},controller:true,
+  getTooltip:null});
+function render(){
+  const data=(mode==='C'?COUNTY:STATE).slice(0,mode==='C'?+$('n').value:STATE.length);
+  const max=data.reduce((m,d)=>Math.max(m,d[4]),1), w=+$('w').value;
+  const arcs=new deck.ArcLayer({id:'arcs',data,getSourcePosition:d=>[d[0],d[1]],getTargetPosition:d=>[d[2],d[3]],
+    getSourceColor:[255,170,60,200],getTargetColor:[60,200,255,200],
+    getWidth:d=>Math.max(0.3,w*Math.sqrt(d[4]/max)*(mode==='C'?3:4)),pickable:true,
+    onHover:i=>{const t=$('tip');if(i.object){const d=i.object;t.style.display='block';t.style.left=i.x+12+'px';t.style.top=i.y+12+'px';
+      t.innerHTML=`${nm(d[5])} → ${nm(d[6])}<br><b>${d[4].toLocaleString()}</b> trucks/day`}else t.style.display='none'}});
+  const layers=[arcs];
+  if(mode==='C'&&$('dots').checked) layers.unshift(new deck.ScatterplotLayer({id:'dots',data:DOTS,getPosition:d=>[d[0],d[1]],
+    getRadius:d=>Math.sqrt(d[2])*40,radiusMinPixels:1,radiusMaxPixels:25,getFillColor:[255,255,255,70]}));
+  deckgl.setProps({layers});
+  const s=data.reduce((a,d)=>a+d[4],0);
+  $('info').innerHTML=`${data.length.toLocaleString()} flows shown = ${(100*s/TOTAL).toFixed(1)}% of all truck trips (incl. within-county). Orange = origin, blue = destination.`;
+  $('nv').textContent=$('n').value; $('bC').className=mode==='C'?'on':''; $('bS').className=mode==='S'?'on':'';
+}
+$('bC').onclick=()=>{mode='C';render()};$('bS').onclick=()=>{mode='S';render()};
+['n','w','dots'].forEach(i=>$(i).oninput=render);
+render();
+</script></body></html>
