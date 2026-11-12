@@ -4,7 +4,9 @@
 Writes two files (the network is big, the centroid review file is small):
   faf5_network_links.gpkg      layer network_links_current   (483,599 links, current numbering, key attributes only)
   resiflow_od_review.gpkg      layers:
-    faf5_loading_centroids       the FAF5 network's own loading centroids (FAF5Network.gdb FAF5_Nodes, Centroid=1)
+    faf5_loading_centroids       the FAF5 network's own loading centroids (FAF5Network.gdb FAF5_Nodes, Centroid=1), one per unique CentroidID,
+                                 with kind = county (id = FIPS) / sub-county, and base_county
+    faf5_centroid_connectors_native  the 3,795 native Class 50 Centroid Connector links (NOT present in the converted network)
     counties_tiger_simplified    TIGER 2022 county polygons (simplified for display)
     county_centroids_tiger       the TIGER county centroids (the builder's fallback reference points)
     od_node_intended             where the OD builder INTENDED each county's node: the OD node id located in the nodes file the
@@ -52,6 +54,7 @@ def main() -> int:
     ap.add_argument("--crosswalk-built", default=f"{d}/faf5_data/processed/bts_county_to_network_centroid_crosswalk_2022.csv")
     ap.add_argument("--crosswalk-corrected", default="parameters/crosswalks/county_node_crosswalk_conterminous.csv")
     ap.add_argument("--loading-centroids", default=f"{d}/faf5_data/processed/faf5_network_loading_centroids.gpq")
+    ap.add_argument("--faf5-gdb", default=f"{d}/faf5_data/network_data/FAF5Network.gdb")
     ap.add_argument("--county-shp", default=f"{d}/faf5_data/county_shp/tl_2022_us_county.shp")
     ap.add_argument("--out-dir", default="C:/Users/akothaw/Desktop/gis_review")
     ap.add_argument("--skip-network", action="store_true")
@@ -76,7 +79,17 @@ def main() -> int:
 
     # ---- FAF5 loading centroids
     lc = gpd.read_parquet(a.loading_centroids).to_crs(4326)
-    write(lc[[c for c in ("ID", "DATA", "CentroidID", "StateID", "StateName", "FAFID", "geometry") if c in lc.columns]], "faf5_loading_centroids")
+    lc["cid"] = lc["CentroidID"].astype("int64")
+    lc["kind"] = np.where(lc.cid <= 56999, "county (CentroidID = county FIPS)",
+                          np.where(lc.cid >= 1_000_000, "sub-county (FIPS x 1000 + n)", "sub-county (100xxx id)"))
+    lc["dup_rows"] = lc.groupby("cid")["cid"].transform("size")  # exact duplicate rows in the export; harmless, collapsed here
+    lc["base_county"] = np.where(lc.cid >= 1_000_000, lc.cid // 1000, np.where(lc.cid <= 56999, lc.cid, -1))
+    lc = lc.drop_duplicates("cid")
+    write(lc[[c for c in ("ID", "DATA", "CentroidID", "kind", "base_county", "dup_rows", "StateID", "StateName", "FAFID", "geometry") if c in lc.columns]],
+          "faf5_loading_centroids")
+    # the native Class 50 'Centroid Connector' links of the FAF5 network (absent from the converted network the model uses)
+    cn = gpd.read_file(a.faf5_gdb, layer="FAF5_Links", where="Class = 50", engine="pyogrio").to_crs(4326)
+    write(cn[[c for c in ("ID", "CTFIPS", "STATE", "County_Name", "FAFZONE", "Class_Description", "geometry") if c in cn.columns]], "faf5_centroid_connectors_native")
 
     # ---- TIGER counties
     ct = gpd.read_file(a.county_shp)
