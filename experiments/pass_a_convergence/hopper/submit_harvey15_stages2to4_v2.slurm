@@ -51,6 +51,8 @@ mkdir -p $NIRD_DUCKDB_TEMP_DIRECTORY
 python -c "import resiflow; print('resiflow imported from:', resiflow.__file__)"
 
 BASE=$DATA/results/$VARIANT
+source $CODE/experiments/common/profile_stage.sh
+profile_init harvey15_stages2to4_v2
 echo "== archive the invalid first-run outputs (flood depths in feet read as metres, bridge double counting, PROJ-broken CRS)"
 for st in damage_analysis disruption_analysis rerouting_analysis; do
   src=$DATA/results/$st/$VARIANT
@@ -64,12 +66,12 @@ test -d $BASE/odpfc_parts || { echo "MISSING $BASE/odpfc_parts"; exit 2; }
 echo "baseline parts: $(ls $BASE/odpfc_parts | wc -l); symlink: $(readlink $DATA/results/base_scenario/$VARIANT)"
 
 echo "== edge/od index (skipped if already built)"
-[ -d $BASE/odpfc_edge_index ] && ls $BASE/odpfc_edge_index | head -2 || python $CODE/scripts/build_odpfc_edge_index.py --odpfc $BASE/odpfc_parts --output $BASE/odpfc_edge_index \
+[ -d $BASE/odpfc_edge_index ] && ls $BASE/odpfc_edge_index | head -2 || profile_stage edge_index python $CODE/scripts/build_odpfc_edge_index.py --odpfc $BASE/odpfc_parts --output $BASE/odpfc_edge_index \
   --memory-limit 250GB --temp-directory $NIRD_DUCKDB_TEMP_DIRECTORY --threads $SLURM_CPUS_PER_TASK
 
-echo "== stage 2 intersection"; python $CODE/scripts/2_intersection_analysis.py 304 1
-echo "== stage 3 damage";       python $CODE/scripts/3_damage_analysis.py
-echo "== stage 3 postprocess";  python $CODE/scripts/3_postprocess_damage.py
+echo "== stage 2 intersection"; profile_stage stage2_intersection python $CODE/scripts/2_intersection_analysis.py 304 1
+echo "== stage 3 damage";       profile_stage stage3_damage python $CODE/scripts/3_damage_analysis.py
+echo "== stage 3 postprocess";  profile_stage stage3_postprocess python $CODE/scripts/3_postprocess_damage.py
 echo "== corrected damage totals (each bridge/tunnel counted once, roads summed)"
 python - <<'PY'
 import glob, pandas as pd
@@ -81,5 +83,6 @@ for f in glob.glob("/scratch/akothaw/multimodal_hazard_data/results/damage_analy
     print(e.groupby("road_label").edge_direct_damage_mean_musd.agg(["count", "sum"]).round(3))
     print("TOTAL musd", round(da.total_direct_damage_musd(d), 3))
 PY
-echo "== stage 4 rerouting";    python $CODE/scripts/4_rerouting_and_recovery_scenario_loop.py 304 1 20 $SLURM_CPUS_PER_TASK
+echo "== stage 4 rerouting";    profile_stage stage4_rerouting python $CODE/scripts/4_rerouting_and_recovery_scenario_loop.py 304 1 20 $SLURM_CPUS_PER_TASK
+profile_finish
 echo "== done"
