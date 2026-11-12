@@ -1,0 +1,148 @@
+"""Refresh the hazard input summary files (native grids, data links, local/Hopper paths, unit status).
+
+Canonical files (tracked): docs/hazard_inputs/hazard_raster_specs_summary.csv and hazard_raster_sources_and_units.csv.
+Mirror (gitignored): inputs/multihazard_raw/audit_2026-11-12/ (the audit folder with the aligned rasters and reports).
+Idempotent: reads the canonical CSVs, rewrites them, then copies them to the mirror.
+All facts below come from files read in the 2026-11-12 audit or from links the project owner supplied; a field says
+'NOT FOUND' / 'NOT CHECKED' when it is not known. Nothing here is guessed.
+"""
+import shutil
+from pathlib import Path
+import pandas as pd
+
+REPO = Path(__file__).resolve().parents[2]
+DOCS = REPO / "docs" / "hazard_inputs"
+RAWROOT = Path(r"C:\Users\akothaw\Desktop\ResiFlow\inputs\multihazard_raw")
+MIRROR = RAWROOT / "audit_2026-11-12"
+HOP_AL = "/scratch/akothaw/multimodal_hazard_data/soge_clusters/inputs/multihazard_aligned"
+HOP_RAW = "/scratch/akothaw/multimodal_hazard_data/inputs_raw"
+RAW = str(RAWROOT)
+PKG = str(MIRROR / "rasters")
+NOT = "NOT FOUND"
+
+L = {
+ "flood_harvey_houston": dict(
+    native="3 m, 150074x140878 px (GDB dataset Harvey_Depths_3m_v3), EPSG:4269", basis="MEASURED (Hopper prep log + GDB metadata)",
+    raw_hopper=f"{HOP_RAW}/Harvey_Depths_3m_Final.gdb (+ .gdb.zip, 39 GB)",
+    raw_local=f"{RAW}\\Harvey_Depths_3m_Final.gdb (+ .zip); CUAHSI package {RAW}\\Harvey_CUAHSI\\",
+    prep="scripts/prepare_harvey_depths.py (patched 2026-11-12: --unit-scale 0.3048)",
+    link1="https://www.hydroshare.org/resource/e8768f4cb4d5478a96d2b1cbd00d9e85/",
+    link2="https://data.femadata.com/FIMA/NHRAP/Harvey/ (FEMA NHRAP; sibling Harris_Mosaic_dgft.zip = depth grid feet)", links="POPULATED"),
+ "flood_sandy_northeast": dict(
+    native="~3 m (0.0000318 deg), CT 57837x18143 px, EPSG:4269", basis="MEASURED (raw CT file read on Hopper)",
+    raw_hopper=f"{HOP_RAW}/flood/{{ct,nj,nys,ri}}3m0214c.tif", raw_local=f"{RAW}\\flood\\{{ct,nj,nys,ri}}3m0214c.tif",
+    prep="scripts/prepare_sandy_depths.py (patched 2026-11-12: --unit-scale 0.3048)",
+    link1=("CT: https://www.arcgis.com/home/item.html?id=ddee7f58c532450785a5b3a1c1ceec1d ; NJ: https://www.arcgis.com/home/item.html?id=973babe880a147449b2b837aa04ff11d ; "
+           "NY: https://www.arcgis.com/home/item.html?id=88ad91324f234cbca9a13855600b7a1f ; RI: https://www.arcgis.com/home/item.html?id=9363f0a19d214bdeb832eca5e9462b0e"),
+    link2="FEMA MOTF items; CT and RI item text read 2026-11-12: 'Vertical: Feet (water depth above ground, NAVD88)', 3-meter horizontal", links="POPULATED (CT, NJ, NY, RI)"),
+ "earthquake_shakemap_mineral": dict(
+    native="1 arcmin, 661x481 px (~1.46 x 1.84 km), EPSG:4326 (assumed, no .prj in download)", basis="MEASURED (local pga_g.tif)",
+    raw_hopper=f"{HOP_RAW}/earthquake/mineral_shakemap/pga_g.tif (converted g; original zip not on Hopper)",
+    raw_local=f"{RAW}\\earthquake\\mineral_shakemap\\M5_8_ShakeMap_raster.zip (+ pga_g.tif, sa1p0_g.tif)",
+    prep="scripts/prepare_shakemap_pga.py + scripts/align_hazard_rasters.py",
+    link1="https://earthquake.usgs.gov/earthquakes/eventpage/se609212/shakemap", link2="https://www.usgs.gov/programs/earthquake-hazards/science/m58-august-23-2011-mineral-virginia", links="POPULATED"),
+ "earthquake_new_madrid_m75_scenario": dict(
+    native=("REPO LAYER: 780x637 px at 0.01926 deg (~1.73 x 2.13 km), EPSG:4326, lon -96.52..-81.50, lat 30.10..42.37. "
+            "DOWNLOADED raster.zip (event nm19fema_m7p7_mt_se): 601x541 px at 1 arcmin (0.016667 deg), ULX -95.0 ULY 40.0 (lon -95..-84.98, lat 31..40), ln(g) PGA"),
+    basis="MEASURED (both: local converted pga_g.tif, and the extracted raster.zip header)",
+    raw_hopper="NOT ON HOPPER", raw_local=f"{RAW}\\earthquake\\new_madrid_scenario\\ (raster.zip, shape.zip, raster_unzipped\\, pga_g.tif, sa1p0_g.tif)",
+    prep="scripts/prepare_shakemap_pga.py (percent g / 100) + scripts/align_hazard_rasters.py --own-bounds",
+    link1="https://earthquake.usgs.gov/scenarios/eventpage/nm19fema_m7p7_mt_se/shakemap/intensity (supplied by project owner; event id nm19fema_m7p7_mt_se)",
+    link2="Repo layer was labelled 'USGS M7.5 central-fault scenario (BSSC2014)': https://earthquake.usgs.gov/scenarios/catalog/bssc2014/ ; data release DOI 10.5066/F7V122XD. Which event the repo layer came from: NOT RESOLVED",
+    links="POPULATED (but provenance of aligned layer unresolved)"),
+ "earthquake_cascadia_m9_scenario": dict(
+    native="552x794 px at 0.01991 deg (~1.58 x 2.20 km), EPSG:4326, lon -127.27..-116.30, lat 36.77..52.56 (matches the HDF's own grid)",
+    basis="MEASURED (HDF metadata read on Hopper, prep log, local pga_g.tif)",
+    raw_hopper=f"{HOP_RAW}/Cascadia9_shake_result.hdf (+ earthquake/cascadia_m9_scenario/pga_g.tif, sa1p0_g.tif)",
+    raw_local=f"{RAW}\\earthquake\\cascadia_m9_scenario\\Cascadia9_shake_result.hdf (+ pga_g.tif, sa1p0_g.tif)",
+    prep="scripts/prepare_cascadia_pga.py + scripts/align_hazard_rasters.py --own-bounds",
+    link1="https://earthquake.usgs.gov/scenarios/eventpage/cszm9ensemble_se/shakemap/intensity (supplied by project owner)",
+    link2="HDF metadata: event_id CSZM9_median, eventsource cszm9, eventsourcecode ensemble_se, 'M9.0 Cascadia, median ground motion' (matches the link's event id)", links="POPULATED (matched to the HDF)"),
+ "landslide": dict(
+    native="USGS n10 susceptibility ~88 m (0.00102 deg, 63722x37866 px, EPSG:4326); displacement driven by the ~1.5 km PGA grid", basis="MEASURED (n10 file read on Hopper)",
+    raw_hopper=f"{HOP_RAW}/landslide/n10_susc/n10_conus.tif", raw_local=f"{RAW}\\landslide\\n10_susc.zip",
+    prep="scripts/compute_landslide_pgd.py (HAZUS Newmark, M5.8 Mineral)",
+    link1="https://www.sciencebase.gov/catalog/item/65ccea5bd34ef4b119cb3bac (USGS Slope-Relief Threshold Landslide Susceptibility Models, CONUS)",
+    link2="S3 mirror used: https://prod-is-usgs-sb-prod-publish.s3.amazonaws.com/65ccea5bd34ef4b119cb3bac/n10_susc.zip ; method: https://www.fema.gov/sites/default/files/documents/fema_hazus-earthquake-model-technical-manual-6-1.pdf", links="POPULATED"),
+ "landslide_cascadia_m9": dict(
+    native="same inputs as above: ~88 m susceptibility, ~1.6 x 2.2 km PGA", basis="MEASURED",
+    raw_hopper=f"{HOP_RAW}/landslide/n10_susc/n10_conus.tif + Cascadia9_shake_result.hdf", raw_local=f"{RAW}\\landslide\\n10_susc.zip + earthquake\\cascadia_m9_scenario\\Cascadia9_shake_result.hdf",
+    prep="scripts/compute_landslide_pgd.py --magnitude 9.0 (job submit_cascadia_landslide_prep_dumpcode.slurm)",
+    link1="https://www.sciencebase.gov/catalog/item/65ccea5bd34ef4b119cb3bac", link2="https://earthquake.usgs.gov/scenarios/eventpage/cszm9ensemble_se/shakemap/intensity (Cascadia shaking input)", links="POPULATED"),
+ "winter_storm": dict(
+    native="~1 km (SNODAS native ~926 m, 0.0083 deg), EPSG:4326 per docs", basis="DOCS (raw SNODAS files present locally but not read in this audit)",
+    raw_hopper="NOT CHECKED (raw SNODAS not in Hopper inputs_raw)",
+    raw_local=f"{RAW}\\winter_storm\\{{uri_20210217,elliott_20221224,snowmageddon_20100206,snodas_jan2016}}\\",
+    prep="scripts/align_hazard_rasters.py --own-bounds --resolution 1000 (unit scale not confirmed for these three events)",
+    link1="https://nsidc.org/data/g02158", link2="https://noaadata.apps.nsidc.org/NOAA/G02158/masked/ ; user guide https://nsidc.org/sites/default/files/g02158-v001-userguide_2_1.pdf", links="POPULATED (product pages; per-event daily files not recorded)"),
+}
+
+
+def key(f):
+    f = f.replace("_sa1p0", "").replace("_event_1_metres.tif", "").replace("_event_1.tif", "")
+    return "winter_storm" if f.startswith("winter_storm") else f
+
+
+S = DOCS / "hazard_raster_specs_summary.csv"
+d = pd.read_csv(S, encoding="utf-8")
+for c in ["native_grid_and_res", "native_basis", "link_primary_data", "link_docs_or_metadata", "links_status", "raw_on_hopper", "raw_local",
+          "aligned_on_hopper", "aligned_local_copy", "prep_script", "update_note"]:
+    if c not in d.columns:
+        d[c] = ""
+    d[c] = d[c].astype(object)
+for i, r in d.iterrows():
+    layer = r["file"].replace("_event_1_metres.tif", "").replace("_event_1.tif", "")
+    m = L[key(r["file"])]
+    for c, v in (("native_grid_and_res", m["native"]), ("native_basis", m["basis"]), ("link_primary_data", m["link1"]), ("link_docs_or_metadata", m["link2"]),
+                 ("links_status", m["links"]), ("raw_on_hopper", m["raw_hopper"]), ("raw_local", m["raw_local"]), ("prep_script", m["prep"])):
+        d.at[i, c] = v
+    d.at[i, "aligned_on_hopper"] = f"{HOP_AL}/{layer}/event_1.tif"
+    d.at[i, "aligned_local_copy"] = f"{PKG}\\{layer}_event_1.tif"
+
+fl = {"flood_harvey_houston": dict(min=0.0026, p50=1.4491, p90=8.4171, p99=21.3194, max=45.3065, was=(4.75, 148.6)),
+      "flood_sandy_northeast": dict(min=0.0000, p50=1.7158, p90=2.9366, p99=4.1604, max=5.5192, was=(5.63, 18.11))}
+for k, v in fl.items():
+    i = d.index[d["file"].str.startswith(k)][0]
+    d.at[i, "file"] = f"{k}_event_1_metres.tif"
+    for c in ["min", "p50", "p90", "p99", "max"]:
+        d.at[i, c] = v[c]
+    d.at[i, "intensity_unit_in_code"] = "m_depth (file converted from feet x 0.3048 on 2026-11-12; checked: ratio exactly 0.3048, masks identical)"
+    d.at[i, "unit_status"] = "FEET_CONFIRMED_CONVERTED_TO_METRES"
+    d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; ROW_STATS_NOW_IN_METRES; " + ("DEEP_TAIL_TO_INSPECT_IN_GIS (29% of valid px > 3 m, max 45 m)" if k == "flood_harvey_houston" else "NONE_OPEN (CT, NJ, NY, RI items all state feet)")
+    d.at[i, "update_note"] = f"Previous feet values: p50 {v['was'][0]}, max {v['was'][1]}. Feet file kept as *_feet_unconverted.tif."
+    d.at[i, "aligned_local_copy"] = f"{PKG}\\{k}_event_1_metres.tif (feet version: {PKG}\\{k}_event_1_feet_unconverted.tif)"
+
+for i in d.index[d["file"].str.contains("new_madrid")]:
+    d.at[i, "unit_hypothesis"] = ("Native-grid check 2026-11-12 of the repo layer (local converted pga_g/sa1p0_g): 780x637 px, max PGA 1.3089 g, max SA(1.0s) 1.0376 g; aligned 50 m maxima match. "
+                                  "The separately downloaded raster.zip (nm19fema_m7p7_mt_se) is a DIFFERENT grid and values: 601x541 px, ln(g), PGA max exp(0.3506)=1.42 g, SA(1.0s) max exp(0.2518)=1.29 g")
+    d.at[i, "gaps"] = ("NO_UNIT_TAG_IN_FILE; PROVENANCE_MISMATCH: repo layer is not the downloaded nm19fema_m7p7_mt_se scenario (grid, extent, peak differ); "
+                       "ORIGINAL_DOWNLOAD_OF_REPO_LAYER_NOT_RETAINED; ALIGNED_50M_IS_AN_UPSAMPLE_OF_A_~2KM_GRID")
+    d.at[i, "update_note"] = "Decide which scenario is intended before using this layer for results"
+for i in d.index[d["file"].str.contains("cascadia_m9_scenario")]:
+    d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; ALIGNED_50M_IS_AN_UPSAMPLE_OF_A_~2KM_GRID; PRODUCT_IS_THE_MEDIAN_MAP_(CSZM9_median)"
+    d.at[i, "update_note"] = "Source HDF event metadata matches the supplied USGS link (cszm9ensemble_se)"
+for i in d.index[d["file"].str.contains("mineral")]:
+    d.at[i, "update_note"] = "Aligned 50 m is an interpolation of a ~1.5-1.8 km native grid"
+d.to_csv(S, index=False, encoding="utf-8")
+
+# sources_and_units.csv: keep in step for the rows whose status changed
+S2 = DOCS / "hazard_raster_sources_and_units.csv"
+u = pd.read_csv(S2, encoding="utf-8")
+for i, r in u.iterrows():
+    n = r["raster"]
+    if n.startswith("flood_harvey"):
+        u.at[i, "status"] = "FEET CONFIRMED; CONVERTED TO METRES 2026-11-12 (deep tail still to inspect)"
+        u.at[i, "native_unit_per_records"] = "feet (FEMA Harvey 3m depth grid legend 'ft'; sibling NHRAP files 'dgft')"
+    elif n.startswith("flood_sandy"):
+        u.at[i, "status"] = "FEET CONFIRMED (CT, NJ, NY, RI items); CONVERTED TO METRES 2026-11-12"
+        u.at[i, "native_unit_per_records"] = "feet ('Vertical: Feet (water depth above ground, NAVD88)')"
+    elif n.startswith("earthquake_new_madrid"):
+        u.at[i, "status"] = "PROVENANCE MISMATCH: repo layer differs from downloaded nm19fema_m7p7_mt_se; see specs summary"
+    elif n.startswith("earthquake_cascadia"):
+        u.at[i, "source_as_recorded"] = "USGS ShakeMap scenario cszm9ensemble_se (HDF event CSZM9_median), https://earthquake.usgs.gov/scenarios/eventpage/cszm9ensemble_se/shakemap/intensity"
+u.to_csv(S2, index=False, encoding="utf-8")
+
+if MIRROR.exists():
+    for f in (S, S2):
+        shutil.copy(f, MIRROR / f.name)
+print("summary rows", len(d), "cols", len(d.columns), "| mirrored to", MIRROR if MIRROR.exists() else "(mirror missing)")
