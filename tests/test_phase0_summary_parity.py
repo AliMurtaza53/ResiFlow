@@ -1,4 +1,9 @@
-"""Phase 0 Sioux Falls summary parity vs pinned baseline CSV."""
+"""Phase 0 Sioux Falls summary parity vs pinned baseline CSV.
+
+Baseline updated 2026-11-12: direct_damage_usd and combined_total_usd (and their display strings) were
+inflated 57x because each of the two flooded bridges (57 raster-cell pieces each) was counted once per piece.
+Bridges and tunnels are now counted once per link (resiflow.damage_aggregation). Other columns unchanged.
+"""
 
 from __future__ import annotations
 
