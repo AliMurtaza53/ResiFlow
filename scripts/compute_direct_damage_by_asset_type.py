@@ -39,14 +39,25 @@ def compute_by_asset_type(csv_path: Path) -> dict:
     if df.empty or "direct_damage_mean_musd" not in df.columns:
         return {"by_asset_type_musd": {}, "total_musd": 0.0, "n_rows": 0}
 
-    road_label = df.get("road_label")
-    if road_label is None:
-        road_label = pd.Series(["road"] * len(df), index=df.index)
-    is_bridge = road_label.astype(str).str.lower().eq("bridge")
-    musd = pd.to_numeric(df["direct_damage_mean_musd"], errors="coerce").fillna(0.0)
+    from resiflow.damage_aggregation import collapse_to_edges
 
-    bridge_total = float(musd[is_bridge].sum())
-    road_total = float(musd[~is_bridge].sum())
+    # Bridge/tunnel damage is a whole-structure value repeated on every raster-cell piece:
+    # count it once per link (see damage_aggregation), sum road pieces.
+    if "e_id" in df.columns:
+        label = df["road_label"] if "road_label" in df.columns else pd.Series(["road"] * len(df), index=df.index)
+        frame = pd.DataFrame({"e_id": df["e_id"].to_numpy(), "musd": pd.to_numeric(df["direct_damage_mean_musd"], errors="coerce").to_numpy(),
+                              "road_label": label.to_numpy()})
+        is_bridge_row = frame["road_label"].astype(str).str.lower().eq("bridge")
+        bridge_total = float(collapse_to_edges(frame[is_bridge_row], ["musd"])["musd"].sum()) if is_bridge_row.any() else 0.0
+        road_total = float(collapse_to_edges(frame[~is_bridge_row], ["musd"])["musd"].sum()) if (~is_bridge_row).any() else 0.0
+    else:
+        road_label = df.get("road_label")
+        if road_label is None:
+            road_label = pd.Series(["road"] * len(df), index=df.index)
+        is_bridge = road_label.astype(str).str.lower().eq("bridge")
+        musd = pd.to_numeric(df["direct_damage_mean_musd"], errors="coerce").fillna(0.0)
+        bridge_total = float(musd[is_bridge].sum())
+        road_total = float(musd[~is_bridge].sum())
     return {
         "by_asset_type_musd": {"bridge": bridge_total, "road": road_total},
         "total_musd": bridge_total + road_total,

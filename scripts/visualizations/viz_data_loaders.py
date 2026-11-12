@@ -82,8 +82,6 @@ def prepare_damage_for_viz(damage_df: pd.DataFrame) -> pd.DataFrame:
 def event_damage_total_usd(damage_df: pd.DataFrame) -> float:
     from resiflow.damage_aggregation import total_direct_damage_usd
 
-    if "direct_damage_mean_usd" in damage_df.columns:
-        return float(pd.to_numeric(damage_df["direct_damage_mean_usd"], errors="coerce").fillna(0).sum())
     return total_direct_damage_usd(damage_df)
 
 

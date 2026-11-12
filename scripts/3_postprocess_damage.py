@@ -11,7 +11,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from resiflow.damage_aggregation import add_consolidated_damage_columns
+from resiflow.damage_aggregation import add_consolidated_damage_columns, edge_level_damage_musd
 from resiflow.utils import get_results_variant, load_config
 
 warnings.simplefilter("ignore")
@@ -21,13 +21,8 @@ results_root = base_path.parent / "results" / "damage_analysis" / get_results_va
 
 # %%
 def compute_edge_damage(intersections):
-    intersections = add_consolidated_damage_columns(intersections)
-    edges_with_damage = (
-        intersections.groupby("e_id", as_index=False)["direct_damage_mean_musd"]
-        .sum()
-        .rename(columns={"direct_damage_mean_musd": "edge_direct_damage_mean_musd"})
-    )
-    return edges_with_damage
+    """Per-edge damage: road pieces summed, each bridge/tunnel counted once (see damage_aggregation)."""
+    return edge_level_damage_musd(add_consolidated_damage_columns(intersections))
 
 
 def main() -> None:
