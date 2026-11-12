@@ -176,6 +176,12 @@ def network_spec(name: str) -> ToyNetworkSpec:
 
 def write_road_links(toy_data_dir: Path, edges: list[dict]) -> gpd.GeoDataFrame:
     gdf = gpd.GeoDataFrame(edges, crs=TARGET_CRS)
+    if "length" not in gdf.columns:
+        gdf["length"] = gdf.geometry.length
+    # Synthetic FAF-like attributes so the sourced flood cost path runs on the toy networks (South Dakota, Sioux Falls urban area).
+    from resiflow.testbeds.assets import apply_synthetic_asset_attributes
+
+    gdf = apply_synthetic_asset_attributes(gdf, state_fips="46", state_usps="SD", urban_code="82252")
     out = toy_data_dir / "inputs" / "networks" / "faf5" / "faf5_road_links.gpq"
     out.parent.mkdir(parents=True, exist_ok=True)
     gdf.to_parquet(out)

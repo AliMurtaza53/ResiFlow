@@ -196,319 +196,17 @@ def compute_damage_fraction(
     return (c1, damage_fraction1, c2, damage_fraction2)
 
 
-def compute_damage_values(
-    length: float,  # in meters
-    flood_type: str,
-    damage_fraction: float,
-    road_classification: str,
-    form_of_way: str,
-    urban: int,
-    lanes: int,
-    road_label: str,
-    damage_level: str,
-    damage_values: float,  # million $/unit
-    bridge_width=None,
-    tunnel_length_m=None,
-    structure_length_m=None,
-) -> Tuple[float, float, float]:
-    """
-    Calculate the damage costs (minimum, maximum, and mean) for different types of road
-    infrastructure (bridges, tunnels, and ordinary roads) caused by flooding.
-
-    Asset geometry for costing comes from inventory attributes when present:
-    - bridge: structure_length_m (NBI) x bridge_width (NBI deck); not full FAF length
-    - tunnel: min(FAF length, tunnel_length_m from NTI) — tunnel fraction of the edge
-    - road: FAF link length
-    """
-
-    def compute_bridge_damage(asset_length, width, flood_type, damage_level):
-        """Calculate min and max damage for bridges."""
-        min_damage = (
-            width * asset_length * damage_values[f"bridge_{flood_type}"][damage_level]["min"]
-        )
-        max_damage = (
-            width * asset_length * damage_values[f"bridge_{flood_type}"][damage_level]["max"]
-        )
-        return min_damage, max_damage
-
-    def compute_tunnel_or_road_damage(asset_length, lanes, key1, key2, damage_fraction):
-        """Calculate min and max damage for tunnels or roads."""
-        min_damage = (
-            asset_length * 1e-3 * lanes * damage_values[key1][key2]["min"] * damage_fraction
-        )
-        max_damage = (
-            asset_length * 1e-3 * lanes * damage_values[key1][key2]["max"] * damage_fraction
-        )
-        return min_damage, max_damage
-
-    def fallback_asset_label(road_classification: str) -> str:
-        """Map FAF/OSM road class to toy asset-cost labels."""
-        rc = "" if road_classification is None else str(road_classification).strip().lower()
-        if rc in {"motorway", "motorway_link", "trunk", "interstate"}:
-            return "Interstate"
-        if rc in {"primary", "secondary", "us route"}:
-            return "US Route"
-        if rc in {"tertiary", "service", "state route"}:
-            return "State Route"
-        return "Local"
-
-    if road_label == "bridge":
-        if bridge_width is None:
-            raise ValueError("Bridge width is required for bridges!")
-        # Prefer NBI structure length; refuse to silently price full FAF length.
-        if structure_length_m is None or pd.isna(structure_length_m):
-            raise ValueError(
-                "structure_length_m (NBI) is required for bridge costing; "
-                "FAF link length alone is not an asset length"
-            )
-        asset_length = float(structure_length_m)
-        if asset_length <= 0:
-            raise ValueError(f"structure_length_m must be > 0, got {asset_length}")
-        min_cost, max_cost = compute_bridge_damage(
-            asset_length, bridge_width, flood_type, damage_level
-        )
-
-    elif road_label == "tunnel":
-        urban_key = "urb" if urban == 1 else "sub"
-        rc = "" if road_classification is None else str(road_classification).strip().lower()
-        if rc in {"motorway", "motorway_link"}:
-            lane_key = "ge8" if lanes >= 8 else "lt8"
-            key = f"m_{lane_key}_{urban_key}"
-        elif rc in {"trunk", "primary", "secondary"}:
-            if form_of_way == "Single Carriageway":
-                key = f"asingle_{urban_key}"
-            else:
-                lane_key = "ge6" if lanes >= 6 else "lt6"
-                key = f"abdual_{lane_key}_{urban_key}"
-        elif form_of_way == "Single Carriageway":
-            key = f"bsingle_{urban_key}"
-        else:
-            lane_key = "ge6" if lanes >= 6 else "lt6"
-            key = f"bdual_{lane_key}_{urban_key}"
-
-        if key not in damage_values[road_label]:
-            key = fallback_asset_label(road_classification)
-
-        if tunnel_length_m is None or pd.isna(tunnel_length_m):
-            raise ValueError(
-                "tunnel_length_m (NTI) is required for tunnel costing; "
-                "refusing to price the full FAF link length as tunnel"
-            )
-        # Tunnel fraction: cost only min(edge length, inventory tunnel length).
-        asset_length = min(float(length), float(tunnel_length_m))
-        if asset_length <= 0:
-            raise ValueError(
-                f"tunnel asset length must be > 0 (length={length}, tunnel_length_m={tunnel_length_m})"
-            )
-        min_cost, max_cost = compute_tunnel_or_road_damage(
-            asset_length, lanes, road_label, key, damage_fraction
-        )
-
-    elif road_label == "road":
-        urban_key = "urb" if urban == 1 else "sub"
-        rc = "" if road_classification is None else str(road_classification).strip().lower()
-        if rc in {"motorway", "motorway_link"}:
-            lane_key = "ge8" if lanes >= 8 else "lt8"
-            key = f"m_{lane_key}_{urban_key}"
-        elif rc in {"trunk", "primary", "secondary"}:
-            if form_of_way == "Single Carriageway":
-                key = f"asingle_{urban_key}"
-            else:
-                lane_key = "ge6" if lanes >= 6 else "lt6"
-                key = f"abdual_{lane_key}_{urban_key}"
-        elif form_of_way == "Single Carriageway":
-            key = f"bsingle_{urban_key}"
-        else:
-            lane_key = "ge6" if lanes >= 6 else "lt6"
-            key = f"bdual_{lane_key}_{urban_key}"
-
-        if key not in damage_values[road_label]:
-            key = fallback_asset_label(road_classification)
-
-        min_cost, max_cost = compute_tunnel_or_road_damage(
-            length, lanes, road_label, key, damage_fraction
-        )
-    else:
-        raise ValueError("Invalid road_label. Must be 'bridge', 'tunnel', or 'road'.")
-
-    mean_cost = 0.5 * (min_cost + max_cost)
-    return min_cost, max_cost, mean_cost
-
-    mean_cost = np.mean([min_cost, max_cost])
-
-    return min_cost, max_cost, mean_cost
-
-
-def calculate_damage(
-    disrupted_links: pd.DataFrame,
-    damage_curves: Dict,
-    damage_values: Dict,
-) -> pd.DataFrame:
-    """
-    Calculate damage fractions and costs for disrupted road links based on flood depth.
-
-    Flood-only by construction -- hardcoded flood_types=["surface","river"],
-    no hazard_type parameter, reads/prices via damage_ratio_road_flood.xlsx
-    and damage_cost_road_flood.xlsx exclusively.
-
-    STATUS CORRECTED 2026-08-29 (the prior version of this comment, dated
-    2026-08-20, described a real gap that a6b6f0b then fixed for two of the
-    three hazards named below and is now stale/misleading for those two):
-    scripts/3_damage_analysis.py's main() only calls this function for
-    hazard_type == "flood". Earthquake and landslide route around it
-    entirely, through hazards/hazus_bridge.py's compute_row_direct_damage_
-    musd() (real FEMA HAZUS 6.1 Ch.7 fragility/cost) -- their
-    direct_damage_total IS trustworthy at the scope hazus_bridge.py itself
-    documents (earthquake: bridges only, ground-shaking only; landslide:
-    HAZUS's ground-failure/PGD fragility for both bridges and roads).
-    winter_storm has no such branch and still falls through to this
-    function -- disruption/build.py's build_winter_storm_link_disruption()
-    repackages ice/snow depth (mm) into a column literally named
-    flood_depth_max via an arbitrary unit-matching multiplier, which this
-    function then prices with FLOOD repair costs. There is no HAZUS module
-    or other domain-appropriate cost table for winter storm anywhere in this
-    repo -- do not trust direct_damage_total for that hazard (see
-    disruption/build.py's build_winter_storm_link_disruption() comment).
-
-    Parameters
-    ----------
-    disrupted_links: pd.DataFrame
-        A DataFrame containing disrupted road links and their attributes with required
-        columns such as "flood_depth_surface" and "flood_depth_river".
-    damage_curves: Dict
-        A dictionary containing damage curves.
-    damage_values: Dict
-        A dictionary containing damage cost values for different damage levels,
-        road asset types, and flood types.
-
-    Returns
-    -------
-    pd.DataFrame
-        Updated DataFrame with calculated damage fractions and costs. Includes columns
-        for damage fractions and cost stats (min, max, mean).
-    """
-
-    # Validate required columns
-    required_columns = {"flood_depth_surface", "flood_depth_river"}
-    missing_columns = required_columns - set(disrupted_links.columns)
-    assert not missing_columns, f"Missing required columns: {missing_columns}"
-
-    # Define damage categories and flood types
-    curves = ["C1", "C2", "C3", "C4", "C5", "C6"]
-    flood_types = ["surface", "river"]
-
-    # Add default columns using MultiIndex for efficiency
-    col_tuples = [
-        (f"{curve}_{flood_type}_damage_fraction", np.nan)
-        for curve in curves
-        for flood_type in flood_types
-    ] + [
-        (f"{curve}_{flood_type}_damage_value_{stat}", np.nan)
-        for curve in curves
-        for flood_type in flood_types
-        for stat in ["min", "max", "mean"]
-    ]
-    for col, default in col_tuples:
-        disrupted_links[col] = default
-
-    def calculate_for_row(row, flood_type):
-        """
-        Helper function to calculate damage fractions and costs for a single row.
-        """
-        def _to_float(x):
-            arr = np.asarray(x)
-            if arr.size == 0:
-                return np.nan
-            try:
-                return float(arr.reshape(-1)[0])
-            except Exception:
-                return np.nan
-
-        # Compute damage fractions
-        curve1, damage_fraction1, curve2, damage_fraction2 = compute_damage_fraction(
-            row.road_classification,
-            row.trunk_road,
-            row.road_label,
-            row[f"flood_depth_{flood_type}"],
-            damage_curves,
-            nhs_designation=getattr(row, "nhs_designation", None),
-        )
-
-        structure_length_m = getattr(row, "structure_length_m", None)
-        tunnel_length_m = getattr(row, "tunnel_length_m", None)
-
-        # Compute damage values for both curves
-        damage_values_1 = compute_damage_values(
-            row.length,
-            flood_type,
-            damage_fraction1,
-            row.road_classification,
-            row.form_of_way,
-            row.urban,
-            row.lanes,
-            row.road_label,
-            row[f"damage_level_{flood_type}"],
-            damage_values,
-            row.averageWidth,
-            tunnel_length_m=tunnel_length_m,
-            structure_length_m=structure_length_m,
-        )
-        damage_values_2 = compute_damage_values(
-            row.length,
-            flood_type,
-            damage_fraction2,
-            row.road_classification,
-            row.form_of_way,
-            row.urban,
-            row.lanes,
-            row.road_label,
-            row[f"damage_level_{flood_type}"],
-            damage_values,
-            row.averageWidth,
-            tunnel_length_m=tunnel_length_m,
-            structure_length_m=structure_length_m,
-        )
-
-        # Return a dictionary of results for easier assignment
-        return {
-            f"{curve1}_{flood_type}_damage_fraction": _to_float(damage_fraction1),
-            f"{curve2}_{flood_type}_damage_fraction": _to_float(damage_fraction2),
-            f"{curve1}_{flood_type}_damage_value_min": _to_float(damage_values_1[0]),
-            f"{curve1}_{flood_type}_damage_value_max": _to_float(damage_values_1[1]),
-            f"{curve1}_{flood_type}_damage_value_mean": _to_float(damage_values_1[2]),
-            f"{curve2}_{flood_type}_damage_value_min": _to_float(damage_values_2[0]),
-            f"{curve2}_{flood_type}_damage_value_max": _to_float(damage_values_2[1]),
-            f"{curve2}_{flood_type}_damage_value_mean": _to_float(damage_values_2[2]),
-        }
-
-    # Apply calculation for each flood type
-    for flood_type in flood_types:
-        flood_results = disrupted_links.apply(
-            lambda row: calculate_for_row(row, flood_type), axis=1
-        )
-        flood_results_df = pd.DataFrame(
-            list(flood_results)
-        )  # Convert results to DataFrame
-        # Assign columns explicitly (more robust with newer pandas dtypes)
-        for col in flood_results_df.columns:
-            disrupted_links[col] = flood_results_df[col]
-
-    return disrupted_links
-
-
 def calculate_damage_sourced(disrupted_links: pd.DataFrame, damage_curves: Dict) -> pd.DataFrame:
-    """Flood direct-damage using real sourced unit costs instead of the
-    ungitted damage_cost_road_flood.xlsx workbook.
+    """Flood direct-damage from real sourced unit costs. This is the only flood costing path (the legacy
+    damage_cost_road_flood workbook path was retired 2026-11-12); ``vulnerability.use_sourced_asset_costs`` defaults to
+    true and Script 3 refuses to run with it false.
 
-    Gated behind ``vulnerability.use_sourced_asset_costs`` (default False
-    -- the legacy ``calculate_damage()`` path above is unchanged and stays
-    the default, same SA-seam convention as every other real-table swap in
-    this project, e.g. ``assignment.use_table_t08b``).
+    SA seams: ``damage_costs.road_cost_scale`` scales roads and tunnels, ``damage_costs.bridge_cost_scale`` scales bridges.
 
     - Roads: T24 CP25 reconstruction cost ($/lane-mile, real HPMS
       functional-class/region/terrain-or-urban-tier join -- see
-      resiflow.networks.cp25_road_cost) x lane-miles x the SAME continuous
-      van Ginkel C1-C6 damage FRACTION already used by the legacy path
+      resiflow.networks.cp25_road_cost) x lane-miles x the continuous
+      van Ginkel C1-C6 damage FRACTION
       (damage_ratio_road_flood.xlsx is unchanged, per this project's own
       instruction -- only the $ magnitude's source changed).
     - Bridges: T30 replacement cost ($/ft2 by state x NHS/non-NHS -- see
@@ -565,6 +263,9 @@ def calculate_damage_sourced(disrupted_links: pd.DataFrame, damage_curves: Dict)
         )
     flood_types = ["surface", "river"]
     _METERS_PER_MILE = 1609.344
+    # SA seams (damage_costs.road_cost_scale scales roads and tunnels, bridge_cost_scale scales bridges); 1.0 is neutral.
+    road_cost_scale = float(get_parameter("damage_costs", "road_cost_scale", 1.0))
+    bridge_cost_scale = float(get_parameter("damage_costs", "bridge_cost_scale", 1.0))
 
     is_road = out["road_label"] == "road"
     is_bridge = out["road_label"] == "bridge"
@@ -672,7 +373,7 @@ def calculate_damage_sourced(disrupted_links: pd.DataFrame, damage_curves: Dict)
                 * lane_miles.loc[road_idx]
                 * pd.Series(fractions, index=road_idx)
             )
-            out.loc[road_idx, "direct_damage_mean_usd"] += road_damage.fillna(0.0)
+            out.loc[road_idx, "direct_damage_mean_usd"] += road_damage.fillna(0.0) * road_cost_scale
 
         if is_bridge.any():
             bridge_idx = out.index[is_bridge]
@@ -687,16 +388,17 @@ def calculate_damage_sourced(disrupted_links: pd.DataFrame, damage_curves: Dict)
                     num_spans=out.loc[idx].get("main_unit_spans"),
                 )
                 bridge_values.append(0.0 if pd.isna(value) else value)
-            out.loc[bridge_idx, "direct_damage_mean_usd"] += bridge_values
+            out.loc[bridge_idx, "direct_damage_mean_usd"] += np.asarray(bridge_values, dtype=float) * bridge_cost_scale
 
         if is_tunnel.any():
             tunnel_idx = out.index[is_tunnel]
-            out.loc[tunnel_idx, "direct_damage_mean_usd"] += [
+            tunnel_values = [
                 tunnel_direct_damage_usd(tunnel_construction_value.loc[idx], damage_level.loc[idx])
                 if not pd.isna(tunnel_construction_value.loc[idx])
                 else 0.0
                 for idx in tunnel_idx
             ]
+            out.loc[tunnel_idx, "direct_damage_mean_usd"] += np.asarray(tunnel_values, dtype=float) * road_cost_scale
 
     out["direct_damage_mean_usd"] = pd.to_numeric(out["direct_damage_mean_usd"], errors="coerce").fillna(0.0)
     out["direct_damage_mean_musd"] = out["direct_damage_mean_usd"] / 1_000_000.0
@@ -924,21 +626,6 @@ def main():
             "pd.read_excel(xlsx_path).to_csv(xlsx_path.with_suffix('.csv'), index=False)"
         )
 
-    # Cost sheets are a directory of per-sheet CSVs (damage_cost_road_flood/roads.csv,
-    # etc.) -- CSV only, sealed 2026-11-10 (see resiflow.tables.read_damage_cost_sheet).
-    damage_cost_path = first_existing(
-        [
-            base_path / "asset_costs" / "damage_cost_road_flood",
-            base_path / "inputs" / "lookup" / "damage_cost_road_flood",
-            base_path / "tables" / "damage_cost_road_flood",
-        ]
-    )
-    if damage_cost_path is None:
-        raise FileNotFoundError(
-            "Could not find damage_cost_road_flood/ in standard or toy lookup "
-            "paths. If only a legacy .xlsx exists, convert it: one CSV per "
-            "sheet, named <sheet>.csv, in a damage_cost_road_flood/ directory."
-        )
     if active_overrides_path() is not None:
         print(f"Parameter overrides in force: {active_overrides_path()}")
 
@@ -978,7 +665,7 @@ def main():
         raise FileNotFoundError("Could not find faf5_road_links.gpq under soge_clusters")
     road_links = gpd.read_parquet(faf5_links_path)
 
-    use_sourced_asset_costs = get_parameter("vulnerability", "use_sourced_asset_costs", False)
+    use_sourced_asset_costs = get_parameter("vulnerability", "use_sourced_asset_costs", True)
     if use_sourced_asset_costs and "urban_code" in road_links.columns:
         # T24 CP25's Urban subcategory needs the real Census urban-size tier
         # (resiflow.census_urban_area) -- computed once here, not per-row in
@@ -988,108 +675,6 @@ def main():
         profile = urban_area_profile(road_links["urban_code"]).reset_index(drop=True)
         road_links = road_links.reset_index(drop=True)
         road_links["hpms_urban_size_tier"] = profile["hpms_urban_size_tier"]
-
-    from resiflow.tables import damage_cost_sheet_names, read_damage_cost_sheet
-
-    available_sheets = damage_cost_sheet_names(damage_cost_path)
-
-    def normalize_cost_df(df: pd.DataFrame) -> pd.DataFrame:
-        out = df.copy()
-        out.columns = [str(c).strip().lower() for c in out.columns]
-        return out
-
-    road_damage_file = normalize_cost_df(read_damage_cost_sheet(damage_cost_path, "roads"))
-
-    if "tunnels" in available_sheets:
-        tunnel_damage_file = normalize_cost_df(read_damage_cost_sheet(damage_cost_path, "tunnels"))
-    else:
-        # Toy workbook fallback: reuse road costs for tunnel costs.
-        tunnel_damage_file = road_damage_file.copy()
-
-    if "bridges-surface" in available_sheets:
-        bridge_surface_damage_file = normalize_cost_df(
-            read_damage_cost_sheet(damage_cost_path, "bridges-surface")
-        )
-    elif "bridges" in available_sheets:
-        bridge_surface_damage_file = normalize_cost_df(read_damage_cost_sheet(damage_cost_path, "bridges"))
-    else:
-        raise FileNotFoundError("Bridge damage-cost sheet not found in damage_cost workbook")
-
-    if "bridges-river" in available_sheets:
-        bridge_river_damage_file = normalize_cost_df(
-            read_damage_cost_sheet(damage_cost_path, "bridges-river")
-        )
-    elif "bridges" in available_sheets:
-        bridge_river_damage_file = normalize_cost_df(read_damage_cost_sheet(damage_cost_path, "bridges"))
-    else:
-        raise FileNotFoundError("Bridge damage-cost sheet not found in damage_cost workbook")
-    dv_road_dict = defaultdict(lambda: defaultdict(float))
-    for row in road_damage_file.itertuples():
-        dv_road_dict[row.label]["min"] = row.min
-        dv_road_dict[row.label]["max"] = row.max
-        dv_road_dict[row.label]["mean"] = row.mean
-
-    dv_tunnel_dict = defaultdict(lambda: defaultdict(float))
-    for row in tunnel_damage_file.itertuples():
-        dv_tunnel_dict[row.label]["min"] = row.min
-        dv_tunnel_dict[row.label]["max"] = row.max
-        dv_tunnel_dict[row.label]["mean"] = row.mean
-
-    dv_bridge_surface_dict = defaultdict(lambda: defaultdict(float))
-    for row in bridge_surface_damage_file.itertuples():
-        # support both detailed (damage-level rows) and toy single-row bridge costs
-        label = row.label
-        if label not in {"no", "minor", "moderate", "extensive", "severe"}:
-            for lvl in ["no", "minor", "moderate", "extensive", "severe"]:
-                dv_bridge_surface_dict[lvl]["min"] = row.min
-                dv_bridge_surface_dict[lvl]["max"] = row.max
-                dv_bridge_surface_dict[lvl]["mean"] = row.mean
-        else:
-            dv_bridge_surface_dict[label]["min"] = row.min
-            dv_bridge_surface_dict[label]["max"] = row.max
-            dv_bridge_surface_dict[label]["mean"] = row.mean
-
-    dv_bridge_river_dict = defaultdict(lambda: defaultdict(float))
-    for row in bridge_river_damage_file.itertuples():
-        label = row.label
-        if label not in {"no", "minor", "moderate", "extensive", "severe"}:
-            for lvl in ["no", "minor", "moderate", "extensive", "severe"]:
-                dv_bridge_river_dict[lvl]["min"] = row.min
-                dv_bridge_river_dict[lvl]["max"] = row.max
-                dv_bridge_river_dict[lvl]["mean"] = row.mean
-        else:
-            dv_bridge_river_dict[label]["min"] = row.min
-            dv_bridge_river_dict[label]["max"] = row.max
-            dv_bridge_river_dict[label]["mean"] = row.mean
-
-    damage_values = {
-        "road": dv_road_dict,
-        "tunnel": dv_tunnel_dict,
-        "bridge_surface": dv_bridge_surface_dict,
-        "bridge_river": dv_bridge_river_dict,
-    }
-
-    # SA seam: asset unit-cost scales, applied after the pristine cost
-    # workbook loads. Defaults of 1.0 are baseline-neutral (multiplying by
-    # 1.0 is exact for floats).
-    road_cost_scale = float(get_parameter("damage_costs", "road_cost_scale", 1.0))
-    bridge_cost_scale = float(get_parameter("damage_costs", "bridge_cost_scale", 1.0))
-    if road_cost_scale != 1.0 or bridge_cost_scale != 1.0:
-        print(
-            f"Applying asset-cost scales: road/tunnel x{road_cost_scale}, "
-            f"bridge x{bridge_cost_scale}"
-        )
-        for asset_label, scale in (
-            ("road", road_cost_scale),
-            ("tunnel", road_cost_scale),
-            ("bridge_surface", bridge_cost_scale),
-            ("bridge_river", bridge_cost_scale),
-        ):
-            if scale == 1.0:
-                continue
-            for stats in damage_values[asset_label].values():
-                for stat in list(stats):
-                    stats[stat] = stats[stat] * scale
 
     # Load intersection data and assign attributes for damage calculations
     # batch process
@@ -1231,30 +816,21 @@ def main():
             intersections_with_damage = intersections_with_damage[
                 intersections_with_damage["direct_damage_mean_musd"] > 0
             ].reset_index(drop=True)
-        elif hazard_type == "flood" and use_sourced_asset_costs:
-            # Real sourced unit costs (T24 CP25 roads, T30 bridges, Rostami
-            # et al. tunnels) instead of the ungitted damage_cost_road_flood
-            # .xlsx workbook -- see calculate_damage_sourced()'s own
-            # docstring. damage_ratio_road_flood.xlsx (T22) is unchanged.
+        elif hazard_type == "flood":
+            # Sourced unit costs only (T24 CP25 roads, T30 bridges, Rostami tunnels); the legacy cost-workbook
+            # path was retired 2026-11-12 (see docs/testbed_suite/SPEC.md). damage_ratio_road_flood (T22) is unchanged.
+            if not use_sourced_asset_costs:
+                raise RuntimeError(
+                    "vulnerability.use_sourced_asset_costs is false, but the legacy flood costing path was retired "
+                    "2026-11-12. Set it to true (the default) and make sure the links carry the attributes "
+                    "listed in docs/testbed_suite/SPEC.md section 3a."
+                )
             intersections_with_damage = calculate_damage_sourced(intersections, damage_curves)
             intersections_with_damage = intersections_with_damage[
                 intersections_with_damage["direct_damage_mean_usd"] > 0
             ].reset_index(drop=True)
         else:
-            # run damage analysis
-            intersections_with_damage = calculate_damage(
-                intersections, damage_curves, damage_values
-            )
-            from resiflow.damage_aggregation import add_consolidated_damage_columns
-
-            intersections_with_damage = add_consolidated_damage_columns(intersections_with_damage)
-            # filter out undamaged intersections
-            intersections_with_damage = intersections_with_damage[
-                ~(
-                    (intersections_with_damage.damage_level_river == "no")
-                    & (intersections_with_damage.damage_level_surface == "no")
-                )
-            ].reset_index(drop=True)
+            raise ValueError(f"no direct-damage costing path for hazard_type {hazard_type!r}")
         # export results
         # Atomic write (tmp file + os.replace): this CSV is shared -- every
         # hazard job's Script 3 step walks and rewrites EVERY scenario's file
