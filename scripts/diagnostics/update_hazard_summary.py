@@ -101,18 +101,22 @@ for i, r in d.iterrows():
     d.at[i, "aligned_on_hopper"] = f"{HOP_AL}/{layer}/event_1.tif"
     d.at[i, "aligned_local_copy"] = f"{PKG}\\{layer}_event_1.tif"
 
-fl = {"flood_harvey_houston": dict(min=0.0026, p50=1.4491, p90=8.4171, p99=21.3194, max=45.3065, was=(4.75, 148.6)),
+fl = {"flood_harvey_houston": dict(min=0.0026, p50=1.2711, p90=5.0859, p99=8.5232, max=9.144, was=(4.75, 148.6)),
       "flood_sandy_northeast": dict(min=0.0000, p50=1.7158, p90=2.9366, p99=4.1604, max=5.5192, was=(5.63, 18.11))}
 for k, v in fl.items():
     i = d.index[d["file"].str.startswith(k)][0]
-    d.at[i, "file"] = f"{k}_event_1_metres.tif"
+    d.at[i, "file"] = f"{k}_event_1_metres_masked.tif" if k == "flood_harvey_houston" else f"{k}_event_1_metres.tif"
+    if k == "flood_harvey_houston":
+        d.at[i, "valid_pixels"] = 14786304
+        d.at[i, "valid_share"] = round(14786304 / 83081762, 4)
     for c in ["min", "p50", "p90", "p99", "max"]:
         d.at[i, c] = v[c]
     d.at[i, "intensity_unit_in_code"] = "m_depth (file converted from feet x 0.3048 on 2026-11-12; checked: ratio exactly 0.3048, masks identical)"
     d.at[i, "unit_status"] = "FEET_CONFIRMED_CONVERTED_TO_METRES"
-    d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; ROW_STATS_NOW_IN_METRES; " + ("DEEP_TAIL_TO_INSPECT_IN_GIS (29% of valid px > 3 m, max 45 m)" if k == "flood_harvey_houston" else "NONE_OPEN (CT, NJ, NY, RI items all state feet)")
-    d.at[i, "update_note"] = f"Previous feet values: p50 {v['was'][0]}, max {v['was'][1]}. Feet file kept as *_feet_unconverted.tif."
-    d.at[i, "aligned_local_copy"] = f"{PKG}\\{k}_event_1_metres.tif (feet version: {PKG}\\{k}_event_1_feet_unconverted.tif)"
+    d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; ROW_STATS_NOW_IN_METRES; " + ("DEEP_TAIL_MASKED_ABOVE_30FT (1,448,565 cells = 8.92% of valid set to nodata; unmasked copy kept)" if k == "flood_harvey_houston" else "NONE_OPEN (CT, NJ, NY, RI items all state feet)")
+    d.at[i, "update_note"] = f"Previous feet values: p50 {v['was'][0]}, max {v['was'][1]}. Feet file kept as *_feet_unconverted.tif." + (" Unmasked metre raster kept as *_metres_unmasked.tif (p50 1.45 m, max 45.3 m)." if k == "flood_harvey_houston" else "")
+    d.at[i, "aligned_local_copy"] = (f"{PKG}\\{k}_event_1_metres_masked.tif (unmasked metres: {PKG}\\{k}_event_1_metres_unmasked.tif; feet: {PKG}\\{k}_event_1_feet_unconverted.tif)"
+                                     if k == "flood_harvey_houston" else f"{PKG}\\{k}_event_1_metres.tif (feet version: {PKG}\\{k}_event_1_feet_unconverted.tif)")
 
 for i in d.index[d["file"].str.contains("new_madrid")]:
     d.at[i, "unit_status"] = "DOCUMENTED_AND_VERIFIED_PERCENT_G"
@@ -154,6 +158,10 @@ for i in d.index:
     elif f.startswith("landslide_cascadia"):
         d.at[i, "decision"] = "Follows the Cascadia median PGA"
         d.at[i, "sensitivity_run_option"] = "Recompute displacement from the 16th/84th percentile PGA if the Cascadia sensitivity is run (compute_landslide_pgd.py --magnitude 9.0)"
+    elif f.startswith("flood_harvey"):
+        d.at[i, "decision"] = ("MASK cells deeper than 30 ft (9.144 m) as permanent water or model-edge artifacts (owner GIS inspection 2026-11-12: Lake Livingston, Brazos, San Jacinto and Colorado rivers, "
+                               "creek channels, raster periphery). Rule: scripts/prepare_harvey_depths.py --max-depth-m (default 9.144); unmasked copy kept")
+        d.at[i, "sensitivity_run_option"] = "OPTIONAL: mask permanent water with NLCD open water / NHD instead of a depth ceiling; 25 m grid sensitivity (50 m grid is a project convention)"
     elif f.startswith("winter_storm"):
         d.at[i, "decision"] = ("KEEP the physical SNODAS snow depth unmodified (owner decision 2026-11-12): no baseline subtraction, no mountain masking. "
                                "Direct costs and delays from snowpack are modelled separately from the hazard: clearance priority T33, day-of-reopening by road rank x damage level x region T34, "

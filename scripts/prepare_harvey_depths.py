@@ -64,6 +64,9 @@ from rasterio.warp import Resampling, calculate_default_transform, reproject, tr
 
 TARGET_CRS = "EPSG:9311"
 FEET_TO_METRES = 0.3048
+# Depths above this are permanent water (rivers, reservoirs, bays) or model-domain edge artifacts, not flood depth on land:
+# 30 ft = the top class of FEMA's own Harvey legend; confirmed in GIS 2026-11-12 (Lake Livingston, Brazos, San Jacinto, Colorado, creek channels).
+MAX_DEPTH_M = 30 * FEET_TO_METRES
 
 
 def main() -> int:
@@ -78,6 +81,7 @@ def main() -> int:
         help="Multiply depths by this factor. Source depths are FEET (FEMA Harvey 3m depth grid legend, confirmed 2026-11-12), so the default "
              "converts to metres. Before 2026-11-12 this script wrote the raw feet values labelled as metres.",
     )
+    parser.add_argument("--max-depth-m", type=float, default=MAX_DEPTH_M, help="Set 50 m cells whose mean depth (metres) exceeds this to nodata; 0 disables")
     args = parser.parse_args()
 
     t0 = time.time()
@@ -106,6 +110,11 @@ def main() -> int:
 
     if args.unit_scale != 1.0:
         dst *= np.float32(args.unit_scale)  # NaN stays NaN; Resampling.average is linear, so scaling after reprojection is exact
+    if args.max_depth_m and args.max_depth_m > 0:
+        with np.errstate(invalid="ignore"):
+            n_masked = int(np.nansum(dst > args.max_depth_m))
+            dst[dst > args.max_depth_m] = np.nan
+        print(f"masked {n_masked:,} cells above {args.max_depth_m:.3f} m")
     elapsed = time.time() - t0
     valid = dst[~np.isnan(dst)]
     print(f"Reprojected in {elapsed:.1f}s. valid={valid.size}/{dst.size} "
