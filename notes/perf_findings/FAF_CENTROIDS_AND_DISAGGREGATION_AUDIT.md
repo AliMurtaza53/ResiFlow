@@ -40,10 +40,10 @@ part of the network the model routes on; the OD builder substituted "nearest roa
 
 | Group | Rows | Unique ids | Notes |
 |---|---|---|---|
-| County centroids, `CentroidID` = county FIPS | 3,400 | 3,142 | 258 ids appear twice as exact duplicate rows (same coordinates, `ID`, `DATA`); 3,133 match TIGER 2022 counties; 9 are pre-2022 ids (8 Connecticut counties 9001-9015, Alaska 2261) |
+| County centroids, `CentroidID` = county FIPS | 3,400 | 3,142 | 258 ids appear twice (same coordinates, `ID`, `DATA`): the node layer lists a node once per incident link end, so a second row is a second connector (see Corrections); 3,133 match TIGER 2022 counties; 9 are pre-2022 ids (8 Connecticut counties 9001-9015, Alaska 2261) |
 | Sub-county, id = county FIPS x 1000 + n (n = 1 to 5) | 101 | 101 | e.g. 4013001 (Maricopa), 6073002 (San Diego); every base county also has its own FIPS centroid |
 | Sub-county, id 100005-100411 | 295 | about 254 | 41 duplicate rows overall in the non-FIPS group; located in 204 counties; many near borders and ports (ND, ME, WA); their facility type is not populated in the export |
-| Total | 3,796 | 3,497 | 299 exact duplicate rows |
+| Total | 3,796 | 3,497 | 299 repeated rows = extra connectors |
 
 All 355 non-FIPS points lie inside a TIGER county, 351 of them in a county that also has its own FIPS centroid. 79 counties hold more than one extra
 centroid (Los Angeles 9, Aroostook 7, San Diego 6, Cook 6, Harris 5, Whatcom 5). The dictionary calls them "county or sub-county centroids". The 3,795 connectors exceed the 3,497 unique
@@ -70,3 +70,14 @@ a checked crosswalk so a renumbering fails loudly instead of silently scrambling
 
 `Desktop\gis_review\resiflow_od_review.gpkg` now also contains `faf5_loading_centroids` (3,497 unique, with `kind`, `base_county`, `dup_rows`) and
 `faf5_centroid_connectors_native` (the 3,795 Class 50 links). Regenerate with `scripts/diagnostics/export_od_review_gpkg.py`.
+
+## 5. Corrections (later on 2026-11-11, verified against the native geodatabase)
+
+- **The "duplicate" rows are multiple connectors, not junk.** `FAF5_Nodes` has 974,788 rows but 348,495 distinct nodes: each node is listed once per incident link end.
+  All 3,795 Class 50 connectors end exactly on a centroid point (0 m). 3,203 centroids have one connector, 292 have two, one has three, one has five.
+  The 294 multi-connector centroids (257 county, 37 gateway or sub-county) are the larger places; their connectors are longer (median 2.1 mi against 1.0).
+- **The non-county centroids are mostly gateway points.** Of the 255 with ids 100005-100411 (matched to the nearest native node type within 2 km): border crossings 89,
+  seaports 69, cargo airports 34, intermodal terminals 25, airport terminals 6, unmatched 32. The 101 with ids = FIPS x 1000 + n are sub-county zone centroids (90 have no gateway nearby).
+- **They carry no tonnage in our OD.** FAF flows exist for the 132 domestic zones (FAF5) and 8 foreign regions only. Imports and exports use the whole zone of entry or exit, so the
+  0.951 billion truck tons of imports and exports (7.5% of truck tons) are placed on county centroids, not on the border crossings, ports and airports. Loading the gateway
+  points needs an outside allocation.
