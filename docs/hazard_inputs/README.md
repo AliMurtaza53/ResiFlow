@@ -19,7 +19,8 @@ Everything hazard-related lives under `inputs/multihazard_raw/` (ignored by `.gi
 On Hopper: raw under `/scratch/akothaw/multimodal_hazard_data/inputs_raw/`, aligned under `/scratch/akothaw/multimodal_hazard_data/soge_clusters/inputs/multihazard_aligned/<layer>/event_1.tif`.
 
 ## Open items (2026-11-12)
-- **New Madrid provenance:** the aligned layer (780x637 px, linear percent g, max 1.31 g) is not the `nm19fema_m7p7_mt_se` scenario that was downloaded (601x541 px, ln g, max 1.42 g). Decide which scenario is intended.
+- **New Madrid scenario choice:** the aligned layer is exactly USGS `bssc2014newmadrid_32_m7p5_se` (M7.5, hypocenter -89.62/36.45, depth 15.6 km; verified pixel for pixel, percent g confirmed). The other BSSC2014 variants are `_31_` (M7.3, 36.93N) and `_33_` (M7.5, 35.83N, near Memphis); the FEMA `nm19fema_m7p7_mt_se` is a separate M7.7 southern-fault scenario. All four raster packs are local. Pick one deliberately; results depend on hypocenter.
 - **Harvey deep tail:** 29% of valid pixels exceed 3 m and the maximum is 45.3 m after the feet-to-metres conversion; inspect in GIS for water bodies.
-- **Winter storms:** SNODAS unit scale for Uri, Elliott and Snowmageddon not confirmed; raw files are local but not read.
+- **Winter storms:** units and georeferencing are consistent with the NSIDC guide (product 1036, integer mm, per-file header). Each storm is ONE daily snapshot of total snow depth, so it includes seasonal snowpack; a storm-increase raster (window maximum minus a pre-storm baseline) has not been built.
+- **Cascadia:** the median map is in use; USGS also publishes 2nd/16th/84th/98th percentile maps as a sensitivity band.
 - **Aligned grid:** 50 m for every layer except winter storms (1 km); only the floods have native data finer than 50 m.

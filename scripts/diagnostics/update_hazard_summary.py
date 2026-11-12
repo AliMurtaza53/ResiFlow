@@ -42,22 +42,24 @@ L = {
     prep="scripts/prepare_shakemap_pga.py + scripts/align_hazard_rasters.py",
     link1="https://earthquake.usgs.gov/earthquakes/eventpage/se609212/shakemap", link2="https://www.usgs.gov/programs/earthquake-hazards/science/m58-august-23-2011-mineral-virginia", links="POPULATED"),
  "earthquake_new_madrid_m75_scenario": dict(
-    native=("REPO LAYER: 780x637 px at 0.01926 deg (~1.73 x 2.13 km), EPSG:4326, lon -96.52..-81.50, lat 30.10..42.37. "
-            "DOWNLOADED raster.zip (event nm19fema_m7p7_mt_se): 601x541 px at 1 arcmin (0.016667 deg), ULX -95.0 ULY 40.0 (lon -95..-84.98, lat 31..40), ln(g) PGA"),
-    basis="MEASURED (both: local converted pga_g.tif, and the extracted raster.zip header)",
-    raw_hopper="NOT ON HOPPER", raw_local=f"{RAW}\\earthquake\\new_madrid_scenario\\ (raster.zip, shape.zip, raster_unzipped\\, pga_g.tif, sa1p0_g.tif)",
+    native="780x637 px at 0.019262 deg (~1.73 x 2.13 km), EPSG:4326, lon -96.52..-81.50, lat 30.10..42.37; identical grid to USGS bssc2014newmadrid_32_m7p5_se",
+    basis="MEASURED (downloaded the USGS raster.zip for event 32 and compared with the repo layer: difference exactly 0 for PGA and SA(1.0s))",
+    raw_hopper="NOT ON HOPPER",
+    raw_local=(RAW + "\\earthquake\\new_madrid_scenario\\bssc2014\\bssc2014newmadrid_{31_m7p3,32_m7p5,33_m7p5}_se\\raster.zip (+ raster_unzipped\\, .fit grids in percent g); "
+               "FEMA M7.7 scenario nm19fema_m7p7_mt_se: " + RAW + "\\earthquake\\new_madrid_scenario\\raster.zip, shape.zip; converted pga_g.tif, sa1p0_g.tif in the same folder"),
     prep="scripts/prepare_shakemap_pga.py (percent g / 100) + scripts/align_hazard_rasters.py --own-bounds",
-    link1="https://earthquake.usgs.gov/scenarios/eventpage/nm19fema_m7p7_mt_se/shakemap/intensity (supplied by project owner; event id nm19fema_m7p7_mt_se)",
-    link2="Repo layer was labelled 'USGS M7.5 central-fault scenario (BSSC2014)': https://earthquake.usgs.gov/scenarios/catalog/bssc2014/ ; data release DOI 10.5066/F7V122XD. Which event the repo layer came from: NOT RESOLVED",
-    links="POPULATED (but provenance of aligned layer unresolved)"),
+    link1="https://earthquake.usgs.gov/scenarios/eventpage/bssc2014newmadrid_32_m7p5_se/executive (the scenario this layer is)",
+    link2=("Alternates: _31_ M7.3 https://earthquake.usgs.gov/scenarios/eventpage/bssc2014newmadrid_31_m7p3_se/executive ; _33_ M7.5 https://earthquake.usgs.gov/scenarios/eventpage/bssc2014newmadrid_33_m7p5_se/executive ; "
+           "FEMA M7.7 southern fault https://earthquake.usgs.gov/scenarios/eventpage/nm19fema_m7p7_mt_se/shakemap/intensity . Data service: https://earthquake.usgs.gov/fdsnws/scenario/1/query?eventid=<id>&format=geojson . Catalog https://earthquake.usgs.gov/scenarios/catalog/bssc2014/"),
+    links="POPULATED"),
  "earthquake_cascadia_m9_scenario": dict(
     native="552x794 px at 0.01991 deg (~1.58 x 2.20 km), EPSG:4326, lon -127.27..-116.30, lat 36.77..52.56 (matches the HDF's own grid)",
     basis="MEASURED (HDF metadata read on Hopper, prep log, local pga_g.tif)",
     raw_hopper=f"{HOP_RAW}/Cascadia9_shake_result.hdf (+ earthquake/cascadia_m9_scenario/pga_g.tif, sa1p0_g.tif)",
-    raw_local=f"{RAW}\\earthquake\\cascadia_m9_scenario\\Cascadia9_shake_result.hdf (+ pga_g.tif, sa1p0_g.tif)",
+    raw_local=RAW + "\\earthquake\\cascadia_m9_scenario\\ (Cascadia9_shake_result.hdf, raster.zip, shape.zip, converted pga_g.tif, sa1p0_g.tif)",
     prep="scripts/prepare_cascadia_pga.py + scripts/align_hazard_rasters.py --own-bounds",
     link1="https://earthquake.usgs.gov/scenarios/eventpage/cszm9ensemble_se/shakemap/intensity (supplied by project owner)",
-    link2="HDF metadata: event_id CSZM9_median, eventsource cszm9, eventsourcecode ensemble_se, 'M9.0 Cascadia, median ground motion' (matches the link's event id)", links="POPULATED (matched to the HDF)"),
+    link2="HDF metadata: event_id CSZM9_median, eventsource cszm9, eventsourcecode ensemble_se (matches the link). USGS also publishes 2nd/16th/84th/98th percentile maps for this scenario: https://earthquake.usgs.gov/fdsnws/scenario/1/query?eventid=cszm9ensemble_se&format=geojson", links="POPULATED (matched to the HDF)"),
  "landslide": dict(
     native="USGS n10 susceptibility ~88 m (0.00102 deg, 63722x37866 px, EPSG:4326); displacement driven by the ~1.5 km PGA grid", basis="MEASURED (n10 file read on Hopper)",
     raw_hopper=f"{HOP_RAW}/landslide/n10_susc/n10_conus.tif", raw_local=f"{RAW}\\landslide\\n10_susc.zip",
@@ -113,16 +115,23 @@ for k, v in fl.items():
     d.at[i, "aligned_local_copy"] = f"{PKG}\\{k}_event_1_metres.tif (feet version: {PKG}\\{k}_event_1_feet_unconverted.tif)"
 
 for i in d.index[d["file"].str.contains("new_madrid")]:
-    d.at[i, "unit_hypothesis"] = ("Native-grid check 2026-11-12 of the repo layer (local converted pga_g/sa1p0_g): 780x637 px, max PGA 1.3089 g, max SA(1.0s) 1.0376 g; aligned 50 m maxima match. "
-                                  "The separately downloaded raster.zip (nm19fema_m7p7_mt_se) is a DIFFERENT grid and values: 601x541 px, ln(g), PGA max exp(0.3506)=1.42 g, SA(1.0s) max exp(0.2518)=1.29 g")
-    d.at[i, "gaps"] = ("NO_UNIT_TAG_IN_FILE; PROVENANCE_MISMATCH: repo layer is not the downloaded nm19fema_m7p7_mt_se scenario (grid, extent, peak differ); "
-                       "ORIGINAL_DOWNLOAD_OF_REPO_LAYER_NOT_RETAINED; ALIGNED_50M_IS_AN_UPSAMPLE_OF_A_~2KM_GRID")
-    d.at[i, "update_note"] = "Decide which scenario is intended before using this layer for results"
+    d.at[i, "unit_status"] = "DOCUMENTED_AND_VERIFIED_PERCENT_G"
+    d.at[i, "unit_hypothesis"] = ("Verified 2026-11-12: repo layer equals the USGS bssc2014newmadrid_32_m7p5_se raster pixel for pixel (diff 0.0); raw values are percent g (max 130.89 -> 1.309 g). "
+                                  "Scenario facts (USGS service): M7.5, hypocenter -89.62/36.45, depth 15.6 km, max MMI 8.77, median ground motions")
+    d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; ALIGNED_50M_IS_AN_UPSAMPLE_OF_A_~2KM_GRID; SCENARIO_CHOICE_OPEN (3 BSSC2014 variants + FEMA M7.7)"
+    d.at[i, "update_note"] = ("BSSC2014 variants (all 'New Madrid central fault', median ground motions): _31_ M7.3 hypocenter -89.33/36.93 depth 19.1 km MMI 8.66 PGA max 1.222 g; "
+                              "_32_ M7.5 -89.62/36.45 depth 15.6 km MMI 8.77 PGA max 1.309 g (in use); _33_ M7.5 -90.06/35.83 depth 19.4 km MMI 8.62 PGA max 1.192 g. "
+                              "FEMA nm19fema_m7p7_mt_se: M7.7 southern fault, hypocenter -90.44/35.54, depth 15 km, ln(g), PGA max 1.42 g, extent lon -95..-85 lat 31..40")
 for i in d.index[d["file"].str.contains("cascadia_m9_scenario")]:
     d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; ALIGNED_50M_IS_AN_UPSAMPLE_OF_A_~2KM_GRID; PRODUCT_IS_THE_MEDIAN_MAP_(CSZM9_median)"
-    d.at[i, "update_note"] = "Source HDF event metadata matches the supplied USGS link (cszm9ensemble_se)"
+    d.at[i, "update_note"] = ("Median map in use (CSZM9_median, max PGA 1.387 g). USGS also publishes 2nd/16th/84th/98th percentile maps (max PGA 0.54/0.73/2.43/3.02 g) and a ground-failure-scenario product; "
+                              "median is the standard deterministic basis, percentile maps are the sensitivity band")
 for i in d.index[d["file"].str.contains("mineral")]:
     d.at[i, "update_note"] = "Aligned 50 m is an interpolation of a ~1.5-1.8 km native grid"
+for i in d.index[d["file"].str.startswith("winter_storm")]:
+    d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; SINGLE_DAILY_SNAPSHOT_NOT_STORM_INCREASE (includes seasonal snowpack); NO_BASELINE_SUBTRACTION"
+    d.at[i, "update_note"] = ("SNODAS product 1036 per NSIDC guide: big-endian int16, 'Meters / 1000' so stored integers are mm (matches code); -9999 and 32767 masked; georeferenced from each file's own header "
+                              "(handles the 2013 origin shift). Prep: scripts/prepare_snodas_depth.py. Raw files: winter_storm/<event>/snodas_3day and depth_mm.tif")
 d.to_csv(S, index=False, encoding="utf-8")
 
 # sources_and_units.csv: keep in step for the rows whose status changed
@@ -137,7 +146,8 @@ for i, r in u.iterrows():
         u.at[i, "status"] = "FEET CONFIRMED (CT, NJ, NY, RI items); CONVERTED TO METRES 2026-11-12"
         u.at[i, "native_unit_per_records"] = "feet ('Vertical: Feet (water depth above ground, NAVD88)')"
     elif n.startswith("earthquake_new_madrid"):
-        u.at[i, "status"] = "PROVENANCE MISMATCH: repo layer differs from downloaded nm19fema_m7p7_mt_se; see specs summary"
+        u.at[i, "status"] = "VERIFIED: layer = USGS bssc2014newmadrid_32_m7p5_se (diff 0); percent g confirmed"
+        u.at[i, "source_as_recorded"] = "USGS BSSC2014 scenario bssc2014newmadrid_32_m7p5_se, https://earthquake.usgs.gov/scenarios/eventpage/bssc2014newmadrid_32_m7p5_se/executive"
     elif n.startswith("earthquake_cascadia"):
         u.at[i, "source_as_recorded"] = "USGS ShakeMap scenario cszm9ensemble_se (HDF event CSZM9_median), https://earthquake.usgs.gov/scenarios/eventpage/cszm9ensemble_se/shakemap/intensity"
 u.to_csv(S2, index=False, encoding="utf-8")
