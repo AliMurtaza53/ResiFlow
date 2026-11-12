@@ -54,6 +54,31 @@ State must be a real US state because T30 is keyed by state: Sioux Falls = South
 - Anaheim hazards: generalise `generate_synthetic_hazards.py` to take a testbed, place hazard fields on Anaheim's geometry in EPSG:9311, and assign synthetic bridges and tunnels to chosen links (for example the corridor links crossing the hazard) so each hazard hits at least one bridge.
 - For the figure set, map each testbed hazard to one display event (flood to "Hurricane Harvey", earthquake to "New Madrid Earthquake", landslide to "New Madrid Landslide", winter storm to "Winter Storm Jonas") and stamp every figure "testbed, not a result".
 
+### 4a. Coverage target (owner request 2026-11-12: the whole spectrum, so the typical result tables populate)
+What has been checked so far is **one cell**: Sioux Falls, flood, event 1, where both flooded links happen to be bridges. Direct damage on roads, tunnels and every other hazard is **not verified** on the sourced path.
+
+| Dimension | Target | Status (2026-11-12) |
+|---|---|---|
+| Hazards | flood surface, flood river, flood coastal, earthquake, landslide, winter storm | Sioux Falls generator and a pytest per hazard exist (`tests/test_multihazard_pipeline_sioux_falls.py`); costs and result tables per hazard **not inspected** |
+| Direct cost path per hazard | flood: sourced (T24/T30/Rostami); earthquake and landslide: HAZUS bridges (earthquake road damage is zero by design); winter storm: T32 cost function | flood verified on bridges only |
+| Assets hit | road, bridge, tunnel in every hazard that prices them | bridges only so far; no tunnels on any testbed yet |
+| Events | miss (zero everything), bridge bottleneck, disconnect stress (isolation) | event 1 only run on the sourced path; event 3 not run |
+| Indirect | rerouting by mode (operating, time, toll) for passenger and freight; isolation; 90-day recovery | rerouting verified on event 1 (freight $995.56, passenger $11,061.78); isolation zero there; horizon and components not checked |
+| Interactions | see below | only the earthquake-to-landslide chain exists |
+| Freight detail | commodity mix, tonnage and value by industry (RQ3 figures) | testbeds have no commodity breakdown; needs a synthetic mix |
+| Regions | pseudo-regions for state-level figures | not built |
+
+**Hazard interactions.** The only interaction the code has today is landslide displacement computed from earthquake shaking (`compute_landslide_pgd.py`, Newmark). Nothing evaluates simultaneous or sequential hazards on one network, and flood surface, river and coastal run as separate scenarios. Proposed interaction cases for the testbeds (owner to confirm): (1) earthquake followed by co-seismic landslide on the same links; (2) compound flood: surface plus river plus coastal fields on one event; (3) earthquake then flood on the already damaged network (sequential, damage state carried over), which needs new code. Cases 1 and 2 use existing pieces; case 3 does not.
+
+### 4b. Requirements for sharing the module
+Someone without Hopper access must be able to run it:
+1. One command (`python scripts/testbed/run_testbed_suite.py --testbed all --out <dir>`), no CONUS data and no cluster paths.
+2. A pinned environment (`environment.yml` exists at the repo root; **not verified that it builds**) including `igraph` and `snail`, which the local Windows Python lacked.
+3. Everything the run needs lives in the repo (`tests/data`, `parameters/testbeds`), and the run writes only under `--out`.
+4. A README with expected runtime, the expected results (pinned baselines with tolerances) and how to read the manifest.
+5. A self-check at the end that runs the invariants in section 6 and prints PASS or the failing invariant by name.
+6. Do not export `RESIFLOW_CONFIG_PATH` or `NIRD_CONFIG_PATH` in the user's shell (they override the testbed config and load real data).
+
 ## 5. Results bundle
 Folder: `results/testbed_suite/<testbed>/<run_id>/`.
 - `manifest.json`: git commit, parameter file hash, override file, hazard and event list, raster units and stats, dollar year, costing path, run time.
