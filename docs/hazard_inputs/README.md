@@ -18,6 +18,11 @@ Everything hazard-related lives under `inputs/multihazard_raw/` (ignored by `.gi
 
 On Hopper: raw under `/scratch/akothaw/multimodal_hazard_data/inputs_raw/`, aligned under `/scratch/akothaw/multimodal_hazard_data/soge_clusters/inputs/multihazard_aligned/<layer>/event_1.tif`.
 
+## Decisions (2026-11-12)
+- **New Madrid:** keep `bssc2014newmadrid_32_m7p5_se`; sensitivity options (`_33_`, `_31_`, FEMA M7.7) documented in the `sensitivity_run_option` column.
+- **Cascadia:** keep the median map; 16th/84th percentile sensitivity documented the same way.
+- **Winter storms:** pending a check (see the `decision` column).
+
 ## Open items (2026-11-12)
 - **New Madrid scenario choice:** the aligned layer is exactly USGS `bssc2014newmadrid_32_m7p5_se` (M7.5, hypocenter -89.62/36.45, depth 15.6 km; verified pixel for pixel, percent g confirmed). The other BSSC2014 variants are `_31_` (M7.3, 36.93N) and `_33_` (M7.5, 35.83N, near Memphis); the FEMA `nm19fema_m7p7_mt_se` is a separate M7.7 southern-fault scenario. All four raster packs are local. Pick one deliberately; results depend on hypocenter.
 - **Harvey deep tail:** 29% of valid pixels exceed 3 m and the maximum is 45.3 m after the feet-to-metres conversion; inspect in GIS for water bodies.

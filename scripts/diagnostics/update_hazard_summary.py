@@ -132,6 +132,33 @@ for i in d.index[d["file"].str.startswith("winter_storm")]:
     d.at[i, "gaps"] = "NO_UNIT_TAG_IN_FILE; SINGLE_DAILY_SNAPSHOT_NOT_STORM_INCREASE (includes seasonal snowpack); NO_BASELINE_SUBTRACTION"
     d.at[i, "update_note"] = ("SNODAS product 1036 per NSIDC guide: big-endian int16, 'Meters / 1000' so stored integers are mm (matches code); -9999 and 32767 masked; georeferenced from each file's own header "
                               "(handles the 2013 origin shift). Prep: scripts/prepare_snodas_depth.py. Raw files: winter_storm/<event>/snodas_3day and depth_mm.tif")
+# ---- decisions and sensitivity options (owner decisions 2026-11-12)
+for c in ["decision", "sensitivity_run_option"]:
+    if c not in d.columns:
+        d[c] = ""
+    d[c] = d[c].astype(object)
+NM_SENS = ("OPTIONAL SENSITIVITY: rerun scenario 403 with bssc2014newmadrid_33_m7p5_se (M7.5, hypocenter 35.83N near Memphis, PGA max 1.192 g) and/or _31_ (M7.3, 36.93N, 1.222 g); "
+           "FEMA nm19fema_m7p7_mt_se (M7.7 southern fault, ln g, PGA max 1.42 g, has a PAGER loss estimate) as a larger-event case. Raster packs are already local under new_madrid_scenario/bssc2014 "
+           "(percent g, convert with prepare_shakemap_pga.py then align_hazard_rasters.py --own-bounds); results depend on hypocenter")
+CS_SENS = ("OPTIONAL SENSITIVITY: rerun scenario 404 with the 16th and 84th percentile maps (USGS cszm9ensemble_se products 16perct_se and _84perct_se; max PGA 0.73 g and 2.43 g vs median 1.39 g), "
+           "optionally 2nd and 98th (0.54 g and 3.02 g) as bounds. Not yet downloaded (fetch each product's raster.zip via the USGS scenario service). "
+           "Percentile maps are cell-by-cell, not one consistent event; damage is convex in shaking, so the median can understate expected damage")
+for i in d.index:
+    f = d.at[i, "file"]
+    if "new_madrid" in f:
+        d.at[i, "decision"] = "KEEP bssc2014newmadrid_32_m7p5_se (owner decision 2026-11-12)"
+        d.at[i, "sensitivity_run_option"] = NM_SENS
+    elif "cascadia_m9_scenario" in f:
+        d.at[i, "decision"] = "KEEP median map CSZM9_median (owner decision 2026-11-12)"
+        d.at[i, "sensitivity_run_option"] = CS_SENS
+    elif f.startswith("landslide_cascadia"):
+        d.at[i, "decision"] = "Follows the Cascadia median PGA"
+        d.at[i, "sensitivity_run_option"] = "Recompute displacement from the 16th/84th percentile PGA if the Cascadia sensitivity is run (compute_landslide_pgd.py --magnitude 9.0)"
+    elif f.startswith("winter_storm"):
+        d.at[i, "decision"] = ("PENDING_CHECK: owner position 2026-11-12 is that seasonal mountain snowpack should not matter because freight and most commutes avoid it; "
+                               "caveat: the model applies the depth at every link location, including mountain-pass interstates, so deep pack there would read as disruption")
+        d.at[i, "sensitivity_run_option"] = ("OPTIONAL: storm-increase raster (window maximum of daily SNODAS 1036 snapshots minus a pre-storm baseline day) "
+                                             "or measure how many links in mountain passes exceed the closure thresholds with the current rasters")
 d.to_csv(S, index=False, encoding="utf-8")
 
 # sources_and_units.csv: keep in step for the rows whose status changed
