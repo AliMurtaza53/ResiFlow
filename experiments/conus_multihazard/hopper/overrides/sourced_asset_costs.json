@@ -1,0 +1,6 @@
+{
+  "_comment": "Harvey and other flood reruns: price flood damage with the sourced costs (T24 CP25 roads, T30 bridges, Rostami tunnels) instead of the legacy cost workbook. Applied through RESIFLOW_PARAM_OVERRIDES so the repo default stays unchanged.",
+  "vulnerability": {
+    "use_sourced_asset_costs": true
+  }
+}
