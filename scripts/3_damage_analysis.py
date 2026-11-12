@@ -549,6 +549,20 @@ def calculate_damage_sourced(disrupted_links: pd.DataFrame, damage_curves: Dict)
     from resiflow.us_states import state_name_from_fips_or_usps
 
     out = disrupted_links.reset_index(drop=True).copy()
+    # Sourced costing has no fallback: name every missing attribute at once instead of failing on the first KeyError.
+    from resiflow.testbeds.assets import required_columns_for_sourced_costs
+
+    _needed = required_columns_for_sourced_costs(out["road_label"] if "road_label" in out.columns else [])
+    _missing = {
+        group: [c for c in cols if c not in out.columns] for group, cols in _needed.items()
+    }
+    _missing = {group: cols for group, cols in _missing.items() if cols}
+    if _missing:
+        raise ValueError(
+            "sourced flood costing needs link attributes that are missing: "
+            + "; ".join(f"{group}: {cols}" for group, cols in _missing.items())
+            + ". Add them to the network (testbeds: resiflow.testbeds.assets.apply_synthetic_asset_attributes)."
+        )
     flood_types = ["surface", "river"]
     _METERS_PER_MILE = 1609.344
 

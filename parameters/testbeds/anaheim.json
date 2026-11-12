@@ -12,5 +12,8 @@
   "output_crs": "EPSG:9311",
   "demand_scale": 1.0,
   "freight_share_of_passenger": 0.09,
-  "results_variant": "toy_anaheim"
+  "results_variant": "toy_anaheim",
+  "state_fips": "06",
+  "state_usps": "CA",
+  "urban_code": "51445"
 }

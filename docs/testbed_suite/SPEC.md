@@ -9,6 +9,13 @@ Run all four hazard types (flood, earthquake, landslide, winter storm) on small 
 
 Non-goals: no mocking of intersection or damage code; no changes to the figure layouts (frozen 2026-10-22); no real-data runs.
 
+## 1a. Owner decisions (2026-11-12)
+1. **Two testbeds: Sioux Falls and Anaheim.** Anaheim is the larger one (416 nodes, 914 links, 118 centroid connectors) and is still small enough for maps. Anaheim's GeoJSON (`tests/data/anaheim_tntp/anaheim.geojson`, `anaheim_nodes.geojson`) is already in this repo; the public repo `github.com/AliMurtaza53/network-analysis` (verified to exist; top level has `network.py`, `link.py`, `node.py`, `od.py`, `path.py`, `run_netanalysis_on.py`, `data/`, `tests/`) holds the UE network implementation that can be borrowed.
+2. **State-level figures use labelled pseudo-regions** on the testbeds.
+3. **Synthetic bridges and tunnels are assigned to some links, with whatever attributes make the testbed look like a FAF run** (table in section 3a).
+4. **Sourced costing is the only costing path** (T24 CP25 roads, T30 bridges, Rostami tunnels). The legacy workbook path is retired. If the sourced path does not work on a testbed, that is a bug to fix, not a reason to fall back. This is itself one of the suite's checks.
+5. **Every CONUS or semi-CONUS Hopper run is profiled** (per-stage wall time, peak memory, CPU efficiency). See `experiments/common/profile_stage.sh` and section 7.
+
 ## 2. What exists (verified)
 | Piece | Where |
 |---|---|
@@ -25,16 +32,26 @@ Paper-set rows and their current blocker (from the registry): RQ1a `s3_major_cos
 
 ## 3. Gaps
 1. **No synthetic hazards for Anaheim.** The generator is Sioux Falls specific. Needs hazard fields placed on Anaheim's geometry, in its CRS, with the same four units.
-2. **Asset attributes on testbed links (not verified for Anaheim).** The cost paths need `road_label` (road, bridge, tunnel), structure lengths, lanes, classes and state. Anaheim is a TNTP network, so these likely have to be assigned synthetically and labelled as such.
+2. **Asset attributes on testbed links.** The sourced cost path needs the attributes in section 3a. TNTP networks do not carry them, so they are assigned synthetically and labelled as such. First check run on 2026-11-12: with the sourced override on, Script 3 exits with an error on Sioux Falls (details in section 8).
 3. **No "state" on testbeds.** RQ1b, RQ1c, RQ2c, RQ3b are state-level. A fixed node-to-pseudo-region map is needed, clearly labelled synthetic.
 4. **Pipeline tests failed on Hopper.** The failures I saw were caused by my own test job exporting `RESIFLOW_CONFIG_PATH`, which overrode the tests' toy config and loaded real CONUS demand. Do **not** export `RESIFLOW_CONFIG_PATH` or `NIRD_CONFIG_PATH` when running tests. A clean rerun at both the old and new commit was running when this was written; its result goes in section 8.
 5. **Environments.** Hopper `nird` env: no `pytest` (installed separately in `/scratch/akothaw/multimodal_hazard_data/pytest_pkgs`, add to `PYTHONPATH`), no `SALib` (Morris tests error), PROJ mismatch (set `PROJ_DATA=/scratch/akothaw/conda_envs/nird/lib/python3.10/site-packages/rasterio/proj_data`). Local Windows Python: no `igraph`, so pipeline tests cannot run locally.
+
+### 3a. Link attributes the sourced path reads (verified by reading `scripts/3_damage_analysis.py` and the cost modules)
+| Asset (`road_label`) | Required columns | Notes |
+|---|---|---|
+| all | `e_id`, `length` (m), `lanes`, `road_classification`, `trunk_road`, `form_of_way`, `urban`, flood depth columns from Script 2 | `urban_code` (Census urban area) is turned into `hpms_urban_size_tier` before costing |
+| road | `hpms_fclass`, `urban`, `hpms_urban_size_tier` | T24 CP25 $/lane-mile join; roads are priced per raster-cell piece |
+| bridge | `bridge_state` (FIPS) or `STATE`, `nhs_designation` (non-null means on the NHS), `averageWidth` (m), `structure_length_m`, `main_unit_spans` | T30 $/ft2 by state and NHS class, times deck area, times a HAZUS damage-state ratio; the whole-structure value is repeated on every piece (counted once per link) |
+| tunnel | `tunnel_bores`, `tunnel_length_m`, `tunnel_length_m_min`, `tunnel_lanes_total`, `tunnel_roadway_width_m` | Rostami construction value times a HAZUS tunnel ratio |
+State must be a real US state because T30 is keyed by state: Sioux Falls = South Dakota (FIPS 46), Anaheim = California (FIPS 06). `hpms_fclass` has to be derived from the TNTP link attributes by a stated rule, and `urban_code` set to the Census urban area for the testbed's city (look up in `parameters/tables/T39_census_urban_area_population_2010.csv`).
 
 ## 4. Design
 - One runner: `scripts/testbed/run_testbed_suite.py <testbed> [--hazards ...] [--events ...] --out <dir>`; for each hazard and event it (a) generates or loads the raster, (b) runs Scripts 2, 3, 3-postprocess, 4 by their normal entry points and environment variables, (c) writes the results bundle.
 - Only inputs are synthetic; intersection, damage, aggregation and rerouting are the production functions.
 - Hazard set: flood surface, earthquake PGA, landslide displacement, winter storm snow depth. Events per hazard: miss (expects zero damage), bridge bottleneck, disconnect stress.
-- Run both costing paths for flood: legacy workbook and sourced (`RESIFLOW_PARAM_OVERRIDES` = `experiments/conus_multihazard/hopper/overrides/sourced_asset_costs.json`).
+- Costing: sourced path only. During the transition run with `RESIFLOW_PARAM_OVERRIDES` = `experiments/conus_multihazard/hopper/overrides/sourced_asset_costs.json`; the end state is that `vulnerability.use_sourced_asset_costs` defaults to true and the legacy branch is removed.
+- Anaheim hazards: generalise `generate_synthetic_hazards.py` to take a testbed, place hazard fields on Anaheim's geometry in EPSG:9311, and assign synthetic bridges and tunnels to chosen links (for example the corridor links crossing the hazard) so each hazard hits at least one bridge.
 - For the figure set, map each testbed hazard to one display event (flood to "Hurricane Harvey", earthquake to "New Madrid Earthquake", landslide to "New Madrid Landslide", winter storm to "Winter Storm Jonas") and stamp every figure "testbed, not a result".
 
 ## 5. Results bundle
@@ -54,17 +71,17 @@ These come from the reconciliation rules in `figlib/synthetic_model.py` plus the
 7. Monotonic: higher hazard intensity never lowers damage; the miss event gives zero damage and zero disruption.
 8. Flow conservation in rerouting: delivered plus isolated equals demand.
 9. Units: raster statistics within the generator's design peaks (flood m, PGA g, landslide mm, snow mm).
-10. Costing paths agree in order of magnitude on the same event (legacy vs sourced) or the difference is explained in the manifest.
+10. The sourced path runs without error on both testbeds for all four hazards; a missing attribute fails loudly with its name (no silent zeros).
 
 ## 7. Ownership and workflow
 - **Tests and adapter:** the other agent. Put tests in `tests/testbed_suite/`; runner in `scripts/testbed/`; outputs in `results/testbed_suite/` (gitignored).
 - **This branch (`feature/anaheim-assignment-diagnostics`) carries the aggregation fix, hazard summary, and the Harvey prep.** Branch the suite from it, or from main once the diagnostics branch merges. Per AGENTS.md add a ledger row before starting. Proposed row: `testbed suite` | agent + session | `tests/testbed_suite/`, `scripts/testbed/run_testbed_suite.py`, `results/testbed_suite/` | Active | date.
 - Do not edit the figure worktree except the one adapter file, and only with its owner's agreement.
+- Profiling: any run at CONUS or semi-CONUS scale on Hopper or Anvil sources `experiments/common/profile_stage.sh` (`profile_init`, `profile_stage <label> <cmd>`, `profile_finish`) and is read with `scripts/diagnostics/summarize_hopper_profiles.py`. The testbeds are small, so a plain `sacct` line is enough for them.
 
 ## 8. Status log
 - 2026-11-12: spec written. Aggregation fix and 15 aggregation tests merged to the branch (`0c646da`). Clean rerun of the pipeline tests: see the next entry.
 
-## 9. Open decisions (owner)
-1. Pseudo-regions for state-level figures on testbeds: acceptable as labelled synthetic, or leave those four figures out of the testbed bundle?
-2. Anaheim asset attributes: assign synthetic bridges and tunnels, or restrict Anaheim to road-only costing?
-3. Which costing path is the reference in the bundle: sourced, legacy, or both?
+## 9. Decisions
+Resolved 2026-11-12: pseudo-regions allowed; synthetic bridges and tunnels assigned; sourced costing only (see section 1a).
+Still open: how `hpms_fclass` is derived from TNTP free-flow speed and capacity (the rule must be written down and tested); whether the legacy cost code is deleted in the same change that flips the default, or one change later.

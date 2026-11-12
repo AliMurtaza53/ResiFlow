@@ -29,6 +29,10 @@ class TestbedSpec:
     results_variant: str = ""
     flooded_physical_pair: tuple[str, str] | None = None
     bridge_physical_pairs: tuple[tuple[str, str], ...] = ()
+    tunnel_physical_pairs: tuple[tuple[str, str], ...] = ()
+    state_fips: str = ""
+    state_usps: str = ""
+    urban_code: str = ""
 
     def node_id_formatter(self):
         prefix = self.node_id_prefix
@@ -84,6 +88,10 @@ def load_testbed(testbed_id: str, *, testbeds_dir: Path | None = None) -> Testbe
         results_variant=raw.get("results_variant", f"toy_{testbed_id}"),
         flooded_physical_pair=tuple(flooded) if flooded else None,
         bridge_physical_pairs=bridge_pairs,
+        tunnel_physical_pairs=tuple(tuple(pair) for pair in raw.get("tunnel_physical_pairs", [])),
+        state_fips=str(raw.get("state_fips", "")),
+        state_usps=str(raw.get("state_usps", "")),
+        urban_code=str(raw.get("urban_code", "")),
     )
 
 

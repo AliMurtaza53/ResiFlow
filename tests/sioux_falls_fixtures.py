@@ -272,6 +272,12 @@ def write_road_links(
     road_links["structure_length_m"] = road_links["length"].where(
         road_links["road_label"].astype(str).str.lower().eq("bridge")
     )
+    # Synthetic FAF-like asset attributes so the sourced flood cost path (T24/T30/Rostami) runs on this testbed.
+    from resiflow.testbeds.assets import apply_synthetic_asset_attributes
+
+    road_links = apply_synthetic_asset_attributes(
+        road_links, state_fips=TESTBED.state_fips, state_usps=TESTBED.state_usps, urban_code=TESTBED.urban_code
+    )
     out = toy_data_dir / "inputs" / "networks" / "faf5" / "faf5_road_links.gpq"
     out.parent.mkdir(parents=True, exist_ok=True)
     road_links.to_parquet(out)
