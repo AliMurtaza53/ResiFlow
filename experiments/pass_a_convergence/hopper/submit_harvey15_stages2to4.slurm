@@ -13,11 +13,11 @@
 #SBATCH --output=/home/akothaw/multimodal_hazard_project/logs_harvey15_stages2to4_%j.out
 #SBATCH --error=/home/akothaw/multimodal_hazard_project/logs_harvey15_stages2to4_%j.err
 #SBATCH --exclude=hop059
-set -e
 module purge
 source /home/akothaw/miniforge/bin/activate /scratch/akothaw/conda_envs/nird
 
 CODE=/scratch/akothaw/multimodal_hazard_data/code/ResiFlow_dump
+set -e
 export PYTHONPATH=$CODE/src:$PYTHONPATH
 DATA=/scratch/akothaw/multimodal_hazard_data
 VARIANT=harvey15_streaming_cpu8
