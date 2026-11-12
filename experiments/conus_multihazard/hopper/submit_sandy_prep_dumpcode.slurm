@@ -29,6 +29,11 @@
 
 module purge
 source /home/akothaw/miniforge/bin/activate /scratch/akothaw/conda_envs/nird
+# The Nov 2026 env rebuild mixes conda PROJ 9.6.2 (proj.db layout 1.5) with pip rasterio/pyogrio that need layout >= 1.6.
+# Point PROJ at rasterio's bundled db (layout 1.6; also satisfies conda pyproj).
+export PROJ_DATA=/scratch/akothaw/conda_envs/nird/lib/python3.10/site-packages/rasterio/proj_data
+export PROJ_LIB=$PROJ_DATA
+set -e
 
 export RESIFLOW_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
 export NIRD_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
