@@ -79,7 +79,11 @@ SANDY_SOURCE_FILES: tuple[str, ...] = ("ct3m0214c.tif", "nj3m0214c.tif", "nys3m0
 TARGET_CRS = "EPSG:9311"
 # Comfortably above the observed max (~17.9m, NJ) -- guards against residual
 # edge-of-tile compression artifacts, not a real physical cap.
-MAX_PLAUSIBLE_DEPTH_M = 25.0
+MAX_PLAUSIBLE_DEPTH_M = 25.0  # metres, applied AFTER the feet->metres conversion
+
+# Source depths are FEET (FEMA MOTF item metadata: 'Vertical: Feet, water depth above ground, NAVD88'; confirmed 2026-11-12).
+# Before 2026-11-12 this script wrote the raw feet values labelled as metres.
+FEET_TO_METRES = 0.3048
 
 
 def sandy_union_bounds_9311(raw_dir: Path = DEFAULT_RAW_DIR) -> tuple[float, float, float, float]:
@@ -103,6 +107,7 @@ def build_sandy_mosaic(
     *,
     raw_dir: Path = DEFAULT_RAW_DIR,
     source_files: tuple[str, ...] = SANDY_SOURCE_FILES,
+    unit_scale: float = FEET_TO_METRES,
 ) -> tuple[np.ndarray, Affine, str]:
     """Mosaic the 4 state-clipped Sandy depth grids onto one EPSG:9311 grid.
 
@@ -140,6 +145,8 @@ def build_sandy_mosaic(
                 dst_nodata=np.nan,
                 resampling=Resampling.average,
             )
+        if unit_scale != 1.0:
+            tmp = tmp * np.float32(unit_scale)  # NaN stays NaN; averaging is linear so scaling after reprojection is exact
         valid = np.isfinite(tmp) & (tmp >= 0) & (tmp <= MAX_PLAUSIBLE_DEPTH_M)
         sum_arr[valid] += tmp[valid]
         count_arr[valid] += 1
@@ -162,17 +169,18 @@ def main() -> int:
     parser.add_argument("--raw-dir", type=Path, default=DEFAULT_RAW_DIR)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resolution", type=float, default=50.0, help="Target resolution in meters (EPSG:9311)")
+    parser.add_argument("--unit-scale", type=float, default=FEET_TO_METRES, help="Multiply depths by this factor (default feet -> metres)")
     args = parser.parse_args()
 
     t0 = time.time()
-    dst, dst_transform, dst_crs = build_sandy_mosaic(args.resolution, raw_dir=args.raw_dir)
+    dst, dst_transform, dst_crs = build_sandy_mosaic(args.resolution, raw_dir=args.raw_dir, unit_scale=args.unit_scale)
     elapsed = time.time() - t0
 
     valid = dst[~np.isnan(dst)]
     print(f"Mosaicked in {elapsed:.1f}s. valid={valid.size}/{dst.size} ({100 * valid.size / dst.size:.1f}%)")
     if valid.size:
         print(
-            f"depth (m): min={valid.min():.3f} max={valid.max():.3f} mean={valid.mean():.3f} "
+            f"depth (m, source feet x {args.unit_scale}): min={valid.min():.3f} max={valid.max():.3f} mean={valid.mean():.3f} "
             f"median={np.median(valid):.3f} p90={np.percentile(valid, 90):.3f} p99={np.percentile(valid, 99):.3f}"
         )
 

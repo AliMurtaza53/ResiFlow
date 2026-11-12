@@ -63,6 +63,7 @@ from rasterio.transform import from_origin
 from rasterio.warp import Resampling, calculate_default_transform, reproject, transform_bounds
 
 TARGET_CRS = "EPSG:9311"
+FEET_TO_METRES = 0.3048
 
 
 def main() -> int:
@@ -70,6 +71,13 @@ def main() -> int:
     parser.add_argument("--input", type=Path, required=True, help="Extracted (not zipped) Harvey_Depths_3m_Final.gdb")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--resolution", type=float, default=50.0, help="Target resolution in meters (EPSG:9311)")
+    parser.add_argument(
+        "--unit-scale",
+        type=float,
+        default=FEET_TO_METRES,
+        help="Multiply depths by this factor. Source depths are FEET (FEMA Harvey 3m depth grid legend, confirmed 2026-11-12), so the default "
+             "converts to metres. Before 2026-11-12 this script wrote the raw feet values labelled as metres.",
+    )
     args = parser.parse_args()
 
     t0 = time.time()
@@ -96,12 +104,14 @@ def main() -> int:
             resampling=Resampling.average,
         )
 
+    if args.unit_scale != 1.0:
+        dst *= np.float32(args.unit_scale)  # NaN stays NaN; Resampling.average is linear, so scaling after reprojection is exact
     elapsed = time.time() - t0
     valid = dst[~np.isnan(dst)]
     print(f"Reprojected in {elapsed:.1f}s. valid={valid.size}/{dst.size} "
           f"({100 * valid.size / dst.size:.1f}%)")
     if valid.size:
-        print(f"depth (m): min={valid.min():.3f} max={valid.max():.3f} "
+        print(f"depth (m, source feet x {args.unit_scale}): min={valid.min():.3f} max={valid.max():.3f} "
               f"mean={valid.mean():.3f} median={np.median(valid):.3f} "
               f"p90={np.percentile(valid, 90):.3f} p99={np.percentile(valid, 99):.3f}")
 
