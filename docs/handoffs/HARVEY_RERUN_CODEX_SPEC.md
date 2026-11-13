@@ -19,7 +19,7 @@ Rerun intersection (stage 2), direct damage (stage 3), post-process, and rerouti
 ## 3. Gates (do not submit until all are true)
 1. **Owner sign-off on the masked Harvey raster.** The owner is checking it in GIS (local copy `C:\Users\akothaw\Desktop\ResiFlow\inputs\multihazard_raw\audit_2026-11-12\rasters\flood_harvey_houston_event_1_metres_masked.tif`). Ask the owner; do not assume.
 2. The retirement test run (Hopper job 3699073) has finished with the full result read and any failure resolved by Claude. Claude owns that.
-3. `ResiFlow_harvey` fast-forwarded to the tip of `origin/feature/anaheim-assignment-diagnostics` and `git status` clean.
+3. `ResiFlow_harvey` fast-forwarded to the tip of `origin/feature/anaheim-assignment-diagnostics` and `git status` clean. Run `git pull --ff-only` from a **login node shell**, not inside a Slurm job (a `git pull -q` inside a job failed silently and left the checkout stale on 2026-11-12). Check `git log --oneline -1` afterwards. The tip must include: the embankment unit fix (major roads were zeroed), the geodesic `length_geodesic_m` column and `length_check_<event>.json` from Script 2, and the aggregation fix.
 4. `ls` confirms baseline outputs, the raster, and `/scratch/akothaw/conda_envs/nird` exist.
 
 ## 4. Steps
@@ -32,6 +32,8 @@ Rerun intersection (stage 2), direct damage (stage 3), post-process, and rerouti
    - Split by asset type (road, bridge, tunnel) and count of damaged links.
    - Maximum flood depth reaching any link is at most 9.144 m; the distribution of link depths (min, median, p95, max).
    - Number of links with depth above zero, and the share on bridges versus roads.
+   - Major roads: share of wet pieces and of links closed for HPMS F1-F3 versus F4-F7 (was zero for F1-F2 before the embankment fix). Bridges versus roads among flooded links (bridges take the ground-cell depth; see `docs/ASSUMPTIONS_REGISTER.md` E6).
+   - Length check: report `length_check_<event>.json` (total ratio of geodesic to projected length, p01/p50/p99).
    - Rerouting: day-0 cost components and the 90-day recovery total are finite, nonnegative and not all zero; list the largest rerouted OD pairs.
 6. Write the report to `docs/handoffs/HARVEY_RERUN_RESULT.md` on branch `ops/harvey-rerun-report` (a docs-only branch off the current tip) and push. Lead with goal, method, prior knowledge, then tables.
 
@@ -40,6 +42,8 @@ Rerun intersection (stage 2), direct damage (stage 3), post-process, and rerouti
 - Any decision about how stage 2 chooses one depth per link (max or mean): report which it does, do not change it.
 - Passenger OD (`RESIFLOW_DISABLE_PASSENGER_OD=1` stays), the corrected-OD freight run, and the testbed suite.
 - Deleting or overwriting anything not named in the script's archive step.
+
+Assumptions behind this run are listed in `docs/ASSUMPTIONS_REGISTER.md`; report any that you see violated.
 
 ## 6. Ledger row to add to AGENTS.md (the owner edits AGENTS.md; it has uncommitted changes)
 | `ops/harvey-rerun-report` (docs only) | Codex (Harvey rerun session) | Hopper submission and monitoring of `submit_harvey15_stages2to4_v2.slurm`, report in `docs/handoffs/` | Active when the gates in the spec clear | 2026-11-12 |
