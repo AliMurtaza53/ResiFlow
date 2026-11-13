@@ -21,11 +21,7 @@ def test_sioux_falls_snow_pipeline_reroute_bridge_bottleneck(tmp_path) -> None:
     try:
         run_snow_pipeline_scripts(env, snow_key_mm=SNOW_SCENARIO_KEY_MM)
     except subprocess.CalledProcessError as exc:
-        raise AssertionError(f"snow pipeline failed
-stdout:
-{exc.stdout}
-stderr:
-{exc.stderr}") from exc
+        raise AssertionError(f"snow pipeline failed\nstdout:\n{exc.stdout}\nstderr:\n{exc.stderr}") from exc
 
     links_path = (
         disruption_dir(tmp_path, env, depth_key=SNOW_SCENARIO_KEY_MM) / "links" / "road_links_1.gpq"
