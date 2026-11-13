@@ -134,7 +134,7 @@ def network_spec(name: str) -> ToyNetworkSpec:
             # project's own documented fuel-only Wave-1 scope; "track time,
             # fuel, tolls" means exactly those three now). Values re-derived
             # by running this exact toy pipeline after the fix.
-            expected_rerouting_cost_freight=235.52636645945228,
+            expected_rerouting_cost_freight=67.32123670941385,
             expected_rerouting_cost_passenger=70.65790993783567,
             expected_reroute_flow_freight=18.461538461538463,
             expected_reroute_flow_passenger=5.538461538461537,
