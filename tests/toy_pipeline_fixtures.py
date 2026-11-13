@@ -134,8 +134,12 @@ def network_spec(name: str) -> ToyNetworkSpec:
             # project's own documented fuel-only Wave-1 scope; "track time,
             # fuel, tolls" means exactly those three now). Values re-derived
             # by running this exact toy pipeline after the fix.
+            # Updated 2026-11-13 (baseline-demand fix, resiflow/rerouting_baseline.py): 81.5 of the 100 freight trips are
+            # isolated, 18.46 are routed. The baseline used to drop the whole partially isolated pair, so the routed 18.46 had a
+            # post cost and no pre cost (235.53 = their entire cost). Now rerouting = post minus pre over the routed flow.
+            # Per routed trip 67.32/18.46 = 3.65 for both modes (freight/passenger = 100/30).
             expected_rerouting_cost_freight=67.32123670941385,
-            expected_rerouting_cost_passenger=70.65790993783567,
+            expected_rerouting_cost_passenger=20.19637101282415,
             expected_reroute_flow_freight=18.461538461538463,
             expected_reroute_flow_passenger=5.538461538461537,
             origin_node="n1",
