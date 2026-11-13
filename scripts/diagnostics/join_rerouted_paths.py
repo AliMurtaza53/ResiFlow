@@ -6,7 +6,7 @@ Needs a stage 4 run with RESIFLOW_STAGE4_EXPORT_OD_PATHS=1, which writes for eac
 Each row is one realised path: origin_node, destination_node, od_id, path (list of e_id), flow, per-flow cost columns.
 
 Outputs under <results>/path_join/day<N>/:
-    edge_flow_change.gpq   one row per edge touched by either path set: base_flow, post_flow, delta_flow, plus class, flood depth, geometry
+    edge_flow_change.gpq   one row per edge touched by either path set: base_flow, post_flow, delta_flow, plus road class, bridge flag, geometry
     od_cost_change.csv     one row per OD pair: flow, baseline and post cost (operating + time + toll), delta
     summary.json           totals, share of flow whose path changed, top gaining and losing edges
 Usage: python join_rerouted_paths.py --results <.../rerouting_analysis/<variant>/304/1> --base-edges <.../<variant>/edge_flows.gpq> --days 0 7
