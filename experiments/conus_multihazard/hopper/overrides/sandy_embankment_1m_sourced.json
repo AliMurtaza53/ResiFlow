@@ -1,0 +1,5 @@
+{
+  "_comment": "Sandy (scenario 305, typed flood so the river embankment value applies): sourced asset costs and a 1.0 m embankment on major roads (HPMS F1-F3). Owner decision 2026-11-13. Bridge deck clearance stays 0.0 (ground-cell depth).",
+  "vulnerability": {"use_sourced_asset_costs": true},
+  "hazard_disruption": {"flood_embankment_river_m": 1.0}
+}

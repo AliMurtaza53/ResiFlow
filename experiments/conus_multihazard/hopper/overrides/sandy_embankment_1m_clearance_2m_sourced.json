@@ -1,0 +1,5 @@
+{
+  "_comment": "Sandy bridge deck clearance sensitivity (E6): as sandy_embankment_1m_sourced.json plus 2.0 m clearance subtracted from bridge depth.",
+  "vulnerability": {"use_sourced_asset_costs": true},
+  "hazard_disruption": {"flood_embankment_river_m": 1.0, "bridge_deck_clearance_m": 2.0}
+}
