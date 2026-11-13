@@ -91,6 +91,8 @@ def inspect_case(tmp: Path, base_env: dict, hazard: str, subtype: str | None, ev
     if dmg_files:
         d = pd.read_csv(dmg_files[0], low_memory=False)
         row["damage_rows"] = len(d)
+        row["raw_usd_sum"] = float(pd.to_numeric(d.get("direct_damage_mean_usd", pd.Series(dtype=float)), errors="coerce").sum())
+        row["damage_file"] = dmg_files[0].name
         if len(d) and "direct_damage_mean_usd" in d.columns:
             d = da.add_consolidated_damage_columns(d) if hasattr(da, "add_consolidated_damage_columns") else d
             row["direct_musd"] = round(float(da.total_direct_damage_musd(d)), 6)
@@ -116,13 +118,17 @@ def inspect_case(tmp: Path, base_env: dict, hazard: str, subtype: str | None, ev
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True, type=Path)
+    ap.add_argument("--hazards", default="", help="comma list of case names to run (default all), e.g. flood_surface,earthquake")
+    ap.add_argument("--events", default="", help="comma list of events (default 0,1,3)")
     args = ap.parse_args()
     tmp = args.out
     tmp.mkdir(parents=True, exist_ok=True)
     config_path, _ = build_multihazard_dataset(tmp)
     base_env = multihazard_env(tmp, config_path, hazard_type="flood", flood_subtype="flood_surface")
     run_script("1_network_flow_model_revision.py", ["1", "1"], base_env)
-    rows = [inspect_case(tmp, base_env, h, s, e) for h, s in CASES for e in EVENTS]
+    want = {x for x in args.hazards.split(",") if x}
+    events = [x for x in args.events.split(",") if x] or EVENTS
+    rows = [inspect_case(tmp, base_env, h, sub, e) for h, sub in CASES if not want or (sub or h) in want for e in events]
     table = pd.DataFrame(rows)
     table.to_csv(tmp / "multihazard_inspection.csv", index=False)
     with pd.option_context("display.max_colwidth", 120, "display.width", 250):
