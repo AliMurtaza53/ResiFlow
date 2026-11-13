@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -41,7 +42,24 @@ CASES = [
     ("landslide", None),
     ("winter_storm", None),
 ]
-EVENTS = ["0", "1", "3"]
+EVENTS = ["0", "1", "3", "4", "5", "6"]  # 0 miss, 1 bridge, 3 disconnect, 4 low, 5 high, 6 extreme (intensity ladder)
+
+# Time-dependent variants. Each is a parameter-override patch (RESIFLOW_PARAM_OVERRIDES file). "default" keeps the toy
+# one-row recovery table; the others switch on the real T26 bridge/road schedules (0 -> 50% -> 100% capacity over days)
+# and the T37/T38 residual-speed scenarios, or change the T34 winter region (reopening days x region factor).
+VARIANTS = {
+    "default": {},
+    "recovery_fast": {"recovery": {"use_table_recovery_design": True, "table_recovery_scenario": "fast"}},
+    "recovery_average": {"recovery": {"use_table_recovery_design": True, "table_recovery_scenario": "average"}},
+    "recovery_slow": {"recovery": {"use_table_recovery_design": True, "table_recovery_scenario": "slow"}},
+    "winter_region_high": {"hazard_disruption": {"winter_storm_snow_region": "high_capability"}},
+    "winter_region_low": {"hazard_disruption": {"winter_storm_snow_region": "low_capability"}},
+}
+# Variants only meaningful for some hazards (avoid wasted runs).
+VARIANT_HAZARDS = {
+    "winter_region_high": {"winter_storm"},
+    "winter_region_low": {"winter_storm"},
+}
 
 
 def _numeric_sums(df: pd.DataFrame) -> dict:
@@ -118,32 +136,74 @@ def inspect_case(tmp: Path, base_env: dict, hazard: str, subtype: str | None, ev
     if cm.exists():
         c = pd.read_csv(cm)
         row["reroute_columns_sum"] = json.dumps(_numeric_sums(c))
+        row["event_days"] = json.dumps(sorted(set(int(x) for x in c["event_day"].dropna()))) if "event_day" in c.columns else "n/a"
+        if "event_day" in c.columns:
+            ts = c.groupby("event_day").sum(numeric_only=True).reset_index()
+            ts.insert(0, "event", event)
+            ts.insert(0, "hazard", subtype or hazard)
+            row["_timeseries"] = ts
     else:
         row["reroute_columns_sum"] = "no file"
     return row
+
+
+def run_variant(out: Path, variant: str, hazards: set, events: list) -> tuple[list, list]:
+    """Fresh dataset and run per variant: results folders are keyed by scenario and event, so variants must not share one."""
+    tmp = out / variant
+    tmp.mkdir(parents=True, exist_ok=True)
+    overrides = VARIANTS[variant]
+    if overrides:
+        path = tmp / "param_overrides.json"
+        path.write_text(json.dumps(overrides), encoding="utf-8")
+        os.environ["RESIFLOW_PARAM_OVERRIDES"] = str(path)
+    else:
+        os.environ.pop("RESIFLOW_PARAM_OVERRIDES", None)
+    config_path, _ = build_multihazard_dataset(tmp)
+    base_env = multihazard_env(tmp, config_path, hazard_type="flood", flood_subtype="flood_surface")
+    base_env.update({k: v for k, v in os.environ.items() if k == "RESIFLOW_PARAM_OVERRIDES"})
+    run_script("1_network_flow_model_revision.py", ["1", "1"], base_env)
+    only = VARIANT_HAZARDS.get(variant)
+    rows, series = [], []
+    for h, sub in CASES:
+        name = sub or h
+        if (hazards and name not in hazards) or (only and h not in only):
+            continue
+        for e in events:
+            env_row = inspect_case(tmp, base_env, h, sub, e)
+            env_row["variant"] = variant
+            ts = env_row.pop("_timeseries", None)
+            if ts is not None:
+                ts.insert(0, "variant", variant)
+                series.append(ts)
+            rows.append(env_row)
+    return rows, series
 
 
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--hazards", default="", help="comma list of case names to run (default all), e.g. flood_surface,earthquake")
-    ap.add_argument("--events", default="", help="comma list of events (default 0,1,3)")
+    ap.add_argument("--events", default="", help="comma list of events (default 0,1,3,4,5,6)")
+    ap.add_argument("--variants", default="default", help=f"comma list from {sorted(VARIANTS)}, or 'all'")
     args = ap.parse_args()
-    tmp = args.out
-    tmp.mkdir(parents=True, exist_ok=True)
-    config_path, _ = build_multihazard_dataset(tmp)
-    base_env = multihazard_env(tmp, config_path, hazard_type="flood", flood_subtype="flood_surface")
-    run_script("1_network_flow_model_revision.py", ["1", "1"], base_env)
-    want = {x for x in args.hazards.split(",") if x}
+    args.out.mkdir(parents=True, exist_ok=True)
+    hazards = {x for x in args.hazards.split(",") if x}
     events = [x for x in args.events.split(",") if x] or EVENTS
-    rows = [inspect_case(tmp, base_env, h, sub, e) for h, sub in CASES if not want or (sub or h) in want for e in events]
+    names = sorted(VARIANTS) if args.variants == "all" else [x for x in args.variants.split(",") if x]
+    rows, series = [], []
+    for v in names:
+        r, t = run_variant(args.out, v, hazards, events)
+        rows += r
+        series += t
     table = pd.DataFrame(rows)
-    table.to_csv(tmp / "multihazard_inspection.csv", index=False)
+    table.to_csv(args.out / "multihazard_inspection.csv", index=False)
+    if series:
+        pd.concat(series, ignore_index=True).to_csv(args.out / "recovery_timeseries.csv", index=False)
     with pd.option_context("display.max_colwidth", 120, "display.width", 250):
         print(table.drop(columns=["error"]).to_string(index=False))
         for r in rows:
             if r["error"]:
-                print(f"\nERROR {r['hazard']} event {r['event']}: {r['error']}")
+                print(f"{chr(10)}ERROR {r['variant']} {r['hazard']} event {r['event']}: {r['error']}")
 
 
 if __name__ == "__main__":

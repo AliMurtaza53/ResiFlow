@@ -50,6 +50,21 @@ LANDSLIDE_PEAK_MM = get_parameter("testbed_synthetic_hazards", "landslide_peak_m
 WINTER_STORM_PEAK_MM = get_parameter("testbed_synthetic_hazards", "winter_storm_peak_mm", 120.0)
 WINTER_STORM_MODERATE_MM = get_parameter("testbed_synthetic_hazards", "winter_storm_moderate_mm", 60.0)
 
+# Intensity ladder (events 4 low, 5 high, 6 extreme) so every hazard has a case below, at and well above its closure point.
+# Peaks live in parameters/unified_parameters.json (testbed_synthetic_hazards.intensity_ladder); all PLACEHOLDER test inputs.
+EVENT_LOW = "4"
+EVENT_HIGH = "5"
+EVENT_EXTREME = "6"
+_LADDER_DEFAULT = {
+    "flood_m": {"4": 0.20, "5": 1.00, "6": 2.50},
+    "river_m": {"4": 0.20, "5": 1.00, "6": 2.50},
+    "coastal_m": {"4": 0.20, "5": 1.00, "6": 2.50},
+    "pga_g": {"4": 0.20, "5": 0.80, "6": 1.20},
+    "landslide_mm": {"4": 60.0, "5": 500.0, "6": 1500.0},
+    "winter_mm": {"4": 30.0, "5": 260.0, "6": 450.0},
+}
+LADDER = get_parameter("testbed_synthetic_hazards", "intensity_ladder", _LADDER_DEFAULT)
+
 
 def _load_sioux_links() -> gpd.GeoDataFrame:
     tb = load_testbed("sioux_falls")
@@ -114,6 +129,16 @@ def _miss_field(links: gpd.GeoDataFrame, *, peak: float, unit: str) -> Synthetic
     )
 
 
+def _ladder_events(links, key, builder_for_peak, n6, n8, n10, centre):
+    """Events 4/5/6 for one hazard: low (below closure), high (closes the bridge pair and the 6-8 corridor), extreme (network-wide)."""
+    out = {}
+    peaks = LADDER[key]
+    out[EVENT_LOW] = builder_for_peak(float(peaks[EVENT_LOW]), "local")
+    out[EVENT_HIGH] = builder_for_peak(float(peaks[EVENT_HIGH]), "corridor")
+    out[EVENT_EXTREME] = builder_for_peak(float(peaks[EVENT_EXTREME]), "broad")
+    return out
+
+
 def build_event_catalog(links: gpd.GeoDataFrame) -> dict:
     flooded_ids = _flooded_edge_ids(links)
     minx, miny, maxx, maxy = links.total_bounds
@@ -144,7 +169,11 @@ def build_event_catalog(links: gpd.GeoDataFrame) -> dict:
                 "purpose": "severe corridor crossing north part of network",
                 "generator": "linear_corridor between nodes 6 and 8, 80m width",
             },
+            EVENT_LOW: {"purpose": "intensity ladder: below the closure point (slowdown only)", "generator": "ladder, bridge pair"},
+            EVENT_HIGH: {"purpose": "intensity ladder: above closure (bridge pair or 6-8 corridor)", "generator": "ladder, corridor or bridge pair"},
+            EVENT_EXTREME: {"purpose": "intensity ladder: extreme, network-wide hotspot or band", "generator": "ladder, broad hotspot"},
         },
+        "intensity_ladder": LADDER,
         "hazards": {},
     }
 
@@ -234,13 +263,43 @@ def build_event_catalog(links: gpd.GeoDataFrame) -> dict:
             ),
         }
 
+    span_x, span_y = maxx - minx, maxy - miny
+
+    def _shape(kind, peak, *, hotspot_sigma, corridor_a, corridor_b, corridor_w, broad_sigma):
+        """local = bridge pair, corridor = line between two nodes, broad = hotspot covering most of the network."""
+        if kind == "local":
+            return bridge_interior(links, flooded_ids, peak_intensity=peak, crs=OUTPUT_CRS)
+        if kind == "corridor":
+            return linear_corridor(links, corridor_a, corridor_b, peak_intensity=peak, corridor_width_m=corridor_w, crs=OUTPUT_CRS)
+        return gaussian_hotspot(links, (cx, cy), sigma_m=broad_sigma, peak_intensity=peak, crs=OUTPUT_CRS)
+
+    def with_ladder(base_fn, key, **shape):
+        def run():
+            events = base_fn()
+            events.update(_ladder_events(links, key, lambda peak, kind: _shape(kind, peak, **shape), n6, n8, n10, (cx, cy)))
+            return events
+        return run
+
+    broad = max(span_x, span_y) * 0.45
+    flood_shape = dict(hotspot_sigma=None, corridor_a=n6, corridor_b=n8, corridor_w=80.0, broad_sigma=broad)
+    quake_shape = dict(hotspot_sigma=None, corridor_a=n6, corridor_b=n8, corridor_w=800.0, broad_sigma=broad)
+    slide_shape = dict(hotspot_sigma=None, corridor_a=n6, corridor_b=n8, corridor_w=60.0, broad_sigma=broad)
+
+    def winter_ladder():
+        events = winter_storm_events()
+        peaks = LADDER["winter_mm"]
+        events[EVENT_LOW] = snow_band(links, center_y=cy, band_width_m=span_y * 0.95, peak_intensity_mm=float(peaks[EVENT_LOW]), crs=OUTPUT_CRS)
+        events[EVENT_HIGH] = bridge_interior(links, flooded_ids, peak_intensity=float(peaks[EVENT_HIGH]), crs=OUTPUT_CRS)
+        events[EVENT_EXTREME] = snow_band(links, center_y=cy, band_width_m=span_y * 0.95, peak_intensity_mm=float(peaks[EVENT_EXTREME]), crs=OUTPUT_CRS)
+        return events
+
     hazard_builders = {
-        "flood_surface": (flood_surface_events, "m_depth", FLOOD_PEAK_M),
-        "flood_river": (flood_river_events, "m_depth", RIVER_PEAK_M),
-        "flood_coastal": (flood_coastal_events, "m_depth", COASTAL_PEAK_M),
-        "earthquake": (earthquake_events, "g_pga", PGA_PEAK_G),
-        "landslide": (landslide_events, "mm_displacement", LANDSLIDE_PEAK_MM),
-        "winter_storm": (winter_storm_events, "mm_ice", WINTER_STORM_PEAK_MM),
+        "flood_surface": (with_ladder(flood_surface_events, "flood_m", **flood_shape), "m_depth", FLOOD_PEAK_M),
+        "flood_river": (with_ladder(flood_river_events, "river_m", **flood_shape), "m_depth", RIVER_PEAK_M),
+        "flood_coastal": (with_ladder(flood_coastal_events, "coastal_m", **flood_shape), "m_depth", COASTAL_PEAK_M),
+        "earthquake": (with_ladder(earthquake_events, "pga_g", **quake_shape), "g_pga", PGA_PEAK_G),
+        "landslide": (with_ladder(landslide_events, "landslide_mm", **slide_shape), "mm_displacement", LANDSLIDE_PEAK_MM),
+        "winter_storm": (winter_ladder, "mm_ice", WINTER_STORM_PEAK_MM),
     }
 
     for hazard_name, (builder, unit, peak) in hazard_builders.items():

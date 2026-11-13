@@ -157,6 +157,15 @@
     "winter_storm_peak_mm": 120.0,
     "winter_storm_moderate_mm": 60.0,
     "_comment_sa1p0": "sa1p0_to_pga_ratio scales the synthetic earthquake PGA field into its Sa(1.0 s) companion (HAZUS bridge shaking cost needs Sa(1.0 s)). PLACEHOLDER 0.67 from the Mineral ShakeMap (peak SA1 0.429 g / peak PGA 0.638 g); confirm with the advisor.",
-    "sa1p0_to_pga_ratio": 0.67
+    "sa1p0_to_pga_ratio": 0.67,
+    "_comment_ladder": "Events 4 (low), 5 (high), 6 (extreme) per hazard. PLACEHOLDER test inputs chosen to sit below, above and far above each closure point: floods 0.30 m (cars) / 0.60 m (trucks); winter 254 mm (T19-winter speed 0); earthquake and landslide go to complete damage states. Not claims about real hazard strength.",
+    "intensity_ladder": {
+      "flood_m": {"4": 0.20, "5": 1.00, "6": 2.50},
+      "river_m": {"4": 0.20, "5": 1.00, "6": 2.50},
+      "coastal_m": {"4": 0.20, "5": 1.00, "6": 2.50},
+      "pga_g": {"4": 0.20, "5": 0.80, "6": 1.20},
+      "landslide_mm": {"4": 60.0, "5": 500.0, "6": 1500.0},
+      "winter_mm": {"4": 30.0, "5": 260.0, "6": 450.0}
+    }
   }
 }
