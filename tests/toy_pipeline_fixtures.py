@@ -483,11 +483,14 @@ def pipeline_env(
 
 def run_script(script_name: str, args: Iterable[str], env: dict[str, str]) -> subprocess.CompletedProcess:
     cmd = [sys.executable, str(REPO_ROOT / "scripts" / script_name), *map(str, args)]
-    result = subprocess.run(cmd, cwd=REPO_ROOT, env=env, capture_output=True, text=True)
-    if result.returncode != 0:
-        # Surface the script's own error: pytest hides CalledProcessError.stderr, which made failures undiagnosable.
-        raise RuntimeError(f"{script_name} exited {result.returncode}\n--- stderr (tail) ---\n{result.stderr[-3000:]}")
-    return result
+    return subprocess.run(
+        cmd,
+        cwd=REPO_ROOT,
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
 
 
 def run_pipeline_scripts(env: dict[str, str]) -> None:
