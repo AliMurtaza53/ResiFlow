@@ -829,6 +829,14 @@ def main():
             intersections_with_damage = intersections_with_damage[
                 intersections_with_damage["direct_damage_mean_usd"] > 0
             ].reset_index(drop=True)
+        elif hazard_type == "snow":
+            # Legacy snow hazard (scenarios 150 and 701, toy/disruption-only): direct damage was always a flood-shim
+            # artefact ("direct damages are irrelevant with depth threshold"). It has no sourced cost, so it reports none.
+            # Real winter storms (hazard_type winter_storm) are costed by T32 above.
+            intersections_with_damage = intersections.copy()
+            intersections_with_damage["direct_damage_mean_musd"] = 0.0
+            intersections_with_damage["direct_damage_mean_usd"] = 0.0
+            intersections_with_damage = intersections_with_damage.iloc[0:0].reset_index(drop=True)
         else:
             raise ValueError(f"no direct-damage costing path for hazard_type {hazard_type!r}")
         # export results

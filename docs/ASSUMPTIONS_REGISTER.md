@@ -36,6 +36,7 @@ Status: **owner** = decided by the owner (date); **default** = inherited from th
 | C4 | Sensitivity seams scale road and tunnel cost, and bridge cost | 1.0 / 1.0 | `param` `damage_costs.road_cost_scale`, `bridge_cost_scale` | default |
 | C5 | Winter storm direct cost uses the T32 DOT regression | on | `param` `vulnerability.use_table_winter_storm_cost` | default |
 | C6 | Earthquake road damage is zero by design; earthquake and landslide bridges use HAZUS | n/a | `scripts/3_damage_analysis.py` | default |
+| C7 | The legacy `snow` hazard (scenarios 150 and 701, disruption only) reports no direct cost; the old flood-shim cost was an artefact | $0 | `scripts/3_damage_analysis.py` | owner to confirm (decided 2026-11-12 to keep the snow test passing) |
 
 ## Freight and demand
 | # | Assumption | Value | Where | Status |
