@@ -36,7 +36,11 @@ profile_stage() {
   local label=$1; shift
   local tf; tf=$(mktemp)
   local t0; t0=$(date -Is)
-  /usr/bin/time -f "%e %M %U %S %P %x" -o "$tf" "$@"
+  if [ -x /usr/bin/time ]; then
+    /usr/bin/time -f "%e %M %U %S %P %x" -o "$tf" "$@"
+  else  # compute nodes without GNU time (Hopper, 2026-11-13): python fallback writes the same fields
+    python "$(dirname "${BASH_SOURCE[0]}")/time_wrap.py" "$tf" "$@"
+  fi
   local rc=$?
   local t1; t1=$(date -Is)
   # /usr/bin/time writes its line last; a failing command may add a "Command exited" line first

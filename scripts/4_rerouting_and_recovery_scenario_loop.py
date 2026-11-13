@@ -1047,10 +1047,19 @@ def main(
     if active_overrides_path() is not None:
         logging.info("Parameter overrides in force: %s", active_overrides_path())
 
-    # Recovery reruns only need edge flows and cost totals, not path-index artifacts.
-    os.environ["NIRD_BASELINE_PATH_OUTPUT_MODE"] = "none"
-    os.environ["NIRD_ODPFC_OUTPUT_MODE"] = "skip"
-    os.environ["NIRD_CREATE_FULL_TEMP_FLOW_MATRIX"] = "0"
+    # Recovery reruns only need edge flows and cost totals, not path-index artifacts, so path export is off by default.
+    # RESIFLOW_STAGE4_EXPORT_OD_PATHS=1 turns it on: the three mode variables are cleared so network_flow_model falls back to
+    # its own defaults for a non-streaming path strategy (full odpfc, one parquet per mode/day at
+    # rerouting_analysis/.../odpfc_<mode>_s<scenario>_day<N>.pq, one row per realised path with its link list). The
+    # post-disruption flow model only runs the disrupted OD subset, so these files are small next to the baseline.
+    if os.environ.get("RESIFLOW_STAGE4_EXPORT_OD_PATHS", "0").strip().lower() in {"1", "true", "yes"}:
+        for _k in ("NIRD_BASELINE_PATH_OUTPUT_MODE", "NIRD_ODPFC_OUTPUT_MODE", "NIRD_CREATE_FULL_TEMP_FLOW_MATRIX"):
+            os.environ.pop(_k, None)
+        logging.info("Stage 4 OD path export ON (RESIFLOW_STAGE4_EXPORT_OD_PATHS=1)")
+    else:
+        os.environ["NIRD_BASELINE_PATH_OUTPUT_MODE"] = "none"
+        os.environ["NIRD_ODPFC_OUTPUT_MODE"] = "skip"
+        os.environ["NIRD_CREATE_FULL_TEMP_FLOW_MATRIX"] = "0"
 
     for mode_name, mode_disrupted_candidates in reroute_modes:
         logging.info(

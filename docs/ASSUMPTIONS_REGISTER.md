@@ -26,7 +26,7 @@ Status: **owner** = decided by the owner (date); **default** = inherited from th
 | E3 | Speed reduction below closure follows a quadratic in depth | exponent 2.0 | `param` `hazard_disruption.speed_depth_exponent` | default |
 | E4 | Major roads (HPMS F1 to F3) have an embankment subtracted from the flood depth; surface flood 1.0 m | 1.0 m | `param` `hazard_disruption.flood_embankment_surface_m` | default, units corrected 2026-11-12 (was 100 against metres) |
 | E5 | Same, for river, "flood" (observed inundation such as Harvey) and coastal | 2.0 m | `param` `hazard_disruption.flood_embankment_river_m` | owner 2026-11-12: Harvey keeps the 2.0 m value for now |
-| E6 | Bridges, culverts and ramps take the depth of the ground cell under them. No deck or underpass elevation is used | n/a | none | open; to quantify in the Harvey results |
+| E6 | Bridges, culverts and ramps take the depth of the ground cell under them. No deck or underpass elevation is used. Harvey-15 (job 3704490): bridges were 2,187 of 7,490 flooded links (29%), 1,718 truck-closed, $330.9M. Sensitivity switch added 2026-11-13: bridge deck clearance subtracted from bridge pieces | 0.0 m (default) | `param` `hazard_disruption.bridge_deck_clearance_m`; override file `experiments/conus_multihazard/hopper/overrides/bridge_clearance_2m_sourced.json`; job `submit_harvey15_e6_clearance.slurm` | open; default unchanged until the 2 m run is read |
 | E7 | Piece lengths are measured in the equal-area projection. A geodesic length is carried beside it and checked at the end of Script 2 | `length_geodesic_m`, `length_check_<event>.json` | `src/resiflow/exposure/geodesic.py` | owner 2026-11-12 |
 
 ## Direct cost (Script 3)
@@ -47,6 +47,7 @@ Status: **owner** = decided by the owner (date); **default** = inherited from th
 | F2 | Freight OD is truck (FAF mode 1) only; air and multimodal are not included (5.0% of truck tons) | n/a | OD builder | default |
 | F3 | One node per county in the OD (nearest suitable road node). FAF centroid connectors are absent from the network | n/a | OD builder | provisional; structural fix not built |
 | F4 | Harvey-15 OD is subset to 15 states and counties; the whole network is kept | 15 iterations | Harvey job scripts | owner |
+| F6 | Harvey-15 OD geography verified 2026-11-13: crosswalk node ids equal the corrected conterminous crosswalk for all 1,359 counties; mean straight-line haul 175 mi (FAF published 186; the scrambled OD gave 909). Corrected full-CONUS OD: 193 mi, 0 nodes missing | n/a | `scripts/diagnostics/haul_length_check.py` logic | verified |
 | F5 | Passenger OD is disabled in the Harvey run | n/a | `RESIFLOW_DISABLE_PASSENGER_OD=1` | provisional; passenger centroid loading to be investigated |
 
 ## Testbeds (Sioux Falls and Anaheim)

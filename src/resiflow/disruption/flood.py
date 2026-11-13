@@ -104,6 +104,19 @@ def intersections_with_damage(
             intersections.loc[is_major_road, flood_depth_col] - embankment_river_m
         ).clip(lower=0)
 
+    # E6 sensitivity (docs/ASSUMPTIONS_REGISTER.md): a bridge takes the depth of the ground cell under it, which overstates exposure
+    # where water passes below the deck. bridge_deck_clearance_m is subtracted from bridge pieces only; 0.0 (default) = unchanged.
+    bridge_clearance_m = float(get_parameter("hazard_disruption", "bridge_deck_clearance_m", 0.0))
+    if bridge_clearance_m > 0:
+        is_bridge = pd.Series(False, index=intersections.index)
+        if "road_label" in intersections.columns:
+            is_bridge |= intersections["road_label"].astype(str).str.strip().str.lower().eq("bridge")
+        if "road_bridge" in intersections.columns:
+            is_bridge |= intersections["road_bridge"].astype(str).str.strip().str.lower().eq("yes")
+        depth_col = "flood_depth_surface" if flood_type == "surface" else f"flood_depth_{flood_type}"
+        intersections.loc[is_bridge, depth_col] = (intersections.loc[is_bridge, depth_col] - bridge_clearance_m).clip(lower=0)
+        logging.info("Bridge deck clearance %.2f m applied to %d bridge pieces", bridge_clearance_m, int(is_bridge.sum()))
+
     # Compute damage levels for flooded road segments
     intersections[f"damage_level_{flood_type}"] = compute_damage_levels_on_flooded_roads_vectorized(
         flood_type,

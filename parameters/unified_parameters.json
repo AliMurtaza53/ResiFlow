@@ -99,6 +99,7 @@
     "_comment_embankment": "Major-road (HPMS F1-F3) embankment height subtracted from the raster flood depth before closure and damage, in METRES (raster depths are metres). surface: 1.0 m. river, flood (observed inundation layers such as Harvey) and coastal: 2.0 m. Owner confirmed 2026-11-12 that the observed Harvey layer keeps the 2.0 m river value for now. Listed in docs/ASSUMPTIONS_REGISTER.md.",
     "flood_embankment_surface_m": 1.0,
     "flood_embankment_river_m": 2.0,
+    "bridge_deck_clearance_m": 0.0,
     "earthquake_script3_depth_scale": 0.5,
     "landslide_script3_depth_scale": 0.001,
     "winter_storm_script3_depth_scale": 0.001,

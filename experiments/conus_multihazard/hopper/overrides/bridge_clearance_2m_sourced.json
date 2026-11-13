@@ -1,0 +1,5 @@
+{
+  "_comment": "E6 sensitivity: sourced asset costs plus a 2.0 m bridge deck clearance subtracted from bridge flood depth (water below the deck does not touch it). Default clearance is 0.0 (ground-cell depth).",
+  "vulnerability": {"use_sourced_asset_costs": true},
+  "hazard_disruption": {"bridge_deck_clearance_m": 2.0}
+}
