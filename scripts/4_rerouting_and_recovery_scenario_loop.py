@@ -1566,18 +1566,13 @@ def main(
             # Isolation impact is already tracked separately (isolation_rows /
             # isolation_flow), so restrict the baseline demand to the same OD
             # pairs actually served post-disruption for a like-for-like delta.
+            # Subtract the isolated flow PER PAIR; dropping a whole partially isolated pair removed its routed flow from the
+            # baseline and overstated the rerouting cost (fixed 2026-11-13, see resiflow/rerouting_baseline.py).
+            from resiflow.rerouting_baseline import baseline_demand_excluding_isolated_flow
+
             baseline_demand = disrupted_od
             if isolation_path.exists():
-                iso_od = pd.read_parquet(isolation_path)
-                if not iso_od.empty:
-                    iso_keys = iso_od[["origin_node", "destination_node"]].astype(str).drop_duplicates()
-                    iso_keys["_isolated"] = True
-                    baseline_demand = disrupted_od.merge(
-                        iso_keys, how="left", on=["origin_node", "destination_node"]
-                    )
-                    baseline_demand = baseline_demand[
-                        baseline_demand["_isolated"].isna()
-                    ].drop(columns="_isolated").reset_index(drop=True)
+                baseline_demand = baseline_demand_excluding_isolated_flow(disrupted_od, pd.read_parquet(isolation_path))
 
             if consistent_baseline:
                 logging.info(
