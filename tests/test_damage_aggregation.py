@@ -97,6 +97,15 @@ def test_consolidated_columns_still_average_the_curve_pair_once():
     assert out.loc[0, "direct_damage_mean_musd"] == pytest.approx(3.0)
 
 
+def test_consolidation_keeps_costs_priced_by_script_3():
+    # sourced path: musd/usd already present, legacy curve columns absent. Must not be overwritten with zeros.
+    df = pd.DataFrame({"e_id": [1, 1, 2], "road_label": ["bridge", "bridge", "road"], "direct_damage_mean_musd": [4.0, 4.0, 1.5]})
+    out = da.add_consolidated_damage_columns(df)
+    assert out["direct_damage_mean_musd"].tolist() == [4.0, 4.0, 1.5]
+    assert out["direct_damage_mean_usd"].tolist() == [4.0e6, 4.0e6, 1.5e6]
+    assert da.total_direct_damage_musd(out) == pytest.approx(5.5)
+
+
 def test_harvey_pattern_regression_total_is_two_orders_of_magnitude_below_the_row_sum():
     # shape of the Harvey table: 546 bridge links averaging 8.7 $M repeated on ~27 pieces each, plus road pieces
     bridges = [(i, "bridge", 8.7) for i in range(546) for _ in range(27)]

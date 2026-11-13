@@ -732,9 +732,17 @@ def main():
         from resiflow.hazards.scenario_registry import resolve_active_scenario
 
         try:
-            active_scenario = resolve_active_scenario(
-                scenario_param=int(scenario_param), event_id=str(flood_key), base_path=base_path
-            )
+            # Price each results directory by ITS OWN scenario_param. resolve_active_scenario() lets the
+            # RESIFLOW_SCENARIO_PARAM env override the argument, so a run for one hazard used to reprice every
+            # other scenario directory it walked as that hazard (found 2026-11-12 on the Sioux Falls multihazard
+            # inspection: earlier hazards' damage files were overwritten, mostly empty).
+            from resiflow.hazards.scenario_registry import lookup_scenario_by_param
+
+            active_scenario = lookup_scenario_by_param(int(scenario_param), base_path=base_path)
+            if active_scenario is None:
+                active_scenario = resolve_active_scenario(
+                    scenario_param=int(scenario_param), event_id=str(flood_key), base_path=base_path
+                )
             hazard_type = active_scenario.hazard_type
         except Exception:
             hazard_type = "flood"

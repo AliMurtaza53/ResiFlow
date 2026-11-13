@@ -65,10 +65,17 @@ def consolidated_row_damage_musd(row: pd.Series) -> float:
 
 
 def add_consolidated_damage_columns(df: pd.DataFrame) -> pd.DataFrame:
-    """Add ``direct_damage_mean_musd`` and ``direct_damage_mean_usd`` columns."""
+    """Add ``direct_damage_mean_musd`` and ``direct_damage_mean_usd`` columns.
+
+    Costs already priced by Script 3 (the sourced path writes ``direct_damage_mean_musd`` and ``_usd``) are kept as they
+    are. Recomputing from the legacy curve-pair columns would overwrite them with zeros (found 2026-11-12: it zeroed
+    the sourced damage in ``3_postprocess_damage.py``).
+    """
     out = df.copy()
-    out["direct_damage_mean_musd"] = out.apply(consolidated_row_damage_musd, axis=1)
-    out["direct_damage_mean_usd"] = out["direct_damage_mean_musd"] * MUSD_TO_USD
+    if "direct_damage_mean_musd" not in out.columns:
+        out["direct_damage_mean_musd"] = out.apply(consolidated_row_damage_musd, axis=1)
+    if "direct_damage_mean_usd" not in out.columns:
+        out["direct_damage_mean_usd"] = pd.to_numeric(out["direct_damage_mean_musd"], errors="coerce") * MUSD_TO_USD
     return out
 
 
