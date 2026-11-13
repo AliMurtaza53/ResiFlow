@@ -58,6 +58,7 @@ Status: **owner** = decided by the owner (date); **default** = inherited from th
 | T3 | Synthetic geometry: lane width 3.65 m, bridge span 30 m, two bores per tunnel | 3.65 / 30 / 2 | `assets.py` | provisional |
 | T4 | Sioux Falls is South Dakota, urban area 82252 (small urbanized); Anaheim is California, urban area 51445 | n/a | `parameters/testbeds/*.json` | provisional, checked against T39 |
 | T5 | Anaheim may use pseudo-regions for state-level figures | n/a | testbed suite | owner |
+| T6 | Testbed intensity ladder (events 4 low, 5 high, 6 extreme): floods 0.2 / 1.0 / 2.5 m, PGA 0.2 / 0.8 / 1.2 g, landslide 60 / 500 / 1500 mm, snow 30 / 260 / 450 mm. Placeholder test inputs chosen around each closure point, not claims about real hazard strength | see left | `param` `testbed_synthetic_hazards.intensity_ladder` | provisional, 2026-11-12 |
 
 ## How to keep this current
 Add a row when a decision is made. If it can be a parameter, make it one (as E4 and E5 now are) and point the row at the key.
