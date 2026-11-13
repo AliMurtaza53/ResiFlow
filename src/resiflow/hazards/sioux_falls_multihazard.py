@@ -190,6 +190,7 @@ class EarthquakeHazardSource(SiouxFallsMultihazardSource):
     hazard_subtype = "earthquake"
     intensity_unit = "g_pga"
     raster_field = "pga"
+    sa1p0_companion = True  # the synthetic generator writes earthquake_sa1p0/ (scripts/testbed/generate_synthetic_hazards.py)
 
 
 class LandslideHazardSource(SiouxFallsMultihazardSource):

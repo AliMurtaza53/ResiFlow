@@ -155,6 +155,8 @@
     "pga_peak_g": 0.45,
     "landslide_peak_mm": 180.0,
     "winter_storm_peak_mm": 120.0,
-    "winter_storm_moderate_mm": 60.0
+    "winter_storm_moderate_mm": 60.0,
+    "_comment_sa1p0": "sa1p0_to_pga_ratio scales the synthetic earthquake PGA field into its Sa(1.0 s) companion (HAZUS bridge shaking cost needs Sa(1.0 s)). PLACEHOLDER 0.67 from the Mineral ShakeMap (peak SA1 0.429 g / peak PGA 0.638 g); confirm with the advisor.",
+    "sa1p0_to_pga_ratio": 0.67
   }
 }

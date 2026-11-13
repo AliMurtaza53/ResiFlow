@@ -167,7 +167,11 @@ for i in d.index:
                                "Direct costs and delays from snowpack are modelled separately from the hazard: clearance priority T33, day-of-reopening by road rank x damage level x region T34, "
                                "post-reopening speed recovery T35, cost function T32. The hazard is not adjusted to stand in for operational response")
         d.at[i, "sensitivity_run_option"] = ("NONE PLANNED. Rejected: a baseline-subtracted storm-increase raster, because it would change the physical hazard that the response tables are keyed on. "
-                                             "Verification item (not a change): confirm the T34 region classification covers high-snow mountain regions")
+                                             "Verification item (not a change): confirm the T34 region classification covers high-snow mountain regions. "
+                                             "CHECK / SENSITIVITY (owner 2026-11-12, no change made): the damage ladder in fragility/winter_storm_categorical.py has NO minimum depth, so any depth > 0 is 'minor' "
+                                             "and T34 closes it for 1-2 days, although cities start plowing at about 1-2 in (25-50 mm) and most of the network is interstates and highways that are plowed quickly. "
+                                             "Sensitivity option: add a minimum-depth floor (proposed parameter hazard_disruption.winter_storm_min_depth_mm, 25 mm or 50 mm) and compare closures and rerouting on Uri, Elliott and Snowmageddon. "
+                                             "First measure the share of links with 0-25 mm and 25-50 mm depth per storm")
 d.to_csv(S, index=False, encoding="utf-8")
 
 # sources_and_units.csv: keep in step for the rows whose status changed

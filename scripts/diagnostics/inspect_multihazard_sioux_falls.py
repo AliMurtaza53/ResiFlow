@@ -79,6 +79,14 @@ def inspect_case(tmp: Path, base_env: dict, hazard: str, subtype: str | None, ev
         row["max_intensity"] = float(inten.max())
         if "max_speed" in links.columns:
             row["links_closed"] = int((pd.to_numeric(links["max_speed"], errors="coerce") == 0).sum())
+        if "max_speed" in links.columns and "free_flow_speeds" in links.columns:
+            ms = pd.to_numeric(links["max_speed"], errors="coerce")
+            ff = pd.to_numeric(links["free_flow_speeds"], errors="coerce")
+            row["links_slowed"] = int((ms < ff - 1e-9).sum())  # includes closed; partial reductions are not closures
+        if "day_open" in links.columns:
+            do = pd.to_numeric(links["day_open"], errors="coerce").fillna(0)
+            row["links_day_open_gt0"] = int((do > 0).sum())  # winter storm: closed until T34 day_open
+            row["max_day_open"] = int(do.max())
         if "road_label" in links.columns:
             hit = links.loc[inten > 0, "road_label"].astype(str).value_counts().to_dict()
             row["hit_by_label"] = json.dumps(hit)

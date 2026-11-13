@@ -18,6 +18,7 @@ if str(REPO_ROOT / "src") not in sys.path:
     sys.path.insert(0, str(REPO_ROOT / "src"))
 
 import geopandas as gpd
+import numpy as np
 
 from resiflow.hazards.synthetic import (
     SyntheticRaster,
@@ -275,6 +276,24 @@ def generate_all(output_dir: Path) -> Path:
             catalog["written_files"].append(
                 str(out_path.relative_to(output_dir)).replace("\\", "/")
             )
+
+    # Sa(1.0 s) companion for the earthquake field: HAZUS bridge shaking cost reads Sa(1.0 s), not PGA, and is $0 without it.
+    ratio = float(get_parameter("testbed_synthetic_hazards", "sa1p0_to_pga_ratio", 0.67))  # PLACEHOLDER, see parameters
+    sa_dir = root / "earthquake_sa1p0"
+    sa_dir.mkdir(parents=True, exist_ok=True)
+    for event_key, raster in builders["earthquake"][0]().items():
+        valid = raster.data != raster.nodata
+        scaled = SyntheticRaster(
+            data=np.where(valid, raster.data * ratio, raster.data).astype(raster.data.dtype),
+            transform=raster.transform,
+            crs=raster.crs,
+            nodata=raster.nodata,
+            intensity_unit="g_sa1p0",
+        )
+        sa_path = sa_dir / f"event_{event_key}.tif"
+        _write_raster(scaled, sa_path)
+        catalog["written_files"].append(str(sa_path.relative_to(output_dir)).replace("\\", "/"))
+    catalog["hazards"]["earthquake"]["sa1p0_companion"] = {"folder": "earthquake_sa1p0", "ratio_to_pga": ratio}
 
     manifest_path = root / "manifest.json"
     manifest_path.write_text(json.dumps(catalog, indent=2), encoding="utf-8")

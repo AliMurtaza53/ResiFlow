@@ -15,6 +15,8 @@ Status: **owner** = decided by the owner (date); **default** = inherited from th
 | H6 | Cascadia earthquake layer | median map (16th and 84th percentile are sensitivity options) | hazard summary CSV | owner |
 | H7 | Winter storm hazard is the physical SNODAS snow depth, unmodified; operational response is modelled separately (T33, T34, T35, T32) | n/a | hazard prep | owner |
 | H8 | Mineral and Cascadia ShakeMap are ln(g) converted to g; New Madrid is percent g; landslide is mm (HAZUS Newmark PGD) | n/a | prep scripts | default, verified |
+| H9 | **Check / sensitivity, no change made:** winter-storm damage has no minimum depth, so any snow depth above 0 is "minor" and T34 closes it for 1-2 days, although plowing starts at about 25-50 mm and most of the network (interstates, highways) is plowed quickly. Option: a floor `hazard_disruption.winter_storm_min_depth_mm` (25 or 50 mm), after measuring the share of links with 0-25 mm and 25-50 mm per storm | no floor today | `src/resiflow/fragility/winter_storm_categorical.py` (`_damage_tier`); flagged in `docs/hazard_inputs/hazard_raster_specs_summary.csv` | open, owner 2026-11-12 |
+| H10 | Synthetic Sioux Falls earthquake gets a Sa(1.0 s) companion = PGA x 0.67 (HAZUS bridge cost needs Sa(1.0 s)); the ratio is from the Mineral ShakeMap peaks | 0.67 | `param` `testbed_synthetic_hazards.sa1p0_to_pga_ratio` | provisional, confirm with the advisor |
 
 ## Exposure and closure (Script 2)
 | # | Assumption | Value | Where | Status |
