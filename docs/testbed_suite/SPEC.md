@@ -21,8 +21,8 @@ Non-goals: no mocking of intersection or damage code; no changes to the figure l
 |---|---|
 | Testbed registry and specs | `src/resiflow/testbeds`, `parameters/testbeds/sioux_falls.json`, `parameters/testbeds/anaheim.json` |
 | Synthetic hazard generators | `src/resiflow/hazards/synthetic.py`, `scripts/testbed/generate_synthetic_hazards.py` (Sioux Falls only) |
-| Sioux Falls hazard fields | `flood_surface`, `flood_river`, `flood_coastal` (m depth), `earthquake` (PGA g), `landslide` (mm), `winter_storm` (mm); events `0` miss, `1` bridge bottleneck, `3` disconnect stress; EPSG:9311; see `scripts/testbed/README.md` |
-| Pipeline tests | `tests/test_multihazard_pipeline_sioux_falls.py`, `tests/test_sioux_falls_pipeline_disruptions.py`, `tests/test_snow_pipeline_sioux_falls.py`, `tests/test_toy_pipeline_disruptions.py`, runner `scripts/testbed/run_multihazard_sioux_falls.py` |
+| Sioux Falls hazard fields | `flood_surface`, `flood_river`, `flood_coastal` (m depth), `earthquake` (PGA g), `landslide` (mm), `winter_storm` (mm); events `0` miss, `1` bridge bottleneck, `3` disconnect stress, `4` low, `5` high, `6` extreme (intensity ladder, 2026-11-12); EPSG:9311; see `scripts/testbed/README.md` |
+| Pipeline tests | `tests/test_multihazard_pipeline_sioux_falls.py`, `tests/test_sioux_falls_pipeline_disruptions.py`, `tests/test_toy_pipeline_disruptions.py`, runner `scripts/testbed/run_multihazard_sioux_falls.py` |
 | Benchmarks | `scripts/testbed/compare_mock_hazus_benchmark.py`, `tests/test_ue_vs_capconstrained_sioux_falls.py` |
 | Anaheim | `tests/test_anaheim_testbed.py` (416 nodes, 914 links, 38 zones, 118 zone connectors, 104,694.4 trips). Origin: user-run UE setup, GitHub `alimurtaza53/network-analysis` (**not read by me**) |
 | Aggregation fix | `src/resiflow/damage_aggregation.py` (bridges and tunnels counted once per link) and `tests/test_damage_aggregation.py` |
@@ -47,7 +47,7 @@ Paper-set rows and their current blocker (from the registry): RQ1a `s3_major_cos
 State must be a real US state because T30 is keyed by state: Sioux Falls = South Dakota (FIPS 46), Anaheim = California (FIPS 06). `hpms_fclass` has to be derived from the TNTP link attributes by a stated rule, and `urban_code` set to the Census urban area for the testbed's city (look up in `parameters/tables/T39_census_urban_area_population_2010.csv`).
 
 ## 4. Design
-- One runner: `scripts/testbed/run_testbed_suite.py <testbed> [--hazards ...] [--events ...] --out <dir>`; for each hazard and event it (a) generates or loads the raster, (b) runs Scripts 2, 3, 3-postprocess, 4 by their normal entry points and environment variables, (c) writes the results bundle.
+- **Extend, do not replace (corrected 2026-11-13; an earlier draft said to build a new runner, which would have duplicated existing tooling).** The Sioux Falls pieces already exist: `scripts/testbed/generate_synthetic_hazards.py`, `tests/multihazard_sioux_falls_fixtures.py`, and `scripts/diagnostics/inspect_multihazard_sioux_falls.py` (runs Scripts 1, 2, 3, 4 per hazard, event and variant; Hopper job `scripts/testbed/mh_suite_all.slurm`). The Anaheim work is to generalise these to take a testbed id, not to write a parallel runner. The results bundle writer and self-check (section 5, 6) are the genuinely new parts.
 - Only inputs are synthetic; intersection, damage, aggregation and rerouting are the production functions.
 - Hazard set: flood surface, earthquake PGA, landslide displacement, winter storm snow depth. Events per hazard: miss (expects zero damage), bridge bottleneck, disconnect stress.
 - Costing: sourced path only. During the transition run with `RESIFLOW_PARAM_OVERRIDES` = `experiments/conus_multihazard/hopper/overrides/sourced_asset_costs.json`; the end state is that `vulnerability.use_sourced_asset_costs` defaults to true and the legacy branch is removed.
@@ -105,6 +105,8 @@ These come from the reconciliation rules in `figlib/synthetic_model.py` plus the
 - Profiling: any run at CONUS or semi-CONUS scale on Hopper or Anvil sources `experiments/common/profile_stage.sh` (`profile_init`, `profile_stage <label> <cmd>`, `profile_finish`) and is read with `scripts/diagnostics/summarize_hopper_profiles.py`. The testbeds are small, so a plain `sacct` line is enough for them.
 
 ## 8. Status log
+- 2026-11-12 to 13 (Claude): fixed Script 3 per-directory pricing and the consolidated-cost zeroing; coastal flood now priced; earthquake gets an Sa(1.0 s) companion; testbed links get a synthetic `faf5_class` (winter T33/T34); legacy `snow` removed; embankment unit bug fixed; geodesic length check added. Test run at `1fd3b71`: 39 passed.
+- 2026-11-13: intensity ladder (events 4, 5, 6 per hazard) and time-dependent variants (T26 fast/average/slow, winter region high/low) added to the generator and inspector; Hopper suite job 3708666 submitted. Observed on Sioux Falls before the ladder: closures and rerouting only for flood; earthquake, landslide and winter storm slowed links but never closed one (winter peak 120 mm is below the 254 mm closure point).
 - 2026-11-12: spec written. Aggregation fix and 15 aggregation tests merged to the branch (`0c646da`). Clean rerun of the pipeline tests: see the next entry.
 
 ## 9. Decisions
