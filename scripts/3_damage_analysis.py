@@ -661,6 +661,8 @@ def main():
             base_path / "inputs" / "networks" / "faf5" / "faf5_road_links.gpq",
         ]
     )
+    if connector_network := os.environ.get("RESIFLOW_FAF5_CONNECTOR_NETWORK"):
+        faf5_links_path = Path(connector_network)
     if faf5_links_path is None:
         raise FileNotFoundError("Could not find faf5_road_links.gpq under soge_clusters")
     road_links = gpd.read_parquet(faf5_links_path)
