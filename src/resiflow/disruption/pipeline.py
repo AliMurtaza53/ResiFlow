@@ -213,6 +213,18 @@ def run_flood_disruption(
                 if flood_type == "flood":
                     # Preserve compatibility mirror columns for Script 3/4.
                     merge_columns.extend(["flood_depth_river", "damage_level_river"])
+                if flood_type == "coastal":
+                    # flood.py mirrors coastal depth into the surface columns (river = 0) because Script 3's sourced
+                    # costing reads only flood_depth_surface/river. They were dropped here, so coastal floods
+                    # priced $0 (found 2026-11-12 on the Sioux Falls multihazard inspection).
+                    merge_columns.extend(
+                        [
+                            "flood_depth_surface",
+                            "damage_level_surface",
+                            "flood_depth_river",
+                            "damage_level_river",
+                        ]
+                    )
                 intersections = intersections.merge(
                     temp_file[merge_columns],
                     on=["e_id", "length", "index_i", "index_j"],
