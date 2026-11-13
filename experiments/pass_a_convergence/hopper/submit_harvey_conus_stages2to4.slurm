@@ -32,7 +32,7 @@ export RESIFLOW_MAX_FLOW_ITERATIONS=15 NIRD_MAX_FLOW_ITERATIONS=15
 export RESIFLOW_HAZARD_TYPE=flood RESIFLOW_FLOOD_SUBTYPE=flood_harvey_houston RESIFLOW_SCENARIO_PARAM=304
 export RESIFLOW_STAGE4_EXPORT_OD_PATHS=1
 mkdir -p $NIRD_DUCKDB_TEMP_DIRECTORY
-git -C $CODE log --oneline -1
+git -C $CODE log --oneline -1 2>/dev/null || echo "(no git on compute node)"
 grep -q RESIFLOW_STAGE4_EXPORT_OD_PATHS $CODE/scripts/4_rerouting_and_recovery_scenario_loop.py || { echo "CODE lacks the export switch: git pull --ff-only from a login node"; exit 3; }
 test -f $BASE/edge_flows.gpq && test -d $BASE/odpfc_parts || { echo "baseline outputs missing in $BASE"; exit 2; }
 [ -e $DATA/results/base_scenario/$VARIANT ] || ln -s $BASE $DATA/results/base_scenario/$VARIANT

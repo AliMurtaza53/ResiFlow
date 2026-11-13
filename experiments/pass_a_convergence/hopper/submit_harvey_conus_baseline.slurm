@@ -32,13 +32,13 @@ export NIRD_BASELINE_DB_PATH=$DATA/$VARIANT.duckdb
 export NIRD_LCP_DEST_CHUNK_SIZE=1000 NIRD_FLOW_DB_BATCH_SIZE=50000 NIRD_DUCKDB_MEMORY_LIMIT=450GB NIRD_LOG_RSS_CHECKPOINTS=1 NIRD_LCP_SORT_BY_DEST_COUNT=1
 export NIRD_PATH_REALIZATION_STRATEGY=streaming_arrays NIRD_OD_ID_AT_INSERT=1 NIRD_POOL_MAX_TASKS_PER_CHILD=50 NIRD_LCP_COLLECT_POOL_RESULTS=0
 export RESIFLOW_AUDIT_DUMP_DIR=$DATA/audit_dumps/$VARIANT RESIFLOW_AUDIT_DUMP_LEVEL=binding
-export RESIFLOW_GIT_COMMIT=$(git -C $CODE rev-parse HEAD) RESIFLOW_LOG_CAPACITY_BLOCKED_EDGES=1
+export RESIFLOW_GIT_COMMIT=$(git -C $CODE rev-parse HEAD 2>/dev/null || echo unknown) RESIFLOW_LOG_CAPACITY_BLOCKED_EDGES=1
 export NIRD_DUCKDB_TEMP_DIRECTORY=$DATA/duckdb_tmp_$VARIANT
 export NIRD_BASE_SCENARIO_OUT_DIR=$DATA/results/$VARIANT
 export NIRD_BASELINE_PATH_OUTPUT_MODE=full_odpfc NIRD_ODPFC_OUTPUT_MODE=iteration_parquet NIRD_COMBINE_ODPFC_PARTS=0
 export OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1
 mkdir -p $NIRD_DUCKDB_TEMP_DIRECTORY
-git -C $CODE log --oneline -1
+git -C $CODE log --oneline -1 2>/dev/null || echo "(no git on compute node)"
 python -c "import resiflow; print('resiflow imported from:', resiflow.__file__)"
 source $CODE/experiments/common/profile_stage.sh
 profile_init harvey_conus_baseline

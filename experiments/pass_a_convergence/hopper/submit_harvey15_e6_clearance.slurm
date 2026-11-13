@@ -28,7 +28,7 @@ export NIRD_DUCKDB_MEMORY_LIMIT=150GB NIRD_DUCKDB_TEMP_DIRECTORY=$DATA/duckdb_tm
 export NIRD_PATH_REALIZATION_STRATEGY=duckdb_chunked_compact
 export RESIFLOW_HAZARD_TYPE=flood RESIFLOW_FLOOD_SUBTYPE=flood_harvey_houston RESIFLOW_SCENARIO_PARAM=304
 mkdir -p $NIRD_DUCKDB_TEMP_DIRECTORY
-git -C $CODE log --oneline -1
+git -C $CODE log --oneline -1 2>/dev/null || echo "(no git on compute node)"
 grep -q bridge_deck_clearance_m $CODE/src/resiflow/disruption/flood.py || { echo "CODE lacks the clearance parameter: git pull --ff-only from a login node"; exit 3; }
 [ -e $DATA/results/base_scenario/$VARIANT ] || ln -s $DATA/results/$BASEVARIANT $DATA/results/base_scenario/$VARIANT
 source $CODE/experiments/common/profile_stage.sh
