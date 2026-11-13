@@ -14,19 +14,19 @@ Harvey-15 results in `HARVEY_RERUN_RESULT.md` (branch `ops/harvey-rerun-report`)
 | Day 0 disrupted / isolated trips | 66,341 / 55,619 | 71,040 / 58,294 |
 | Day 0 rerouting / isolation cost | $308,989 / $49.66M | $354,265 / $52.04M |
 | Day 7 isolated trips / isolation cost | 12,155 / $10.85M | 14,513 / $12.96M |
-| Day 7 rerouting cost | $14.89M | $15.62M |
+| Day 7 rerouting cost (corrected, see below) | $8.22M | $8.05M |
 | Day 14, 30, 60, 90 | zero | zero (rounding residuals below 1e-6) |
-Stage 4 with path export: 41m44s, 19.6 GB peak (Harvey-15); 1h43m, 36.6 GB (CONUS), CPU efficiency about 35%. Path files: 12 per run, up to 862 MB each, 9 GB total for CONUS.
+Stage 4 with path export: 41m44s, 19.6 GB peak (Harvey-15); 1h43m, 36.6 GB (CONUS; rerun 1h37m, 37.0 GB), CPU efficiency about 35%. Path files: 12 per run, up to 862 MB each, 9 GB total for CONUS.
 **Reading:** Harvey's freight effect is almost all inside the 15 states; the full OD adds about 5 to 7%. The large isolated share (82%) remains.
 
-## Path join (day 0 and 7; `docs/handoffs/harvey_conus_2026-11-13/*_summary.json`)
-Join delta cost equals the stage 4 rerouting cost exactly ($354,265 and $15,622,296 CONUS; $308,989 and $14,892,538 Harvey-15), so the path files and the cost accounting agree. Day 0: 166,029 OD pairs, 24,167 edges gain flow, 21,009 lose. Day 7: 276,960 OD pairs, 68,318 edges gain, 13,464 lose.
+## Path join (day 0 and 7; `docs/handoffs/harvey_conus_2026-11-13/*_summary.json`, corrected runs)
+Join delta cost equals the stage 4 rerouting cost exactly and baseline and post flow now match on both days. Day 0: CONUS 166,029 OD pairs, 24,167 edges gain flow, 21,009 lose. Day 7: CONUS 276,960 OD pairs, 29,109 gain, 29,277 lose (Harvey-15: 19,231 and 19,214).
 
-## Anomaly (needs a trace before day-7 rerouting cost is used)
-On day 7 the disrupted-network path file has 55,530 OD pairs totalling exactly **24,000.0** flow that have **no row in the baseline file** (CONUS: post flow 56,527 vs baseline 32,527; Harvey-15: 54,186 vs 30,186, also 24,000). Rerouting cost is post minus baseline, so if those pairs' baseline cost is missing, the day-7 rerouting cost ($15.6M, 44 times day 0) may be overstated, perhaps by about half using the average baseline cost per unit flow. Same round number in two runs points to a mechanism, not data. Days 14 and later cost zero, so this only affects day 7. Owner decision needed on who traces it (Script 4 candidate selection for the `_baseline` pass).
+## Bug found and fixed in this work (day-7 rerouting cost)
+The first runs gave day-7 rerouting of $14.89M (Harvey-15) and $15.62M (CONUS). The path join showed 55,530 OD pairs with 24,000.0 routed flow that had no baseline path, in both runs. All of them were partially isolated pairs (some flow isolated, some routed): Script 4 dropped the whole pair from the baseline demand, so their routed flow had a post cost and no pre cost. Fix (`b2d9f5a`): `resiflow/rerouting_baseline.py` subtracts the isolated flow per pair. Reruns (jobs 3712081, 3712082; old results kept under `*_v3_pre_baselinefix` and `*_v1_pre_baselinefix`): day-7 rerouting **$8.22M (Harvey-15) and $8.05M (CONUS)**, down 45% and 48%. Day 0 and days 14 and later are unchanged. The toy `three_parallel` test pinned the old value (235.53) and now pins 67.32 freight, 20.20 passenger. Any earlier result with partially isolated OD pairs carries the same overstatement of rerouting cost; isolation cost is unaffected.
 
 ## Also from the Harvey-15 runs
 E6 (2 m bridge clearance): bridges with priced damage 1,235 to 677, bridge damage $330.9M to $170.5M, total $1,468.9M to $1,308.5M; default clearance unchanged (0).
 
 ## Not done
-Isolation breakdown by access link; passenger demand; checking the 24,000 anomaly; a corrected baseline for `rerouting_cost` if the trace finds an error.
+Isolation breakdown by access link; passenger demand; rerun of the other hazards and earlier results for the same partial-isolation overstatement.
