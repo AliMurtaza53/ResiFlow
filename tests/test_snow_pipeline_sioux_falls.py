@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import subprocess
+
 import pandas as pd
 
 from sioux_falls_fixtures import (
@@ -16,7 +18,14 @@ from toy_pipeline_fixtures import disruption_dir
 def test_sioux_falls_snow_pipeline_reroute_bridge_bottleneck(tmp_path) -> None:
     config_path, spec, _links = build_sioux_falls_dataset(tmp_path, hazard="snow")
     env = sioux_falls_env(tmp_path, config_path, hazard="snow")
-    run_snow_pipeline_scripts(env, snow_key_mm=SNOW_SCENARIO_KEY_MM)
+    try:
+        run_snow_pipeline_scripts(env, snow_key_mm=SNOW_SCENARIO_KEY_MM)
+    except subprocess.CalledProcessError as exc:
+        raise AssertionError(f"snow pipeline failed
+stdout:
+{exc.stdout}
+stderr:
+{exc.stderr}") from exc
 
     links_path = (
         disruption_dir(tmp_path, env, depth_key=SNOW_SCENARIO_KEY_MM) / "links" / "road_links_1.gpq"
