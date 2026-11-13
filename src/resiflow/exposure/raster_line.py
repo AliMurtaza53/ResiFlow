@@ -245,6 +245,10 @@ def intersect_features_with_raster(
             f"Details: {e}"
         )
     intersections["length"] = intersections.geometry.length
+    # Additional output: geodesic length of the same piece (the projected length above is equal-area, not equal-distance).
+    from resiflow.exposure.geodesic import geodesic_length_m
+
+    intersections["length_geodesic_m"] = geodesic_length_m(intersections.geometry.values)
 
     return intersections
 

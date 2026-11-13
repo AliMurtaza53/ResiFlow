@@ -208,6 +208,8 @@ def run_flood_disruption(
                     f"flood_depth_{flood_type}",
                     f"damage_level_{flood_type}",
                 ]
+                if "length_geodesic_m" in temp_file.columns and "length_geodesic_m" not in intersections.columns:
+                    merge_columns.append("length_geodesic_m")
                 if flood_type == "flood":
                     # Preserve compatibility mirror columns for Script 3/4.
                     merge_columns.extend(["flood_depth_river", "damage_level_river"])
@@ -228,6 +230,16 @@ def run_flood_disruption(
         intersections_path = out_path / "intersections" / f"intersections_{flood_key}.pq"
         intersections.to_parquet(intersections_path)
         validate_output(intersections_path, intersections, "intersections")
+        if "length_geodesic_m" in intersections.columns:
+            # End-of-run check requested 2026-11-12: projected (equal-area) versus geodesic length of every piece.
+            import json as _json
+
+            from resiflow.exposure.geodesic import length_check_summary
+
+            _lc = length_check_summary(intersections)
+            logging.info(f"[LENGTH_CHECK] {_lc}")
+            print(f"LENGTH_CHECK {_lc}")
+            (out_path / "intersections" / f"length_check_{flood_key}.json").write_text(_json.dumps(_lc, indent=2))
         log_summary("intersections", intersections)
         print(f"DEBUG: Saved intersections to {intersections_path}")
 

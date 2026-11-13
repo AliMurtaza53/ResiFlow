@@ -20,6 +20,9 @@ from resiflow.fragility.flood_categorical import (
     compute_damage_levels_on_flooded_roads_vectorized,
 )
 
+EMBANKMENT_SURFACE_M = 1.0  # major-road embankment against surface flood (100 cm)
+EMBANKMENT_RIVER_M = 2.0  # major-road embankment against river, flood and coastal (200 cm)
+
 DAMAGE_LEVEL_DICT: Dict[str, int] = {
     "no": 0,
     "minor": 1,
@@ -87,14 +90,17 @@ def intersections_with_damage(
         intersections["hpms_fclass"] if "hpms_fclass" in intersections.columns else None,
     )
     
+    # Raster depths are METRES (the fragility code multiplies by 100 to get cm). The embankment heights are
+    # 100 cm and 200 cm, i.e. 1.0 m and 2.0 m. Subtracting 100/200 from metre values zeroed every major road
+    # (found 2026-11-12: 0 wet pieces on HPMS F1-F2 in the first Harvey run).
     if flood_type == "surface":
         intersections.loc[is_major_road, "flood_depth_surface"] = (
-            intersections.loc[is_major_road, "flood_depth_surface"] - 100
+            intersections.loc[is_major_road, "flood_depth_surface"] - EMBANKMENT_SURFACE_M
         ).clip(lower=0)
     else:
         flood_depth_col = f"flood_depth_{flood_type}"
         intersections.loc[is_major_road, flood_depth_col] = (
-            intersections.loc[is_major_road, flood_depth_col] - 200
+            intersections.loc[is_major_road, flood_depth_col] - EMBANKMENT_RIVER_M
         ).clip(lower=0)
 
     # Compute damage levels for flooded road segments
