@@ -46,3 +46,9 @@ Outputs:
 ```
 
 Set `RESIFLOW_RESULTS_VARIANT=toy_sioux_falls_multihazard` when running the pipeline.
+
+## Intensity ladder and time-dependent variants (added 2026-11-12)
+- **Events 4, 5, 6** per hazard: low (below the closure point), high (above it: bridge pair or 6-8 corridor) and extreme (network-wide). Peaks are `testbed_synthetic_hazards.intensity_ladder` in `parameters/unified_parameters.json` (PLACEHOLDER test inputs). Closure points: floods 0.30 m cars / 0.60 m trucks; winter 254 mm; earthquake and landslide reach complete damage.
+- **Variants** (`scripts/diagnostics/inspect_multihazard_sioux_falls.py --variants`): `default` (toy one-row recovery table), `recovery_fast|average|slow` (real T26 bridge/road capacity schedules and T37/T38 speed scenarios over days 0 to 160), `winter_region_high|low` (T34 reopening days x region factor 0.6 / 1.6). Each variant runs in a fresh dataset.
+- Outputs: `multihazard_inspection.csv` (one row per variant, hazard, event) and `recovery_timeseries.csv` (cost components per event day: the recovery curves).
+- Hopper: `scripts/testbed/mh_suite_all.slurm` (own checkout, not the Harvey one).
