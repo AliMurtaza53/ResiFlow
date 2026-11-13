@@ -141,10 +141,8 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
         closure_threshold=100,
         label="winter_storm_snowmageddon",
     ),
-    HazardScenario(701, "snow", closure_threshold=150, label="snow"),
     # Legacy single-hazard keys (scenario_param == closure_threshold).
     HazardScenario(30, "flood", closure_threshold=30, label="flood_legacy"),
-    HazardScenario(150, "snow", closure_threshold=150, label="snow_legacy"),
 )
 
 

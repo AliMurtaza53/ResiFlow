@@ -46,13 +46,6 @@
       "source": "raster"
     },
     {
-      "hazard_type": "snow",
-      "event_id": "1",
-      "scenario_param": 701,
-      "closure_threshold": 150,
-      "source": "synthetic:snow_band"
-    },
-    {
       "hazard_type": "flood",
       "event_id": "1",
       "scenario_param": 30,
@@ -67,11 +60,6 @@
       "peak_intensity_m": 0.5,
       "resolution_m": 10.0,
       "interior_fraction": [0.35, 0.65]
-    },
-    "snow_band": {
-      "generator": "synthetic:snow_band",
-      "peak_intensity_mm": 200,
-      "band_width_m": 500
     }
   }
 }

@@ -96,14 +96,3 @@ def test_snow_fragility_thresholds() -> None:
     )
     assert 0.0 < float(frame["max_speed"].iloc[0]) < 50.0
     assert float(frame["max_speed"].iloc[1]) == 0.0
-
-
-def test_snow_hazard_source_toy_mode(tmp_path) -> None:
-    from resiflow.hazards.snow import SnowHazardSource
-
-    _config_path, _spec, _links = build_sioux_falls_dataset(tmp_path, hazard="snow")
-    source = SnowHazardSource(tmp_path / "toy_data")
-    assert source.is_toy_mode
-    event = source.resolve_event("1")
-    assert event.hazard_type == "snow"
-    assert event.intensity_unit == "mm_snow"

@@ -9,7 +9,6 @@ from resiflow.hazards.base import (
     OperationalFragility,
 )
 from resiflow.hazards.flood import FloodHazardSource
-from resiflow.hazards.snow import SnowHazardSource
 
 __all__ = [
     "CategoricalFragility",
@@ -19,5 +18,4 @@ __all__ = [
     "HazardEvent",
     "HazardSource",
     "OperationalFragility",
-    "SnowHazardSource",
 ]

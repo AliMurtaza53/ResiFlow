@@ -28,10 +28,7 @@ def scenario_for(
         "RESIFLOW_FLOOD_SUBTYPE": os.environ.get("RESIFLOW_FLOOD_SUBTYPE"),
     }
     try:
-        if hazard_type == "snow":
-            os.environ["RESIFLOW_HAZARD_TYPE"] = "snow"
-            os.environ.pop("RESIFLOW_FLOOD_SUBTYPE", None)
-        elif hazard_type == "flood":
+        if hazard_type == "flood":
             os.environ.pop("RESIFLOW_HAZARD_TYPE", None)
             if flood_subtype:
                 os.environ["RESIFLOW_FLOOD_SUBTYPE"] = flood_subtype
@@ -62,7 +59,6 @@ SCENARIO_KEYS = {
     "earthquake": scenario_for("earthquake").scenario_param,
     "landslide": scenario_for("landslide").scenario_param,
     "winter_storm": scenario_for("winter_storm").scenario_param,
-    "snow": scenario_for("snow").scenario_param,
 }
 
 
@@ -105,9 +101,7 @@ def multihazard_env(
     )
     env["RESIFLOW_SCENARIO_PARAM"] = str(scenario.scenario_param)
 
-    if hazard_type == "snow":
-        env["RESIFLOW_HAZARD_TYPE"] = "snow"
-    elif hazard_type == "flood":
+    if hazard_type == "flood":
         env.pop("RESIFLOW_HAZARD_TYPE", None)
         if flood_subtype:
             env["RESIFLOW_FLOOD_SUBTYPE"] = flood_subtype

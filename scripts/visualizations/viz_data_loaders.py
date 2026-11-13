@@ -479,10 +479,7 @@ def build_multihazard_summary_table(
     }
     try:
         for hazard_type, flood_subtype, label in specs:
-            if hazard_type == "snow":
-                os.environ["RESIFLOW_HAZARD_TYPE"] = "snow"
-                os.environ.pop("RESIFLOW_FLOOD_SUBTYPE", None)
-            elif hazard_type == "flood":
+            if hazard_type == "flood":
                 os.environ.pop("RESIFLOW_HAZARD_TYPE", None)
                 if flood_subtype:
                     os.environ["RESIFLOW_FLOOD_SUBTYPE"] = flood_subtype

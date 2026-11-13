@@ -36,8 +36,6 @@ from toy_pipeline_fixtures import (
 # 300 mm sits past the T19-winter speed curve's zero (>= 254 mm), so the toy
 # bridge-bottleneck links are closed (max_speed == 0). It was 200 mm under the
 # retired k=150 mm quadratic.
-SNOW_DEPTH_MM = 300.0
-SNOW_SCENARIO_KEY_MM = 150
 
 TESTBED = load_testbed("sioux_falls")
 SOURCE_CRS = TESTBED.source_crs
@@ -405,67 +403,6 @@ def write_hazard_raster(
             dst.write(data.astype("float32"), 1)
 
 
-def write_snow_hazard_raster(
-    toy_data_dir: Path,
-    road_links: gpd.GeoDataFrame,
-    flooded_edge_ids: tuple[str, ...],
-    *,
-    resolution_m: float = 10.0,
-    interior_fraction: tuple[float, float] = (0.35, 0.65),
-    peak_depth_mm: float = SNOW_DEPTH_MM,
-) -> None:
-    """Rasterize bridge interior snow depth (mm) for the Sioux Falls snow testbed."""
-    flooded = road_links.loc[road_links["e_id"].isin(flooded_edge_ids)]
-    if flooded.empty:
-        raise ValueError("No flooded Sioux Falls bridge edges found for snow raster")
-
-    minx, miny, maxx, maxy = road_links.total_bounds
-    pad = 500.0
-    minx -= pad
-    miny -= pad
-    maxx += pad
-    maxy += pad
-    width = int(np.ceil((maxx - minx) / resolution_m))
-    height = int(np.ceil((maxy - miny) / resolution_m))
-    transform = from_origin(minx, maxy, resolution_m, resolution_m)
-
-    start_frac, end_frac = interior_fraction
-    shapes = []
-    hazard_buffer_m = resolution_m * 0.5
-    for geom in flooded.geometry:
-        start = geom.interpolate(start_frac, normalized=True)
-        end = geom.interpolate(end_frac, normalized=True)
-        interior = LineString([(start.x, start.y), (end.x, end.y)])
-        shapes.append((interior.buffer(hazard_buffer_m), peak_depth_mm))
-
-    data = rasterize(
-        shapes,
-        out_shape=(height, width),
-        transform=transform,
-        fill=0.0,
-        all_touched=True,
-    )
-    hazard_dir = toy_data_dir / "inputs" / "test_141node_50m"
-    hazard_dir.mkdir(parents=True, exist_ok=True)
-    profile = {
-        "driver": "GTiff",
-        "height": height,
-        "width": width,
-        "count": 1,
-        "dtype": "float32",
-        "crs": OUTPUT_CRS,
-        "transform": transform,
-        "nodata": -9999.0,
-    }
-    for variant in ("base", "low", "high"):
-        with rasterio.open(
-            hazard_dir / f"snow_hazard_141node_{variant}.tif",
-            "w",
-            **profile,
-        ) as dst:
-            dst.write(data.astype("float32"), 1)
-
-
 def build_sioux_falls_dataset(
     tmp_path: Path,
     *,
@@ -488,21 +425,13 @@ def build_sioux_falls_dataset(
     write_recovery_table(toy_data_dir)
     write_sioux_falls_damage_workbooks(toy_data_dir)
     write_study_area(toy_data_dir, road_links)
-    if hazard == "snow":
-        write_snow_hazard_raster(
-            toy_data_dir,
-            road_links,
-            spec.flooded_edge_ids,
-            resolution_m=10.0,
-        )
-    else:
-        write_hazard_raster(
-            toy_data_dir,
-            road_links,
-            spec.flooded_edge_ids,
-            resolution_m=10.0,
-            depth_by_edge=spec.flood_depth_by_edge,
-        )
+    write_hazard_raster(
+        toy_data_dir,
+        road_links,
+        spec.flooded_edge_ids,
+        resolution_m=10.0,
+        depth_by_edge=spec.flood_depth_by_edge,
+    )
     config_path = write_toy_config(tmp_path, toy_data_dir)
     return config_path, spec, road_links
 
@@ -515,17 +444,4 @@ def sioux_falls_env(
 ) -> dict[str, str]:
     env = pipeline_env(tmp_path, config_path, network_name="sioux_falls")
     env["NIRD_TESTBED"] = "1"
-    if hazard == "snow":
-        env["RESIFLOW_HAZARD_TYPE"] = "snow"
     return env
-
-
-def run_snow_pipeline_scripts(env: dict[str, str], *, snow_key_mm: int = SNOW_SCENARIO_KEY_MM) -> None:
-    run_script("1_network_flow_model_revision.py", ["1", "1"], env)
-    run_script("2_intersection_analysis.py", [str(snow_key_mm), "1"], env)
-    run_script("3_damage_analysis.py", [], env)
-    run_script(
-        "4_rerouting_and_recovery_scenario_loop.py",
-        [str(snow_key_mm), "1", "1", "1"],
-        env,
-    )
