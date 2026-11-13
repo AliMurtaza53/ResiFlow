@@ -35,6 +35,23 @@ HPMS_FCLASS_BY_ROAD_CLASS: dict[str, int] = {
     "residential": 7,
     "service": 7,
 }
+# FAF5 network Class code (T33 winter-storm clearance is keyed on it; without faf5_class T34 day_open is NA and no winter closure occurs).
+# 11 Interstate, 12 other controlled-access highway, 14 arterial or major collector, 15 local road, 16 frontage/service road, 50 centroid connector.
+FAF5_CLASS_BY_ROAD_CLASS: dict[str, int] = {
+    "motorway": 11,
+    "freeway": 12,
+    "trunk": 12,
+    "primary": 14,
+    "arterial": 14,
+    "secondary": 14,
+    "tertiary": 14,
+    "collector": 14,
+    "unclassified": 15,
+    "local": 15,
+    "local_access": 15,
+    "residential": 15,
+    "service": 16,
+}
 NHS_MAX_FCLASS = 3
 LANE_WIDTH_M = 3.65
 BRIDGE_SPAN_M = 30.0
@@ -77,6 +94,8 @@ def apply_synthetic_asset_attributes(links, *, state_fips: str, state_usps: str,
     lanes = pd.to_numeric(out["lanes"], errors="coerce").fillna(1)
 
     _set_if_absent(out, "hpms_fclass", fclass)
+    key = out["road_classification"].astype(str).str.strip().str.lower()
+    _set_if_absent(out, "faf5_class", key.map(FAF5_CLASS_BY_ROAD_CLASS).astype("Int64"))
     _set_if_absent(out, "STATE", state_usps)
     _set_if_absent(out, "bridge_state", state_fips)
     _set_if_absent(out, "urban_code", str(urban_code))
@@ -116,6 +135,7 @@ def required_columns_for_sourced_costs(road_labels) -> dict[str, list[str]]:
 
 
 __all__ = [
+    "FAF5_CLASS_BY_ROAD_CLASS",
     "HPMS_FCLASS_BY_ROAD_CLASS",
     "apply_synthetic_asset_attributes",
     "hpms_fclass_from_road_class",

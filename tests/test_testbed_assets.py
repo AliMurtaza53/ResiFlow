@@ -40,6 +40,13 @@ def test_hpms_rule_maps_the_documented_classes():
     assert set(HPMS_FCLASS_BY_ROAD_CLASS.values()) == {1, 2, 3, 4, 5, 6, 7}
 
 
+def test_faf5_class_is_assigned_for_winter_storm_clearance():
+    out = apply_synthetic_asset_attributes(
+        _links(["road", "road", "road"], ["motorway", "tertiary", "local"]), state_fips="46", state_usps="SD", urban_code="82252"
+    )
+    assert out["faf5_class"].tolist() == [11, 14, 15]
+
+
 def test_unknown_road_class_raises_instead_of_becoming_local():
     with pytest.raises(ValueError, match="no HPMS F-class rule"):
         hpms_fclass_from_road_class(pd.Series(["tertiary", "goat_track"]))
