@@ -48,8 +48,11 @@ def urban_area_profile(urban_code: pd.Series, *, params_root=None) -> pd.DataFra
     t39 = _load_t39(params_root)
     by_code = t39.set_index("uace_code")
 
+    # Take the null mask before astype(str): None/NaN would otherwise become the strings "None"/"nan",
+    # which are not missing and fall through to an unknown code instead of the documented rural default.
+    was_missing = urban_code.isna()
     code = urban_code.astype(str).str.strip()
-    code = code.where(code.str.len() > 0, None)
+    code = code.where((code.str.len() > 0) & ~was_missing, None)
     try:
         code = code.str.replace(r"\.0$", "", regex=True).str.zfill(5)
     except AttributeError:
