@@ -822,6 +822,12 @@ def create_igraph_network(
         edge_attrs=list(graph_df.columns)[2:],
         directed=False,
     )
+    if os.environ.get("RESIFLOW_FAF5_CONNECTOR_NETWORK") and "faf5_class" in road_links:
+        # The native connector prep puts the official centroid in from_id.
+        # Keep this vertex attribute when physical edges are pruned.
+        centroids = set(road_links.loc[road_links["faf5_class"].eq(50), "from_id"])
+        if centroids:
+            network.vs["faf_centroid"] = [name in centroids for name in network.vs["name"]]
     eids = list(network.es["e_id"])
     index_map = dict(zip(eids, range(len(eids))))
     road_links["e_idx"] = road_links["e_id"].map(index_map)
@@ -988,6 +994,39 @@ def update_od_matrix(
 # network is (re)loaded — never use bare ints as get_shortest_paths endpoints.
 shared_network = None
 _name_to_idx: Dict = {}
+_arrival_by_departure = {}
+_routing_arc_to_edge = []
+
+
+def _set_worker_network(network) -> None:
+    """Build directed endpoint access while retaining physical edge indices."""
+    global shared_network, _arrival_by_departure, _routing_arc_to_edge
+    _rebuild_name_to_idx(network)
+    shared_network = network
+    _arrival_by_departure = {}
+    _routing_arc_to_edge = []
+    if "faf_centroid" not in network.vertex_attributes():
+        return
+
+    centroid_flags = network.vs["faf_centroid"]
+    arrivals = {
+        vertex: network.vcount() + offset
+        for offset, vertex in enumerate(i for i, flag in enumerate(centroid_flags) if flag)
+    }
+    arcs = []
+    physical_edges = []
+    for edge_idx, (a, b) in enumerate(network.get_edgelist()):
+        if a in arrivals and b in arrivals:
+            raise ValueError("A FAF5 connector cannot directly join two centroids")
+        arcs.extend(((a, arrivals.get(b, b)), (b, arrivals.get(a, a))))
+        physical_edges.extend((edge_idx, edge_idx))
+    routing = igraph.Graph(n=network.vcount() + len(arrivals), edges=arcs, directed=True)
+    weights = network.es["weight"]
+    routing.es["weight"] = [weights[i] for i in physical_edges]
+    routing.vs["name"] = network.vs["name"] + [None] * len(arrivals)
+    shared_network = routing
+    _arrival_by_departure = arrivals
+    _routing_arc_to_edge = physical_edges
 
 
 def _rebuild_name_to_idx(network) -> None:
@@ -1072,15 +1111,22 @@ def find_least_cost_path(
     for start in range(0, len(destination_nodes), dest_batch_size):
         dest_batch = destination_nodes[start : start + dest_batch_size]
         dest_idx = [_igraph_vertex_index(shared_network, d) for d in dest_batch]
-        paths.extend(
-            shared_network.get_shortest_paths(
-                v=origin_idx,
-                to=dest_idx,
-                weights="weight",
-                mode="out",
-                output="epath",
-            )
-        )  # paths: o - d(s)
+        # Resolve a same-node trip to its own departure vertex so its path
+        # remains empty, as it is in the physical graph.
+        dest_idx = [
+            _arrival_by_departure.get(i, i) if i != origin_idx else i
+            for i in dest_idx
+        ]
+        batch_paths = shared_network.get_shortest_paths(
+            v=origin_idx,
+            to=dest_idx,
+            weights="weight",
+            mode="out",
+            output="epath",
+        )
+        if _routing_arc_to_edge:
+            batch_paths = [[_routing_arc_to_edge[arc] for arc in path] for path in batch_paths]
+        paths.extend(batch_paths)
 
     return (
         origin_node,
@@ -1105,7 +1151,6 @@ def worker_init_path(
     None
         The function sets the module-level ``shared_network`` variable in-place.
     """
-    global shared_network
     affinity_spec = os.environ.get("NIRD_WORKER_CPU_AFFINITY", "").strip()
     if affinity_spec:
         try:
@@ -1121,8 +1166,7 @@ def worker_init_path(
                 logging.info("Worker pinned to CPU affinity: %s", cores)
         except Exception:
             logging.exception("Failed to set worker CPU affinity; continuing unpinned.")
-    shared_network = pickle.loads(shared_network_pkl)
-    _rebuild_name_to_idx(shared_network)
+    _set_worker_network(pickle.loads(shared_network_pkl))
     return None
 
 
@@ -1139,9 +1183,7 @@ def refresh_worker_network(shared_network_pkl: bytes) -> None:
     Must rebuild ``_name_to_idx`` for the new graph — stale maps after edge
     drops would resolve OD tokens to wrong (or invalid) vertex indices.
     """
-    global shared_network
-    shared_network = pickle.loads(shared_network_pkl)
-    _rebuild_name_to_idx(shared_network)
+    _set_worker_network(pickle.loads(shared_network_pkl))
     assert _name_to_idx, (
         "refresh_worker_network: _name_to_idx empty after rebuild "
         f"(vcount={shared_network.vcount()})"
@@ -3733,9 +3775,7 @@ def network_flow_model(
                 )
                 _run_pool_dispatch(pool)
         else:
-            global shared_network
-            shared_network = network
-            _rebuild_name_to_idx(network)
+            _set_worker_network(network)
             if lcp_collect_pool:
                 pool_results = [find_least_cost_path(arg) for arg in args]
             else:
