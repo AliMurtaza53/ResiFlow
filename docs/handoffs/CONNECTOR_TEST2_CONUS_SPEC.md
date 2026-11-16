@@ -27,3 +27,13 @@ Initial prep job 3765545 exited 127 because the compute-node profiling fallback 
 | Comparison after all three pass | 3765688 |
 
 Hopper inputs and comparison tables are under `/scratch/akothaw/multimodal_hazard_data/stage2_scripts/connector_test2_conus/`. Each assignment has its own result variant and database. Comparison output is `faf_comparison.csv` in the experiment directory.
+
+## Completed input checks
+
+Job 3765684 completed. The corrected-road reference had 9,653,612 inter-node rows and a weighted mean geodesic haul of 193.1203 miles. The go window was 189.2579–196.9828 miles. All three arms preserved every input row's flow at roll-up and retained 1,510,749.556669 routable trips/day.
+
+| Assignment arm | Input rows | Geodesic haul, miles |
+|---|---:|---:|
+| Parent only | 9,653,612 | 193.0668 |
+| C+S, missing parent zero | 9,998,234 | 193.1507 |
+| C+S, missing parent mean | 10,284,594 | 193.1300 |
