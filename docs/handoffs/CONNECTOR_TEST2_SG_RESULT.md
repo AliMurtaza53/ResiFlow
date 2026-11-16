@@ -19,4 +19,26 @@ The full product split would activate approximately 52,482 (zero parent) or 63,8
 | Missing parent weight zero | 1,966,330 | 3764994 |
 | Missing parent weight mean | 2,065,563 | 3764996 |
 
-Each job profiles assignment and checks for zero exported baseline shortcuts. Remaining gates include positive assigned connector flow at intended centroids, shared physical capacity, unassigned demand against Test 1, and recovery and Anaheim verification. The two assignment jobs precede recovery and any G allocation.
+## Baseline assignment and recovery submission
+
+Both assignment jobs completed and delivered 754,974.302225 trips in one iteration, with zero isolation, zero residual demand, and zero physical-link capacity violations. The zero and mean variants had zero shortcuts across 1,966,330 and 2,065,563 paths, respectively. All 1,403 intended centroids in the zero variant and all 1,438 in the mean variant had positive accumulated connector flow.
+
+Hopper recovery jobs are `3765325` (zero) and `3765326` (mean). Each uses its own recovery database and output directory. Both use the Test 1 hazard and cost settings and audit the baseline plus the disrupted and reference paths at each recovery checkpoint.
+
+## Agreement with the published 2022 FAF5 assignment
+
+The comparison uses accumulated model trips/day joined to the published bidirectional link flows by native link ID. All three arms use the same link support in each row. Missing published records are kept out of the metric and published zeros are included. The pilot footprint is the union of road links with positive modeled flows in any arm.
+
+| Fixed comparison support | Links with published records | Pearson, parent only | Pearson, zero | Pearson, mean |
+|---|---:|---:|---:|---:|
+| All shared road links | 312,073 | 0.4343 | 0.4694 | 0.4673 |
+| Road links in the pilot footprint | 116,284 | 0.4407 | 0.4867 | 0.4835 |
+| LA road links | 4,360 | 0.3673 | 0.5564 | 0.5305 |
+| Harris road links | 3,351 | 0.3354 | 0.5135 | 0.4949 |
+| County connectors | 3,338 | 0.4562 | 0.4564 | 0.4564 |
+| Sub-county connectors | 101 | Undefined | 0.6093 | 0.6747 |
+| Facility-range connectors | 289 | Undefined | Undefined | Undefined |
+
+Sub-county connector weighted absolute relative error was 100% in the parent-only arm, 60.65% in the zero arm, and 54.69% in the mean arm. It is computed as the sum of absolute link-flow errors divided by the published flow sum. Pearson correlation is undefined when modeled flow is constant. Connector flows informed the allocation, so connector agreement serves as a calibration check. The road-link comparison is an independent diagnostic of the resulting route volumes. Absolute error includes the volume difference between the Harvey-15 demand subset and the national published assignment.
+
+The comparison script `scripts/diagnostics/compare_faf_subcounty_flows.py` also writes class-specific and LA/Harris centroid results. Recovery and Anaheim verification remain pending.
