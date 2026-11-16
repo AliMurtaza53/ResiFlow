@@ -69,6 +69,8 @@
       "psv": {"a": 53.67, "b": 1223.40}
     },
     "_comment_tables": "use_table_* flags (default false = formula path). Wave-1 VOC sealed Li-like: time (A-3 VOT) + fuel-only (T04_avg_fuel_VOC) + toll; T05 non-fuel is OUT_OF_SCOPE (see T05_nonfuel_OUT_OF_SCOPE.csv). Keep use_table_nonfuel_curve=false; do not point at ATRI T05.",
+    "_comment_avg_fuel_voc": "2026-11-16: constant sealed fuel cost per mile (T04_avg_fuel_VOC_sealed.csv: car=gas_suv 0.187, ogv=diesel_heavy_truck 0.6022 USD/mi, EMFAC2025 x EIA price) replaces the UK-legacy speed curve for car and ogv. false = old curve path. lgv/psv/rail have no row and always use the curve.",
+    "use_table_avg_fuel_voc": true,
     "use_table_fuel_curve": false,
     "_comment_fuel_curve_table": "AUDIT 2026-10-08: this file is now archive/T04_fuel_consumption_speed_UK_TAG_current.csv (not at the top-level parameters/tables/ path this parameter names) -- flipping use_table_fuel_curve on without also updating this name will fail loudly (FileNotFoundError), which is the safer failure mode; left as-is rather than removing the dormant flag/table machinery.",
     "fuel_curve_table": "T04_fuel_consumption_speed_UK_TAG_current",

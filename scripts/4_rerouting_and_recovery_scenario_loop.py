@@ -1732,7 +1732,11 @@ def main(
                         * iso_share_col
                         / (pce_comb if out_mode == "freight" else 1.0)
                     )
-                    out_iso_df["isolation_cost_usd"] = out_iso_df["isolation_cost_usd"] * iso_share_col
+                    out_iso_df["isolation_cost_usd"] = (
+                        out_iso_df["isolation_cost_usd"]
+                        * iso_share_col
+                        / (pce_comb if out_mode == "freight" else 1.0)
+                    )
                     out_iso_df = out_iso_df.drop(columns=["freight_share"])
                 else:
                     share = 1.0
@@ -1740,6 +1744,9 @@ def main(
                     out_unique_disrupted_flow = unique_disrupted_flow
                     out_iso_df = isolation_df
 
+                # PCE affects capacity only: the solver's cost is per PCE unit of flow, so a
+                # truck's own cost is its PCE-weighted share divided by pce_comb (one vehicle).
+                cost_share = share / (pce_comb if out_mode == "freight" else 1.0)
                 # rerouting costs (one row per recovery day; see cost_rows note above)
                 cost_rows_by_output[out_mode].append(
                     {
@@ -1747,10 +1754,10 @@ def main(
                         "event_day": event_day,
                         "total_disrupted_flow": out_disrupted_flow,
                         "total_disrupted_flow_unique_od": out_unique_disrupted_flow,
-                        "rer_time": rer_time * share,
-                        "rer_operate": rer_operate * share,
-                        "rer_toll": rer_toll * share,
-                        "rerouting_cost": rerouting_cost * share,
+                        "rer_time": rer_time * cost_share,
+                        "rer_operate": rer_operate * cost_share,
+                        "rer_toll": rer_toll * cost_share,
+                        "rerouting_cost": rerouting_cost * cost_share,
                         "isolated_flow_total": isolated_flow_by_output[out_mode],
                         "isolation_cost": isolation_cost_by_output[out_mode],
                     }

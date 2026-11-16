@@ -172,6 +172,20 @@ def load_table(
     return table
 
 
+_AVG_FUEL_CLASS = {"car": "gas_suv", "ogv": "diesel_heavy_truck"}
+
+
+def avg_fuel_usd_per_mile(vehicle_type: str, table: str = "T04_avg_fuel_VOC_sealed") -> float | None:
+    """Sealed constant fuel cost (USD/mile) for a model vehicle class, or None if the
+    table has no row for it (lgv/psv/rail keep the formula path)."""
+    cls = _AVG_FUEL_CLASS.get(vehicle_type)
+    if cls is None:
+        return None
+    t = load_table(table)
+    row = t.loc[t["vehicle_class"] == cls]
+    return float(row.iloc[0]["avg_fuel_usd_per_mile"]) if not row.empty else None
+
+
 def resolve_column(table: pd.DataFrame, column: str) -> str:
     """Exact column name, or the unique column starting with ``column``.
 

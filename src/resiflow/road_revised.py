@@ -408,6 +408,14 @@ def compute_costs_for_links(
 
         operate_cost_per_km = FC + NFC
         operate_cost = operate_cost_per_km * distance_km  # USD (vector)
+        # Sealed Wave-1 fuel: constant USD/mile per class (T04_avg_fuel_VOC_sealed), replacing the
+        # UK-legacy speed curve x pump price. Classes without a row keep the curve.
+        if get_parameter("cost_operating", "use_table_avg_fuel_voc", True):
+            from resiflow.tables import avg_fuel_usd_per_mile
+
+            fuel_rate = avg_fuel_usd_per_mile(vehicle_type)
+            if fuel_rate is not None:
+                operate_cost = fuel_rate * df_block["length_mile"].to_numpy(dtype=float) + NFC * distance_km
 
         # value of time: allow dict or function
         if hasattr(cons, "VOT_POUND_PER_HOUR"):

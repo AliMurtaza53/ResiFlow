@@ -9,7 +9,7 @@ Stop costing every demand as a passenger car, add the owner's truck factor for c
 | Change | Where |
 |---|---|
 | Vehicle class follows the demand: freight-only `ogv`, passenger-only `car`, combined `car` on PCE-weighted flow; override `RESIFLOW_VEHICLE_CLASS` | `src/resiflow/demand/vehicle_class.py`, `scripts/1_network_flow_model_revision.py`, `scripts/4_rerouting_and_recovery_scenario_loop.py` |
-| Truck PCE 2.0 (parameter `assignment.truck_pce`), applied only when both classes share an assignment; vehicles reported unchanged | `src/resiflow/demand/combine.py`, stage 4 share and edge-flow reporting |
+| Truck PCE 2.0 (parameter `assignment.truck_pce`), applied only when both classes share an assignment; vehicles reported unchanged; freight rerouting and isolation cost divided by the factor (PCE is capacity-only) | `src/resiflow/demand/combine.py`, stage 4 share and edge-flow reporting |
 | Scope note (daily freight; one-way commute; no intrazonal; later additions) | `parameters/unified_parameters.json` (`_comment_scope`), `docs/ASSUMPTIONS_REGISTER.md` F7 to F10 |
 | ACS B08301 occupancy script: all counties in one call, no-carpool crash fixed, per-all-worker factor | `scripts/commute_occupancy_acs.py`, `src/resiflow/demand/county_commute.py` |
 | Passenger-only job sets the car class | `experiments/pass_a_convergence/hopper/submit_passenger_baseline.slurm` |
@@ -27,7 +27,7 @@ With `RESIFLOW_VEHICLE_CLASS=car` and `truck_pce=1.0` the old pinned toy and Sio
 ## Open items
 - The 2.0 truck factor is an owner choice, unsourced.
 - Combined runs cost the PCE-weighted flow as cars: a single-cost approximation. True multi-class needs engine support.
-- The sealed fuel table (`T04_avg_fuel_VOC_sealed.csv`, $0.187/mi car, $0.602/mi heavy truck) is still NOT used; the UK-legacy per-km curves are. It lives untracked in the main checkout.
+- Sealed fuel table now wired (2026-11-16): car $0.187/mi, ogv $0.6022/mi, constant (flag `cost_operating.use_table_avg_fuel_voc`, false = old curve). `manifest.csv` still calls the file documentation-only; the file header says sealed for Wave-1, and its values differ from the old curve (about 5% higher on Sioux Falls reroute cost). lgv/psv/rail keep the curve.
 - The Census API key was rejected ("Invalid Key"; new keys must be activated from the signup email). County occupancy is therefore not yet generated.
 - Stage 4 still has no passenger-only mode.
 - Isolation cost has three monetisations (T00 $280 per worker-day, parameter $50 per day, stage 4 value of time x 24).

@@ -140,9 +140,9 @@ def network_spec(name: str) -> ToyNetworkSpec:
             # Per routed trip 67.32/18.46 = 3.65 for both modes (freight/passenger = 100/30).
             # Updated 2026-11-15 (truck PCE 2.0 in combined runs): the shared pool is 24 car equivalents, split by LOAD share
             # 2*100/(2*100+30)=0.8696 freight. Edge flows are reported in VEHICLES (freight/2): 10.43 trucks + 3.13 cars
-            # = 20.87 + 3.13 = 24.0 PCE. Rerouting cost is allocated by load share (76.10 = 67.32 x 0.8696/0.7692).
-            expected_rerouting_cost_freight=76.1022675845548,
-            expected_rerouting_cost_passenger=11.415340137683222,
+            # = 20.87 + 3.13 = 24.0 PCE. Rerouting cost is per vehicle: load share / PCE, so freight and passenger cost per vehicle are equal (40.92/10.43 = 12.28/3.13). Sealed fuel table (0.187 USD/mi car).
+            expected_rerouting_cost_freight=40.92372562683228,
+            expected_rerouting_cost_passenger=12.277117688049689,
             expected_reroute_flow_freight=10.434782608695652,
             expected_reroute_flow_passenger=3.1304347826086962,
             origin_node="n1",
@@ -163,8 +163,8 @@ def network_spec(name: str) -> ToyNetworkSpec:
             # above.
             # Updated 2026-11-15 (truck PCE 2.0 in combined runs): the shared load rises from 25 to 37 car equivalents, so
             # the detour is congested and costs rise steeply (not just the share change). Edge flows in vehicles.
-            expected_rerouting_cost_freight=327.3545954499486,
-            expected_rerouting_cost_passenger=177.3170725353888,
+            expected_rerouting_cost_freight=164.62747773790443,
+            expected_rerouting_cost_passenger=178.3464342160631,
             expected_reroute_flow_freight=7.783783783783784,
             expected_reroute_flow_passenger=8.432432432432432,
             origin_node="n1",
