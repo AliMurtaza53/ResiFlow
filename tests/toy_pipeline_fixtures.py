@@ -138,10 +138,13 @@ def network_spec(name: str) -> ToyNetworkSpec:
             # isolated, 18.46 are routed. The baseline used to drop the whole partially isolated pair, so the routed 18.46 had a
             # post cost and no pre cost (235.53 = their entire cost). Now rerouting = post minus pre over the routed flow.
             # Per routed trip 67.32/18.46 = 3.65 for both modes (freight/passenger = 100/30).
-            expected_rerouting_cost_freight=67.32123670941385,
-            expected_rerouting_cost_passenger=20.19637101282415,
-            expected_reroute_flow_freight=18.461538461538463,
-            expected_reroute_flow_passenger=5.538461538461537,
+            # Updated 2026-11-15 (truck PCE 2.0 in combined runs): the shared pool is 24 car equivalents, split by LOAD share
+            # 2*100/(2*100+30)=0.8696 freight. Edge flows are reported in VEHICLES (freight/2): 10.43 trucks + 3.13 cars
+            # = 20.87 + 3.13 = 24.0 PCE. Rerouting cost is allocated by load share (76.10 = 67.32 x 0.8696/0.7692).
+            expected_rerouting_cost_freight=76.1022675845548,
+            expected_rerouting_cost_passenger=11.415340137683222,
+            expected_reroute_flow_freight=10.434782608695652,
+            expected_reroute_flow_passenger=3.1304347826086962,
             origin_node="n1",
             destination_node="n2",
             freight_flow=100.0,
@@ -158,10 +161,12 @@ def network_spec(name: str) -> ToyNetworkSpec:
             expected_disrupted_flow_passenger=13.0,
             # Updated 2026-10-09: same fuel-only cost fix as three_parallel
             # above.
-            expected_rerouting_cost_freight=46.8734421994394,
-            expected_rerouting_cost_passenger=50.77956238272601,
-            expected_reroute_flow_freight=11.52,
-            expected_reroute_flow_passenger=12.48,
+            # Updated 2026-11-15 (truck PCE 2.0 in combined runs): the shared load rises from 25 to 37 car equivalents, so
+            # the detour is congested and costs rise steeply (not just the share change). Edge flows in vehicles.
+            expected_rerouting_cost_freight=327.3545954499486,
+            expected_rerouting_cost_passenger=177.3170725353888,
+            expected_reroute_flow_freight=7.783783783783784,
+            expected_reroute_flow_passenger=8.432432432432432,
             origin_node="n1",
             destination_node="n4",
             freight_flow=12.0,

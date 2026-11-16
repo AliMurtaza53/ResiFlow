@@ -18,6 +18,7 @@ from resiflow.demand import (
     load_assignment_demand,
     passenger_od_disabled,
 )
+from resiflow.demand.vehicle_class import vehicle_class_for_stats
 from resiflow.networks import load_assignment_profiles, normalize_network_links
 from resiflow.parameters import get_parameter
 import resiflow.road_revised as func
@@ -203,7 +204,11 @@ def main(
     )
     # create igraph network
     logging.info("Create igraph network")
-    network, road_links = func.create_igraph_network(road_links, vehicle_type="car")
+    vehicle_class = vehicle_class_for_stats(demand_result.stats)
+    logging.info(
+        "Assignment vehicle class: %s (truck_pce=%s)", vehicle_class, demand_result.stats.get("truck_pce", "n/a")
+    )
+    network, road_links = func.create_igraph_network(road_links, vehicle_type=vehicle_class)
 
     out_path = Path(
         os.environ.get(

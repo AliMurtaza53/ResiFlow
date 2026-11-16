@@ -50,8 +50,14 @@ def combine_freight_passenger_od(
     *,
     freight_flow_col: str = DEFAULT_FLOW_COL,
     passenger_flow_col: str = DEFAULT_FLOW_COL,
+    truck_pce: float = 1.0,
 ) -> pd.DataFrame:
-    """Merge freight and passenger OD into one assignment matrix (summed Car21)."""
+    """Merge freight and passenger OD into one assignment matrix.
+
+    Car21 is the capacity load in passenger-car equivalents: passenger + truck_pce * freight.
+    ``freight_flow`` and ``passenger_flow`` stay in vehicles. truck_pce=1.0 (default here)
+    reproduces the old plain sum; real combined runs pass the ``assignment.truck_pce`` parameter.
+    """
     freight = normalize_assignment_od(freight_od, freight_flow_col, source="freight").rename(
         columns={freight_flow_col: "freight_flow"}
     )
@@ -64,7 +70,9 @@ def combine_freight_passenger_od(
         on=["origin_node", "destination_node"],
         how="outer",
     ).fillna({"freight_flow": 0.0, "passenger_flow": 0.0})
-    combined[DEFAULT_FLOW_COL] = combined["freight_flow"] + combined["passenger_flow"]
+    combined[DEFAULT_FLOW_COL] = (
+        float(truck_pce) * combined["freight_flow"] + combined["passenger_flow"]
+    )
     combined = combined[combined[DEFAULT_FLOW_COL] > 0].reset_index(drop=True)
     return combined[
         ["origin_node", "destination_node", "freight_flow", "passenger_flow", DEFAULT_FLOW_COL]
@@ -111,8 +119,13 @@ def load_combined_assignment_od(
     *,
     passenger_path: str | Path | None = None,
     freight_flow_col: str = DEFAULT_FLOW_COL,
+    truck_pce: float | None = None,
 ) -> tuple[pd.DataFrame, dict[str, float]]:
-    """Return assignment OD for Script 1; optionally merge passenger demand."""
+    """Return assignment OD for Script 1; optionally merge passenger demand.
+
+    When passenger demand is merged, trucks count ``truck_pce`` (default: the
+    ``assignment.truck_pce`` parameter, 2.0) car equivalents toward the assignment load.
+    """
     if passenger_path is None:
         assignment = normalize_assignment_od(freight_od, freight_flow_col, source="freight").rename(
             columns={freight_flow_col: DEFAULT_FLOW_COL}
@@ -124,15 +137,21 @@ def load_combined_assignment_od(
         }
         return assignment[["origin_node", "destination_node", DEFAULT_FLOW_COL]], stats
 
+    if truck_pce is None:
+        from resiflow.demand.vehicle_class import truck_pce as _truck_pce
+
+        truck_pce = _truck_pce()
     passenger_od = pd.read_parquet(passenger_path)
     combined = combine_freight_passenger_od(
         freight_od,
         passenger_od,
         freight_flow_col=freight_flow_col,
+        truck_pce=truck_pce,
     )
     stats = {
         "freight_flow": float(combined["freight_flow"].sum()),
         "passenger_flow": float(combined["passenger_flow"].sum()),
         "combined_flow": float(combined[DEFAULT_FLOW_COL].sum()),
+        "truck_pce": float(truck_pce),
     }
     return combined[["origin_node", "destination_node", DEFAULT_FLOW_COL]], stats

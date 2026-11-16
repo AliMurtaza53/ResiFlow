@@ -26,6 +26,7 @@ from collections import defaultdict
 import resiflow.road_revised as func
 import resiflow.constants as cons
 from resiflow.combined_od import resolve_passenger_od_path
+from resiflow.demand.vehicle_class import truck_pce, vehicle_class_for_mode
 from resiflow.demand import (
     load_assignment_demand,
     demand_spec_from_env,
@@ -293,7 +294,9 @@ def overlay_combined_flows(
     the current network has no such link attribute, and isn't dense enough
     for one to be meaningful yet.
     """
-    combined_demand = combine_freight_passenger_od(freight_od, passenger_od)
+    combined_demand = combine_freight_passenger_od(
+        freight_od, passenger_od, truck_pce=truck_pce()
+    )
 
     candidates = disrupted_candidates.copy()
     if "origin_node" not in candidates.columns or "destination_node" not in candidates.columns:
@@ -1207,12 +1210,14 @@ def main(
             # disrupted-flow totals by mode. See overlay_combined_flows() for
             # what downstream of this (rerouting cost, edge flow) can and can't
             # inherit this same exactness.
+            pce_comb = truck_pce() if mode_name == "combined" else 1.0
             if mode_name == "combined":
-                denom = (disrupted_od["freight_flow"] + disrupted_od["passenger_flow"]).replace(
-                    0, np.nan
-                )
+                # Car21/flow is in passenger-car equivalents: trucks count pce_comb each.
+                denom = (
+                    pce_comb * disrupted_od["freight_flow"] + disrupted_od["passenger_flow"]
+                ).replace(0, np.nan)
                 disrupted_od["freight_share"] = (
-                    disrupted_od["freight_flow"] / denom
+                    pce_comb * disrupted_od["freight_flow"] / denom
                 ).fillna(0.0)
             else:
                 disrupted_od["freight_share"] = 1.0 if mode_name == "freight" else 0.0
@@ -1229,8 +1234,9 @@ def main(
                 .sum()
                 .sum()
             )
+            freight_load_disrupted = float(disrupted_od.freight_disrupted_flow.sum())
             total_disrupted_flow_by_output = {
-                "freight": float(disrupted_od.freight_disrupted_flow.sum()),
+                "freight": freight_load_disrupted / pce_comb,
                 "passenger": float(disrupted_od.passenger_disrupted_flow.sum()),
             }
             unique_disrupted_flow_by_output = {
@@ -1240,7 +1246,8 @@ def main(
                     ]
                     .sum()
                     .sum()
-                ),
+                )
+                / pce_comb,
                 "passenger": float(
                     disrupted_od.groupby(["origin_node", "destination_node"])[
                         "passenger_disrupted_flow"
@@ -1256,7 +1263,7 @@ def main(
             # per-path trace (the solver doesn't tag which mode's vehicles
             # used which path).
             freight_share_of_disrupted = (
-                total_disrupted_flow_by_output["freight"] / total_disrupted_flow
+                freight_load_disrupted / total_disrupted_flow
                 if total_disrupted_flow > 0
                 else 0.0
             )
@@ -1501,7 +1508,10 @@ def main(
             ].reset_index(drop=True)
             valid_road_links["from_id"] = valid_road_links["from_id"].astype(str)
             valid_road_links["to_id"] = valid_road_links["to_id"].astype(str)
-            network, valid_road_links = func.create_igraph_network(valid_road_links, vehicle_type="car")
+            vehicle_class = vehicle_class_for_mode(mode_name)
+            network, valid_road_links = func.create_igraph_network(
+                valid_road_links, vehicle_type=vehicle_class
+            )
 
             # !!! make sure to pass disrupted flow for rerouting analysis
             if "Car21" in disrupted_od.columns:
@@ -1526,7 +1536,7 @@ def main(
                 db_path,
                 iso_out_path=str(isolation_path),
                 odpfc_out_path=str(odpfc_path_iter),
-                vehicle_type="car",
+                vehicle_type=vehicle_class,
             )
 
             # Trip isolations from the post-disruption (damaged) network -- read here
@@ -1590,7 +1600,7 @@ def main(
                 baseline_valid["from_id"] = baseline_valid["from_id"].astype(str)
                 baseline_valid["to_id"] = baseline_valid["to_id"].astype(str)
                 baseline_network, baseline_valid = func.create_igraph_network(
-                    baseline_valid, vehicle_type="car"
+                    baseline_valid, vehicle_type=vehicle_class
                 )
                 baseline_iso_path = (
                     out_path
@@ -1619,7 +1629,7 @@ def main(
                         str(baseline_db_path),
                         iso_out_path=str(baseline_iso_path),
                         odpfc_out_path=str(baseline_odpfc_path),
-                        vehicle_type="car",
+                        vehicle_type=vehicle_class,
                     )
                 )
 
@@ -1666,12 +1676,12 @@ def main(
                     iso_shares, on=["origin_node", "destination_node"], how="left"
                 )
                 isolation_df["freight_share"] = isolation_df["freight_share"].fillna(0.0)
-                freight_isolated_flow = float(
+                freight_isolated_load = float(
                     (isolation_df["Car21"] * isolation_df["freight_share"]).sum()
                 )
                 isolated_flow_by_output = {
-                    "freight": freight_isolated_flow,
-                    "passenger": isolated_flow_total - freight_isolated_flow,
+                    "freight": freight_isolated_load / pce_comb,
+                    "passenger": isolated_flow_total - freight_isolated_load,
                 }
             else:
                 isolated_flow_by_output = {mode_name: isolated_flow_total}
@@ -1720,6 +1730,7 @@ def main(
                     out_iso_df["Car21"] = (
                         pd.to_numeric(out_iso_df["Car21"], errors="coerce").fillna(0.0)
                         * iso_share_col
+                        / (pce_comb if out_mode == "freight" else 1.0)
                     )
                     out_iso_df["isolation_cost_usd"] = out_iso_df["isolation_cost_usd"] * iso_share_col
                     out_iso_df = out_iso_df.drop(columns=["freight_share"])
@@ -1818,7 +1829,9 @@ def main(
                         else (1.0 - freight_share_of_disrupted)
                     )
                     out_links = road_links.copy()
-                    out_links["change_flow"] = road_links["change_flow"] * share
+                    out_links["change_flow"] = (
+                        road_links["change_flow"] * share / (pce_comb if out_mode == "freight" else 1.0)
+                    )
                     out_links["acc_flow"] = road_links["current_flow"] + out_links["change_flow"]
                 else:
                     out_links = road_links

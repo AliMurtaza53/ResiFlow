@@ -161,7 +161,10 @@ def _assert_pipeline_outputs(tmp_path, env, spec) -> None:
     detour_capacity = pd.read_parquet(
         reroute_out / "edge_flows_freight_s1_day0.gpq"
     ).set_index("e_id").loc[spec.reroute_gain_edge, "acc_capacity"]
-    combined_detour_flow = _flow_on_edge(
+    from resiflow.demand.vehicle_class import truck_pce
+
+    # Edge flows are in vehicles; trucks load capacity truck_pce times.
+    combined_detour_flow = truck_pce() * _flow_on_edge(
         freight_post, spec.reroute_gain_edge
     ) + _flow_on_edge(passenger_post, spec.reroute_gain_edge)
     assert combined_detour_flow <= float(detour_capacity) + 1e-6, (

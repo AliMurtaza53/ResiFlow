@@ -299,4 +299,9 @@ def test_bundled_reference_file_matches_live_runtime_constants():
         "landslide_peak_mm",
         "winter_storm_peak_mm",
         "winter_storm_moderate_mm",
+        # added 2026-11-12 with the testbed intensity ladder and the Sa(1.0 s) earthquake companion
+        "intensity_ladder",
+        "sa1p0_to_pga_ratio",
+        "_comment_ladder",
+        "_comment_sa1p0",
     }
