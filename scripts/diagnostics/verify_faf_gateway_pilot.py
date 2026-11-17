@@ -33,10 +33,12 @@ def main():
     by_centroid = connectors.groupby("from_id").acc_flow.sum()
     expected = ports.groupby(ports.centroid_node.astype(str)).allocated_trips.sum()
     np.testing.assert_allclose(by_centroid.reindex(expected.index), expected, rtol=1e-9, atol=0)
-    physical = pilot[pilot.faf5_class.ne(50)].merge(
+    pilot_roads = ~pilot.faf5_class.eq(50).fillna(False)
+    control_roads = ~control.faf5_class.eq(50).fillna(False)
+    physical = pilot[pilot_roads].merge(
         control[["e_id", "current_capacity", "acc_flow"]], on="e_id", validate="one_to_one",
         suffixes=("_pilot", "_control"))
-    if len(physical) != pilot.faf5_class.ne(50).sum() or len(physical) != control.faf5_class.ne(50).sum():
+    if len(physical) != pilot_roads.sum() or len(physical) != control_roads.sum():
         raise ValueError("Physical road support changed")
     np.testing.assert_allclose(physical.current_capacity_pilot, physical.current_capacity_control)
     if (physical.acc_flow_pilot - physical.current_capacity_pilot).gt(1e-6).any():
