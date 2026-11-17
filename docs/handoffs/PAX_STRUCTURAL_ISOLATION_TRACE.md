@@ -19,11 +19,12 @@ Split spreads 256 two-connector counties 50/50 over both connector road ends. Th
 ## Conclusion
 Not a model or capacity effect. The split builder picked a connector road end that is not connected to the road network. The correct handling for this county is to put 100% of the demand on 55797 (the connected end).
 
-## Recommendation (not implemented, owner to approve)
-- In `scripts/diagnostics/prepare_passenger_od_variants.py`, drop any split end that is not in the largest strongly connected component, and send its share to the connected end. Log each dropped end.
-- Audit the 255 other split nodes the same way (none showed full isolation here, but a partial or one-way stub would show only as congestion isolation).
-- The same check belongs in the connector pipeline Codex is building (official connectors, endpoint-only access): a gateway or sub-county centroid attached to a stub gets zero effective demand.
-- Delivery numbers in `PAX_CTY1_RESULT.md` stay valid; only the 0.12% label changes from "unexplained" to "stub connector end, Clark County WA".
+## Audit of the other split ends and fix (2026-11-17)
+- Against the **largest weakly connected component** (343,688 of 344,999 network nodes), exactly **one** connector end is outside it: 55804. The other 255 split nodes (511 ends) and all 493 unsplit county loading nodes are inside.
+- Do NOT use the largest strongly connected component as the test: 57 split ends fall outside it, but only 55804 was isolated in the run, so link-direction flags make strong components over-reject. (The first version of this note recommended the strong component; that was wrong.)
+- Fix: `resiflow.demand.connector_split.main_component_nodes` + `build_node_targets(..., valid_nodes)` drop ends outside the main component; the share goes to the remaining ends. A county left with one valid end loads at its own node (same as base); a county with none valid keeps all ends. `prepare_passenger_od_variants.py --network-links <faf5_road_links.gpq>` applies it and prints the dropped ends. Tests in `tests/test_connector_split.py` (5 pass).
+- Effect: the split OD files must be rebuilt with `--network-links` before the next passenger run; existing results are unchanged (the 0.12% structural label is now explained).
+- Codex's gateway and sub-county centroids need the same island check.
 
 ## Files
 Probe script: scratchpad `probe55804.py` (not committed). Inputs named above.

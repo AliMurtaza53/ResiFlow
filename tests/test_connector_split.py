@@ -42,3 +42,25 @@ def test_split_conserves_flow_and_keeps_intrazonal():
     assert kept["Car21"].iloc[0] == pytest.approx(5.0)
     both = out[(out.origin_node == "20") & (out.destination_node == "102")]
     assert both["Car21"].iloc[0] == pytest.approx(2.0)
+
+
+def test_main_component_nodes_is_weak():
+    from resiflow.demand.connector_split import main_component_nodes
+
+    # 1->2->3 (main, one-way), 9->8 island
+    assert main_component_nodes([1, 2, 9], [2, 3, 8]) == {"1", "2", "3"}
+
+
+def test_stub_end_dropped_and_share_goes_to_connected_end():
+    valid = {"101", "20", "10", "30", "301", "302", "201"}  # 102 is a stub island
+    t = build_node_targets(COUNTIES, CONNECTORS, valid)
+    # county 1001 now has one valid end -> unsplit, stays at its own node (weight 1)
+    assert t[t["node"] == "10"][["target", "weight"]].values.tolist() == [["10", 1.0]]
+    # county 1005 (nodes shared) untouched; flow still conserved
+    od = pd.DataFrame({"origin_node": ["10"], "destination_node": ["20"], "Car21": [8.0]})
+    assert split_od(od, t)["Car21"].sum() == pytest.approx(8.0)
+
+
+def test_county_with_no_valid_end_keeps_all_ends():
+    t = build_node_targets(COUNTIES, CONNECTORS, valid_nodes=set())
+    assert set(t[t["node"] == "10"]["target"]) == {"101", "102"}

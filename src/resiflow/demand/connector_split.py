@@ -11,9 +11,30 @@ from __future__ import annotations
 import pandas as pd
 
 
+def main_component_nodes(from_ids, to_ids) -> set[str]:
+    """Node ids in the largest WEAKLY connected component of the road network.
+
+    Weak, not strong: link direction flags make strong components over-reject
+    (56 of 57 split ends outside the largest strong component loaded fine in the
+    pax_cty1 runs); a node outside the weak component is a true island.
+    """
+    import numpy as np
+    from scipy.sparse import coo_matrix
+    from scipy.sparse.csgraph import connected_components
+
+    f = pd.Series(from_ids).astype(str)
+    t = pd.Series(to_ids).astype(str)
+    ids = pd.Index(pd.unique(pd.concat([f, t])))
+    a, b = ids.get_indexer(f), ids.get_indexer(t)
+    g = coo_matrix((np.ones(len(a)), (a, b)), shape=(len(ids), len(ids))).tocsr()
+    _, lab = connected_components(g, directed=False)
+    return set(ids[lab == np.bincount(lab).argmax()])
+
+
 def build_node_targets(
     county_nodes: pd.DataFrame,
     connectors: pd.DataFrame,
+    valid_nodes: set[str] | None = None,
 ) -> pd.DataFrame:
     """Return (node, target, weight): where the demand loaded at ``node`` is spread.
 
@@ -31,6 +52,13 @@ def build_node_targets(
     conn = connectors.loc[connectors["centroid_id"].astype(int) < 100000].copy()
     conn["county_int"] = conn["centroid_id"].astype(int)
     conn["target"] = conn["road_node"].astype(str)
+    if valid_nodes is not None:
+        # Drop connector ends that are not in the road network's main component
+        # (stub islands); their share goes to the remaining ends. A county with
+        # no valid end keeps all of its ends (and its current single node).
+        ok = conn["target"].isin(valid_nodes)
+        has_ok = ok.groupby(conn["county_int"]).transform("any")
+        conn = conn[ok | ~has_ok]
     k = conn.groupby("county_int").size().rename("k")
     per = conn.groupby(["county_int", "target"]).size().rename("n").reset_index().merge(k, on="county_int")
     per["weight"] = per["n"] / per["k"]

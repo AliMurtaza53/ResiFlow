@@ -16,7 +16,7 @@ from pathlib import Path
 import pandas as pd
 
 from resiflow.demand.county_commute import convert_od_by_home_county, load_county_factors
-from resiflow.demand.connector_split import build_node_targets, split_od
+from resiflow.demand.connector_split import build_node_targets, main_component_nodes, split_od
 from resiflow.demand.passenger_conversion import SENSITIVITY_SCENARIOS, convert_jobs_to_vehicle_trips
 
 HARVEY_STATES = ["48", "22", "49", "40", "06", "12", "39", "17", "13", "05", "42", "36", "28", "26", "18"]
@@ -30,6 +30,7 @@ def main():
     p.add_argument("--scenario", default="central_with_round_trip", choices=sorted(SENSITIVITY_SCENARIOS))
     p.add_argument("--county-factors", type=Path, help="commute_params.json: per-home-county vehicles per job (one direction); overrides --scenario")
     p.add_argument("--keep-intrazonal", action="store_true", help="keep origin==destination rows (default: dropped; scope is inter-zonal commute only)")
+    p.add_argument("--network-links", type=Path, help="road links parquet (from_id,to_id): drop split ends outside the main weakly connected component")
     p.add_argument("--output-dir", type=Path, required=True)
     a = p.parse_args()
     a.output_dir.mkdir(parents=True, exist_ok=True)
@@ -54,7 +55,13 @@ def main():
     if not a.keep_intrazonal:
         od = od[~intra].reset_index(drop=True)
     conn = pd.read_csv(a.connector_crosswalk)
-    targets = build_node_targets(cw, conn)
+    valid = None
+    if a.network_links:
+        lk = pd.read_parquet(a.network_links, columns=["from_id", "to_id"])
+        valid = main_component_nodes(lk["from_id"], lk["to_id"])
+        dropped = sorted(set(conn["road_node"].astype(str)) - valid)
+        print(f"connector road ends outside main component (dropped): {len(dropped)} {dropped[:20]}")
+    targets = build_node_targets(cw, conn, valid)
     node_state = cw.drop_duplicates("node_id").assign(node_id=lambda d: d.node_id.astype(str)).set_index("node_id")["state_fips"]
     in15 = od["origin_node"].map(node_state).isin(HARVEY_STATES) & od["destination_node"].map(node_state).isin(HARVEY_STATES)
     sets = {"conus": od, "harvey15": od[in15]}
