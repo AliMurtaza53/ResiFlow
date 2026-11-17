@@ -36,3 +36,16 @@ The first expansion prep failed the OD support check because zero-trip factor ro
 | Harvey-15 | 754,974.30 | 61,480.98 | 174.7201 → 175.6595 | 114 / 116 |
 
 Each coverage manifest contains all 255 IDs. CONUS excludes 11 out-of-scope gateways and leaves three explicit-zero and three unreported in-scope gateways unloaded. Harvey-15 excludes 139 out-of-scope gateways and leaves two unreported in-scope gateways unloaded. The freight-only access check does not substitute for a combined freight and passenger binding-link check.
+
+## Expanded assignment and recovery jobs
+
+All jobs use the pinned integrated experiment checkout at `19b02b1`. The G baseline waits for its matched C+S control and verifies its physical road capacity against that control. Each recovery runs stages 2, 3, 3 postprocess, and 4 only after its baseline succeeds. Results are separated by scope and arm.
+
+| Scope | Arm | Stage 1 baseline | Stages 2–4 |
+|---|---|---:|---:|
+| Harvey-15 | Mean-parent C+S control | 3784300 | 3784301 |
+| Harvey-15 | C+S+G | 3784302 | 3784303 |
+| CONUS | Mean-parent C+S control | 3784304 | 3784305 |
+| CONUS | C+S+G | 3784306 | 3784307 |
+
+The first attempt to generate the complete Slurm chains stopped before submission because one template used a relative code path. The retry verified all scripts with `bash -n` and submitted the jobs above.
