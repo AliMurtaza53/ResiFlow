@@ -1127,6 +1127,24 @@ def main(
                 ),
                 axis=1,
             )
+            # Winter storm is governed by the T33/T34/T35 chain ONLY, not the
+            # generic T26 schedule (owner decision 2026-11-17; Sioux Falls
+            # finding 1: T26 kept winter rerouting cost alive to day 98 although
+            # T34 reopens every link within 7 days). Closed until day_open, full
+            # capacity after; the T35 speed ramp is applied below.
+            _winter = False
+            if "hazard_type" in road_links.columns and "day_open" in road_links.columns:
+                _ht0 = road_links["hazard_type"].dropna()
+                _winter = bool(len(_ht0)) and str(_ht0.iloc[0]).strip().lower() == "winter_storm"
+            if _winter:
+                from resiflow.hazards.winter_storm_clearance import capacity_on_day
+
+                road_links["acc_capacity"] = capacity_on_day(
+                    event_day,
+                    road_links["day_open"],
+                    road_links["damage_level_max"],
+                    road_links["current_capacity"],
+                )
             # Extract disrupted od after road recovery
             logging.info("Extracting disrupted OD pairs...")
             disrupted_od = mode_disrupted_candidates.copy()

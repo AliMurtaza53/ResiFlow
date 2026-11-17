@@ -93,10 +93,14 @@ def apply_max_speed_to_links(
             f"expected {_REQUIRED_STATES}"
         )
 
+    # Bridge if road_bridge==yes OR road_label==bridge (same rule as the damage
+    # and disruption modules; networks without road_bridge, e.g. Sioux Falls,
+    # previously priced bridges on the road factors so severe bridges never closed).
+    is_bridge = pd.Series(False, index=out.index)
     if bridge_col in out.columns:
-        is_bridge = out[bridge_col].astype(str).str.strip().str.lower().eq("yes")
-    else:
-        is_bridge = pd.Series(False, index=out.index)
+        is_bridge = is_bridge | out[bridge_col].astype(str).str.strip().str.lower().eq("yes")
+    if "road_label" in out.columns:
+        is_bridge = is_bridge | out["road_label"].astype(str).str.strip().str.lower().eq("bridge")
     assets = np.where(is_bridge, "bridge", "road")
 
     factors = np.array(

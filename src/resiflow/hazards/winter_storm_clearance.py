@@ -254,6 +254,25 @@ def residual_speed_factor_winter_storm(
     return factor
 
 
+def capacity_on_day(
+    event_day: int | float,
+    day_open: pd.Series,
+    damage_level: pd.Series,
+    current_capacity: pd.Series,
+) -> pd.Series:
+    """Winter capacity on ``event_day`` from T34 alone (T26 is NOT used).
+
+    A damaged link with a T34 ``day_open`` is closed (capacity 0) until that
+    day and at full pre-event capacity afterwards; the T35 speed ramp is
+    applied separately to speed. Undamaged or unranked links keep capacity.
+    """
+    dopen = pd.to_numeric(day_open, errors="coerce")
+    damaged = ~damage_level.fillna("no").astype(str).str.strip().str.lower().isin(("no", "none"))
+    closed = damaged & dopen.notna() & (float(event_day) < dopen)
+    cap = pd.to_numeric(current_capacity, errors="coerce").fillna(0).astype(float)
+    return cap.where(~closed, 0.0)
+
+
 def peak_closure_flag(clearance_rank: pd.Series, peak_depth_mm: pd.Series) -> pd.Series:
     """Rank-5 link whose peak-day depth reached the passenger-car clearance threshold."""
     rank = pd.to_numeric(clearance_rank, errors="coerce")
