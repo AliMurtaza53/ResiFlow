@@ -11,6 +11,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     for name in ("audit", "pilot", "control", "budgets", "output"):
         parser.add_argument(name, type=Path)
+    parser.add_argument("--expected-trips", type=float, default=754974.3022249371)
     args = parser.parse_args()
     audit = pd.read_parquet(args.audit)
     if len(audit) != 1:
@@ -19,7 +20,7 @@ def main():
     for field in ("edges_binding", "remain", "isolated_structural_cum", "isolated_congestion_cum"):
         if row[field] != 0:
             raise ValueError(f"Pilot missed the assignment gate: {field}={row[field]}")
-    np.testing.assert_allclose(row.delivered, 754974.3022249371, rtol=1e-9, atol=0)
+    np.testing.assert_allclose(row.delivered, args.expected_trips, rtol=1e-9, atol=0)
     cols = ["e_id", "faf5_class", "from_id", "to_id", "acc_flow", "current_capacity"]
     pilot = pd.read_parquet(args.pilot, columns=cols)
     control = pd.read_parquet(args.control, columns=cols)
