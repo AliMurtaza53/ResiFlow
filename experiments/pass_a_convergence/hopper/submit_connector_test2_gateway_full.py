@@ -58,10 +58,10 @@ def main():
             if not od.is_file() or (DATA / "results" / variant).exists():
                 raise ValueError(f"Missing OD or occupied outputs for {variant}")
             run = OPS / variant
-            run.mkdir()
+            run.mkdir(exist_ok=True)
             for template, name in templates.items():
                 script = template.read_text()
-                script = replace_required(script, str(OLD_CODE), str(args.code))
+                script = replace_required(script, OLD_CODE.name, args.code.name)
                 script = replace_required(script, PREVIOUS, variant)
                 script = replace_required(script, name, f"{variant}_{template.stem}")
                 if template.name == "baseline_native.slurm":
