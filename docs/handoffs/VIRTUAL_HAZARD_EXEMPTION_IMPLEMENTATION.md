@@ -13,3 +13,18 @@ Regression job 3795034: 24 passed, two expected/environment warnings, 58.36 seco
 The matched recovery reruns will reuse all four existing baselines, use fresh output variants, and profile stages 2–4. A new verifier must pass after stage 2: identical physical link IDs, capacities, depths, damage classes and speed caps; zero virtual exposure; all 3,795 virtual routing links retained and unrestricted. After stage 3, direct physical damage must match the old arm within 1e-9 relative tolerance. Recovery path exports must retain zero centroid shortcuts at all six snapshots. Previous outputs remain available and are still marked provisional.
 
 The separate multi-connector proposal is in MULTICONNECTOR_DESIGN_PLAN.md. It has not been implemented or mixed into this correction.
+
+## Submitted matched recovery runs
+
+Code revision 4409abf; operation manifest `/scratch/akothaw/multimodal_hazard_data/stage2_scripts/virtual_exemption_reruns_20261118/manifest.json`.
+
+- Harvey-15 C+S control: 3795089.
+- Harvey-15 C+S+G: 3795090.
+- CONUS C+S control: 3795091.
+- CONUS C+S+G: 3795092.
+
+Initial launches 3795084–3795087 stopped before stage 2 because the archived profiling shell helper contained CRLF line endings. Only that helper in the isolated snapshot was normalized to LF; the failed attempts created no analysis outputs or baseline aliases. The replacement jobs above were confirmed RUNNING in stage 2.
+
+Fresh output variants append `_virtual_exempt` to each original arm. No baseline assignment or edge-index rebuild is submitted; the existing baseline artifacts are reused. Each job includes physical-state verification after stage 2, physical-damage verification after stage 3, stage profiling and recovery shortcut audits. Same original eight CPUs, 600 GB allocation and 15-iteration recovery cap. Controls and gateway arms use their original OD files.
+
+The source snapshot is the tested precommit source corresponding to 4409abf, with the new verification script staged subsequently and a SOURCE_REVISION.txt marker. Relative to the old recorded 19b02b1 runtime, inherited non-flood winter-storm/earthquake updates and the passenger-only split builder are inactive in this flood experiment; the physical-state/damage verifiers enforce the intended single-factor difference.

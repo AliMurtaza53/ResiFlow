@@ -45,6 +45,8 @@ Each local loading unit may then have a few genuine access alternatives. G repre
 
 Every candidate must produce a GIS/audit row: original centroid, generated loading unit, attachment road node, connector ID, access cost, evidence source, coverage weight, connectivity, barrier/access checks, redundancy group, and acceptance/rejection reason. Counties with fewer than two credible exits get explicit exceptions, not fabricated links. Ambiguous or high-impact cases require spot checks.
 
+Manual inspection of every connector is not required. High-confidence candidates can pass automatically; prioritize high-flow cases, barrier/eligibility ambiguity and large placement sensitivity for review, with a stratified sample of the remaining candidates. Report the rule/score components rather than an unexplained confidence number.
+
 ## Bounded comparison
 
 First complete the virtual-hazard exemption and its matched recovery comparison. Then use identical demand, costs, physical capacities and hazard rules for:
