@@ -38,3 +38,9 @@ def test_original_stub_cannot_acquire_fictitious_redundancy():
     selected,audit=idx.select(["4"],box(-1000,-1000,2000,2000))
     assert selected==[]
     assert idx.main
+
+def test_access_geometry_charges_the_native_and_local_distance_proxy():
+    r,n=fixture();idx=AccessIndex(r,n)
+    geometry=idx.access_geometry(LineString([(-10,0),(0,0)]),"0","2")
+    assert geometry.length==1010.
+    assert geometry.geom_type=="MultiLineString"
