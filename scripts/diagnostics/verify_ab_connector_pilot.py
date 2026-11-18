@@ -16,16 +16,21 @@ def main():
         assert a.log is not None
         text=a.log.read_text(errors="replace")
         assert not re.search(r"INVARIANT[^\n]*ok=False",text)
-        calls=[];last=None
+        calls=[];last=None;initial=None
         for line in text.splitlines():
+            if "The initial supply is " in line:
+                initial=float(line.split("The initial supply is ",1)[1].strip())
             if "ITER_AUDIT iteration=" in line:
                 last={k:float(v) for k,v in re.findall(r"([a-z_]+)=([-+0-9.eE]+)",line.split("ITER_AUDIT",1)[1])}
             if "The flow simulation is completed" in line and last:
                 total=last.get("delivered_cum",0)+last.get("isolated_structural_cum",0)+last.get("isolated_congestion_cum",0)+last.get("remain",0)
+                assert initial is not None
+                np.testing.assert_allclose(total,initial,rtol=1e-9,atol=1e-6)
                 assert last["remain"]<=max(total,1)*1e-9,"Unresolved recovery demand at the iteration cap"
-                calls.append(last);last=None
+                last['initial_supply']=initial
+                calls.append(last);last=None;initial=None
         assert len(calls)==12,f"Expected six recovery plus six paired intact solves; found {len(calls)}"
-        report={"completed_solves":len(calls),"unresolved_flow":0,"solver_audits":calls}
+        report={"completed_solves":len(calls),"maximum_solver_residual_flow":max(x['remain'] for x in calls),"solver_audits":calls}
     elif a.stage=="damage":
         old=pd.read_csv(r/"damage_analysis/conus_connector_test2g_gateway/damage_summary.csv")
         new=pd.read_csv(r/"damage_analysis"/a.variant/"damage_summary.csv")

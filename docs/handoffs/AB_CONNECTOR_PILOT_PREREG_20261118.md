@@ -48,6 +48,8 @@ These are screening assumptions for an aggregate loading area, not proof of an u
 
 Generate nested 2/3/4-exit candidates and a deterministic alternate placement/cost screening diagnostic (15 versus 25 mph for added access only). These lower-cost geometry/path-time sensitivities are reported separately; they do not replace the primary four-exit capacity/recovery comparison or drive network selection. No demand-weight perturbation is allowed in A/B; that belongs to deferred Arm C.
 
+The alternate placement rule is fixed before the first primary assignment: choose the shortest screened local-access path first (node ID breaks ties), enforcing the same 150 m separation and four-exit cap. Primary placement maximizes spatial spread penalized by access distance. The alternate uses only the existing candidate audit and is evaluated during the comparison job as a 250-pair time-only diagnostic; it never reads hazard or A/B outcome metrics to place exits.
+
 ## Gates, hazards and budget
 
 Prerequisite: all four existing exemption reruns 3795089–3795092 pass physical-state/damage and recovery path verifiers. Prepare the clean exemption change set independently of the pilot.
