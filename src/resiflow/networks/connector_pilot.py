@@ -26,9 +26,11 @@ class AccessIndex:
         sensitive=pd.Series(False,index=self.roads.index)
         if "faf5_class" in self.roads:
             sensitive |= pd.to_numeric(self.roads.faf5_class,errors="coerce").eq(41).fillna(False)
+        if "road_label" in self.roads:
+            sensitive |= self.roads.road_label.astype(str).str.strip().str.lower().isin(["bridge","tunnel","ferry"])
         for col in ("road_bridge","road_tunnel"):
             if col in self.roads:
-                sensitive|=self.roads[col].astype(str).str.lower().isin(["yes","true","1"])
+                sensitive|=self.roads[col].astype(str).str.strip().str.lower().isin(["yes","true","1","1.0"])
         for col in ("bridge_fraction","tunnel_fraction"):
             if col in self.roads:sensitive|=pd.to_numeric(self.roads[col],errors="coerce").fillna(0).gt(0)
         self.sensitive=sensitive

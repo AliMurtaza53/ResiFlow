@@ -44,3 +44,16 @@ def test_access_geometry_charges_the_native_and_local_distance_proxy():
     geometry=idx.access_geometry(LineString([(-10,0),(0,0)]),"0","2")
     assert geometry.length==1010.
     assert geometry.geom_type=="MultiLineString"
+
+
+def test_label_only_and_numeric_structure_flags_cannot_be_access_routes():
+    r,n=fixture()
+    r['bridge_fraction']=0.;r['tunnel_fraction']=0.
+    r['road_bridge']='no';r['road_tunnel']=0.
+    r['road_label']=['road',' Bridge ','road','road','road','road']
+    r.loc[2,'road_tunnel']=1.0
+    idx=AccessIndex(r,n)
+    assert idx.sensitive.iloc[1] and idx.sensitive.iloc[2]
+    assert not {1,2}&set(idx.local.es['row'])
+    selected,_=idx.select(['0'],box(-1000,-1000,2000,2000))
+    assert '2' not in [row['road_node'] for row in selected]
