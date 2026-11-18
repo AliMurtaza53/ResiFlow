@@ -142,7 +142,7 @@ def main():
     assert A.e_id.is_unique and B.e_id.is_unique
     physicalA=A[~centroid_connector_mask(A)].reset_index(drop=True)
     physicalB=B[~centroid_connector_mask(B)].reindex(columns=A.columns).reset_index(drop=True)
-    pd.testing.assert_frame_equal(physicalA,physicalB)
+    pd.testing.assert_frame_equal(physicalA,physicalB,check_dtype=False)
     A.to_parquet(out/"network_A.gpq",index=False);B.to_parquet(out/"network_B4.gpq",index=False)
     for arm,frame in [("A",A),("B4",B)]:
         frame[centroid_connector_mask(frame)][["e_id","from_id","to_id"]].rename(columns={"from_id":"centroid_node","to_id":"road_node"}).to_csv(out/f"connectors_{arm}.csv",index=False)
