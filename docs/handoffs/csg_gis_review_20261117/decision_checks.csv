@@ -1,0 +1,27 @@
+scope,gate,pass,value,limit,arm
+conus,zone_pair_commodity_market_conservation,True,1.4210854715202006e-13,1e-9 relative to each base cell,
+conus,geodesic_weighted_mean_haul,True,0.0038234592386865,"[-0.02,+0.02] relative to C+S",
+conus,physical_capacity_equal_and_not_exceeded,True,-23037.33321674728,identical physical capacity; flow <= capacity+1e-6,control
+conus,baseline_full_delivery,True,1510749.5566691766,1510749.5566692068,control
+conus,baseline_shortcuts.log,True,0.0,0 shortcuts; recovery 12 path sets,control
+conus,recovery_shortcuts.log,True,0.0,0 shortcuts; recovery 12 path sets,control
+conus,physical_capacity_equal_and_not_exceeded,True,-23037.3450835287,identical physical capacity; flow <= capacity+1e-6,gateway
+conus,baseline_full_delivery,True,1510749.556669238,1510749.5566692068,gateway
+conus,baseline_shortcuts.log,True,0.0,0 shortcuts; recovery 12 path sets,gateway
+conus,recovery_shortcuts.log,True,0.0,0 shortcuts; recovery 12 path sets,gateway
+conus,freight_only_access_capacity,True,0.0879433548013749,V/C<=1; combined traffic not tested,
+harvey15,zone_pair_commodity_market_conservation,True,3.410605131648481e-13,1e-9 relative to each base cell,
+harvey15,geodesic_weighted_mean_haul,True,0.0053769264000196,"[-0.02,+0.02] relative to C+S",
+harvey15,physical_capacity_equal_and_not_exceeded,True,-23984.52481065146,identical physical capacity; flow <= capacity+1e-6,control
+harvey15,baseline_full_delivery,True,754974.3022249297,754974.3022249372,control
+harvey15,baseline_shortcuts.log,True,0.0,0 shortcuts; recovery 12 path sets,control
+harvey15,recovery_shortcuts.log,True,0.0,0 shortcuts; recovery 12 path sets,control
+harvey15,physical_capacity_equal_and_not_exceeded,True,-23931.56479818918,identical physical capacity; flow <= capacity+1e-6,gateway
+harvey15,baseline_full_delivery,True,754974.302224922,754974.3022249372,gateway
+harvey15,baseline_shortcuts.log,True,0.0,0 shortcuts; recovery 12 path sets,gateway
+harvey15,recovery_shortcuts.log,True,0.0,0 shortcuts; recovery 12 path sets,gateway
+harvey15,freight_only_access_capacity,True,0.0863180747855813,V/C<=1; combined traffic not tested,
+testbed,Anaheim_and_endpoint_routing_regression,True,10.0,10 existing tests passed; see routing_regression.json; not a combined assignment,
+both,flood_depth_mask,True,9.14315700531006,maximum 9.144 m,
+both,direct_damage_asset_consolidation,True,1468883828.5398502,roads summed; bridges/tunnels max once per link; matches production total,
+both,extended_audit_virtual_connector_flood_exemption,False,41.0,0 synthetic access links speed-restricted by their drawn-line raster exposure; new verification finding,both

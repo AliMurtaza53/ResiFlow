@@ -17,3 +17,7 @@ Five split tests passed on Hopper. They cover existing equal-share behavior, con
 ## Assignment verification
 
 The corrected CONUS passenger run is job `3788878`, variant `pax_cty1_conus_split_connected`. It uses the clean integrated checkout `badf15e`, passenger vehicle class car, eight CPUs, 600 GB memory, a 40-iteration cap and stage profiling. This is a fresh output variant. Earlier outputs remain available for comparison.
+
+The job completed successfully in 1h 21m 10s, stopping after 30 iterations. Delivered demand was 45,531,654.73 trips/day (88.0372%); structural isolation was exactly zero; congestion isolation was 6,186,999.169 trips/day; remaining solver flow was zero. Conservation and physical-capacity invariants passed. Full partitioned OD paths were saved. Profiled assignment wall time was 4,853.93 seconds, maximum RSS 26.0 GB and CPU efficiency 48% on eight CPUs.
+
+Relative to the original split run, delivered demand increased by about 52,551 trips/day. Removing 61,352 structural-isolated trips therefore did not deliver every recovered trip: the congestion-isolated total increased by about 8,801. Relative to the unsplit control, the corrected split delivered about 25,409 additional trips/day. The disconnected-endpoint defect is resolved; substantial capacity-related isolation remains and must not be described as fixed by this repair.
