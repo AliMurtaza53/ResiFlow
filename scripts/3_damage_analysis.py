@@ -709,6 +709,9 @@ def main():
         print(f"Calculate damages for scenario={scenario_param} event={flood_key}...")
         # format intersections
         intersections = pd.read_parquet(intersections_path)
+        from resiflow.networks.hazard_eligibility import assert_physical_exposure
+
+        assert_physical_exposure(road_links, intersections)
         intersections = format_intersections(intersections, road_links)
 
         if intersections.empty:
@@ -827,9 +830,6 @@ def main():
                 intersections_with_damage["direct_damage_mean_musd"] > 0
             ].reset_index(drop=True)
         elif hazard_type == "flood":
-            from resiflow.networks.hazard_eligibility import assert_physical_exposure
-
-            assert_physical_exposure(road_links, intersections)
             # Sourced unit costs only (T24 CP25 roads, T30 bridges, Rostami tunnels); the legacy cost-workbook
             # path was retired 2026-11-12 (see docs/testbed_suite/SPEC.md). damage_ratio_road_flood (T22) is unchanged.
             if not use_sourced_asset_costs:

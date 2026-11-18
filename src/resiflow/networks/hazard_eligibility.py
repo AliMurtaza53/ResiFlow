@@ -30,7 +30,7 @@ def assert_physical_exposure(links: pd.DataFrame, exposure: pd.DataFrame) -> Non
         )
 
 
-def assert_centroid_flood_state(links: pd.DataFrame) -> None:
+def assert_centroid_hazard_state(links: pd.DataFrame) -> None:
     """Require clean stage-2 state before recovery can use a legacy artifact."""
     virtual = links.loc[centroid_connector_mask(links)]
     if virtual.empty:
@@ -50,5 +50,10 @@ def assert_centroid_flood_state(links: pd.DataFrame) -> None:
         raise ValueError(
             "Hazard-restricted centroid connectors in recovery input: "
             f"{virtual.loc[bad, 'e_id'].astype(str).head(10).tolist()}. "
-            "Rerun stages 2 and 3; do not reuse contaminated flood artifacts."
+            "Rerun stages 2 and 3; do not reuse contaminated hazard artifacts."
         )
+
+
+def assert_centroid_flood_state(links: pd.DataFrame) -> None:
+    """Backward-compatible name for the shared hazard-state guard."""
+    assert_centroid_hazard_state(links)

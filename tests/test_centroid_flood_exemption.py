@@ -7,7 +7,9 @@ import pytest
 from shapely.geometry import LineString
 from resiflow import road_revised as road
 from resiflow.disruption import flood
-from resiflow.disruption.build import build_flood_link_disruption
+from resiflow.disruption import intensity_hazard
+from resiflow.disruption.build import (build_flood_link_disruption,
+    build_earthquake_link_disruption,build_landslide_link_disruption,build_winter_storm_link_disruption)
 from resiflow.fragility.flood_operational import apply_max_speed_to_links
 from resiflow.hazards.base import HazardEvent
 from resiflow.networks.hazard_eligibility import (
@@ -35,6 +37,44 @@ def test_virtual_links_never_reach_raster_sampling(monkeypatch):
     seen.clear()
     assert flood.intersections_with_damage(f.iloc[:1], "1", "surface", "unused", None) is None
     assert seen == []
+
+
+@pytest.mark.parametrize('field',['pga_g','landslide_mm','winter_storm_mm'])
+def test_other_hazards_exclude_virtual_before_sampling(monkeypatch,field):
+    links=gpd.GeoDataFrame({'e_id':['c','r','unknown'],'faf5_class':[50,14,None]},
+        geometry=[LineString([(0,0),(1,1)])]*3,crs=4326)
+    seen=[]
+    def footprint(frame,path):seen.extend(frame.e_id);return frame
+    monkeypatch.setattr(intensity_hazard,'subset_features_to_raster_extent',footprint)
+    monkeypatch.setattr(intensity_hazard,'clip_features',lambda frame,*args:frame.iloc[:0])
+    result=intensity_hazard.intersections_with_intensity(links,'1','unused',None,
+        field_name=field,intensity_col=field,damage_level_col='level',categorical_fn=lambda *x:None)
+    assert result is None and seen==['r','unknown']
+
+
+def test_other_hazard_aggregation_rejects_legacy_virtual_records():
+    links=gpd.GeoDataFrame({'e_id':['c'],'faf5_class':[50]},geometry=[LineString([(0,0),(1,1)])],crs=4326)
+    exposure=pd.DataFrame({'e_id':['c'],'im':[1.],'level':['minor']})
+    with pytest.raises(ValueError,match='Rerun stage 2'):
+        intensity_hazard.features_with_intensity(links,exposure,intensity_col='im',intensity_max_col='im_max',damage_level_col='level')
+
+
+@pytest.mark.parametrize('hazard,field,damage,builder,unit',[
+    ('earthquake','pga_g','damage_level_earthquake',build_earthquake_link_disruption,'g_pga'),
+    ('landslide','landslide_mm','damage_level_landslide',build_landslide_link_disruption,'mm_displacement'),
+    ('winter_storm','winter_storm_mm','damage_level_winter_storm',build_winter_storm_link_disruption,'mm_snow')])
+def test_nonflood_builders_leave_virtual_open_and_physical_unchanged(hazard,field,damage,builder,unit):
+    links=gpd.GeoDataFrame({'e_id':['c','r'],'faf5_class':[50,14],
+        'road_classification':['centroid_connector','primary'],'road_label':['road','road'],'road_bridge':['no','no']},
+        geometry=[LineString([(0,0),(1,0)]),LineString([(1,0),(2,0)])],crs=4326)
+    baseline=pd.DataFrame({'e_id':['c','r'],'free_flow_speeds':[25.,40.],'current_capacity':[10000.,1000.]})
+    exposure=pd.DataFrame({'e_id':['r'],field:[.8],damage:['minor']})
+    event=HazardEvent(hazard,'1',unit)
+    all_links=builder(links,exposure.copy(),baseline,hazard_event=event,scenario_param=1)
+    physical=builder(links.iloc[1:],exposure.copy(),baseline.iloc[1:],hazard_event=event,scenario_param=1)
+    pd.testing.assert_frame_equal(all_links[all_links.e_id.eq('r')].reset_index(drop=True),physical.reset_index(drop=True))
+    assert_centroid_flood_state(all_links)
+    assert not all_links.loc[all_links.e_id.eq('c'),'hazard_exposure_applicable'].iloc[0]
 
 
 def test_stage2_preserves_physical_state_and_all_routing_links():
