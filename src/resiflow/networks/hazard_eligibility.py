@@ -21,6 +21,8 @@ def centroid_connector_mask(links: pd.DataFrame) -> pd.Series:
 
 def assert_physical_exposure(links: pd.DataFrame, exposure: pd.DataFrame) -> None:
     """Reject stale virtual-link intersections rather than silently pricing them."""
+    if exposure.empty:
+        return
     ids = set(links.loc[centroid_connector_mask(links), "e_id"].astype(str))
     found = sorted(ids & set(exposure["e_id"].astype(str)))
     if found:

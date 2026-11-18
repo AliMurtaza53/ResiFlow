@@ -55,6 +55,7 @@ def test_other_hazards_exclude_virtual_before_sampling(monkeypatch,field):
 def test_other_hazard_aggregation_rejects_legacy_virtual_records():
     links=gpd.GeoDataFrame({'e_id':['c'],'faf5_class':[50]},geometry=[LineString([(0,0),(1,1)])],crs=4326)
     exposure=pd.DataFrame({'e_id':['c'],'im':[1.],'level':['minor']})
+    assert_physical_exposure(links,pd.DataFrame())
     with pytest.raises(ValueError,match='Rerun stage 2'):
         intensity_hazard.features_with_intensity(links,exposure,intensity_col='im',intensity_max_col='im_max',damage_level_col='level')
 
