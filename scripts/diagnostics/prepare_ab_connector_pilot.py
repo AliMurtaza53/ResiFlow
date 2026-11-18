@@ -1,6 +1,6 @@
 """Prepare fixed-OD A/B networks for the preregistered five-county connector pilot."""
 from pathlib import Path
-import argparse,json,hashlib,time
+import argparse,json,hashlib,time,math
 import numpy as np
 import pandas as pd
 import geopandas as gpd
@@ -67,6 +67,13 @@ def main():
     pax=pd.read_parquet(pdir/"passenger_conus_split_od.pq")
     pax[["origin_node","destination_node"]]=pax[["origin_node","destination_node"]].astype(str)
     oldtotal=float(pax.Car21.sum())
+    # A direct physical-node OD had no extra synthetic intake restriction.
+    # Keep aliases computationally neutral in BOTH arms. Do not add per-link
+    # capacity override columns: edge_init would apply their NaNs to roads.
+    native_virtual_capacity=float(baseline.loc[centroid_connector_mask(baseline),"current_capacity"].min())
+    assert native_virtual_capacity>0
+    assignment_upper_bound=oldtotal+2*1510749.5566692068
+    alias_lane_multiplier=math.ceil(2*assignment_upper_bound/native_virtual_capacity)+1
     cw=pd.read_csv(root/"code/ResiFlow_virtual_exemption_20261118/parameters/crosswalks/county_node_crosswalk_conterminous.csv",dtype=str)
     t=pd.read_csv(pdir/"node_targets.csv",dtype={"node":str,"target":str})
     rel=t.merge(cw[["node_id","county_fips"]],left_on="node",right_on="node_id",validate="many_to_many")
@@ -89,6 +96,8 @@ def main():
         parent_node=str(centres.loc[centres.centroid_id.eq(int(fips)),"centroid_node"].iloc[0])
         r=raw[native_mask&raw.from_id.eq(parent_node)].iloc[0].copy()
         r["e_id"]="pilot_pax_alias_"+node;r["from_id"]=alias;r["to_id"]=node
+        r["lanes"]=float(r["lanes"])*alias_lane_multiplier
+        r["pilot_virtual_capacity_role"]="computational_nonbinding_NOT_physical_lanes"
         r["geometry"]=LineString([q,p]);r["length"]=.001
         r["pilot_added_exit"]=False;r["pilot_role"]="passenger_endpoint_alias"
         alias_rows.append(r)
@@ -170,6 +179,10 @@ def main():
             "freight_intrazonal_trips":freight_self,"passenger_intrazonal_trips":pax_self,
             "freight_assignment_trips":freight_total-freight_self,
             "combined_assignment_pce":2*(freight_total-freight_self)+oldtotal-pax_self,
+            "passenger_alias_lane_multiplier":alias_lane_multiplier,
+            "native_virtual_reference_capacity":native_virtual_capacity,
+            "passenger_alias_capacity_bound":native_virtual_capacity*alias_lane_multiplier,
+            "passenger_alias_capacity_requirement":2*assignment_upper_bound,
             "new_aliases":len(alias_rows),"added_exits":len(added),"eligible_counties":sorted(target_counties),
             "coverage_pass":bool(coverage.modified_units.gt(0).all()),"same_OD_between_arms":True,
             "geometry_cost_assumption":"Added virtual geometry encodes native access plus a local routing-distance cost proxy; it does not claim a newly observed physical road. Physical cut edges and bridge/tunnel traversals cannot be bypassed."}

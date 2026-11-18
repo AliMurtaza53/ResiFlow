@@ -51,7 +51,9 @@ def main():
         assert left.damage_level_max.equals(right.damage_level_max)
         report={"physical_hazard_unchanged":True,"virtual_exposure":0,"unrestricted_virtual_links":int(centroid_connector_mask(new).sum())}
     else:
-        new=pd.read_parquet(r/a.variant/"edge_flows.gpq",columns=["e_id","faf5_class","current_capacity"])
+        new=pd.read_parquet(r/a.variant/"edge_flows.gpq",columns=["e_id","faf5_class","current_capacity","acc_flow"])
+        virtual=new[centroid_connector_mask(new)]
+        assert (virtual.current_capacity-virtual.acc_flow).gt(.5).all(),"A synthetic link binds; do not interpret extra virtual capacity as a physical-exit benefit"
         left=ref[~centroid_connector_mask(ref)].set_index("e_id").sort_index()
         right=new[~centroid_connector_mask(new)].set_index("e_id").sort_index()
         assert left.index.equals(right.index)
@@ -63,7 +65,7 @@ def main():
         np.testing.assert_allclose(first.requested_flow,expected,rtol=1e-9,atol=1e-5)
         assert last.remain<=expected*1e-9,"Unresolved baseline demand; do not call the pilot converged"
         np.testing.assert_allclose(last.delivered_cum+last.isolated_structural_cum+last.isolated_congestion_cum+last.remain,expected,rtol=1e-9,atol=1e-5)
-        report={"physical_capacities_unchanged":True,"iterations":len(audit),"delivered":float(last.delivered_cum),
+        report={"physical_capacities_unchanged":True,"virtual_links_nonbinding":True,"maximum_virtual_vc":float((virtual.acc_flow/virtual.current_capacity).max()),"iterations":len(audit),"delivered":float(last.delivered_cum),
                 "structural_isolation":float(last.isolated_structural_cum),"congestion_isolation":float(last.isolated_congestion_cum),
                 "remain":float(last.remain),"requested":expected,"units":"trucks/day" if a.case=="freight" else "PCE/day"}
     report.update(variant=a.variant,case=a.case,stage=a.stage)
