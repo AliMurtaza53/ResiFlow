@@ -1,0 +1,340 @@
+{
+  "ready_for_owner_review": true,
+  "integration_merged": false,
+  "network_frozen": false,
+  "qualification": "all four matched recovery chains passed",
+  "runs": [
+    {
+      "variant": "harvey15_connector_test2g_control_virtual_exempt",
+      "job_id": "3795089",
+      "state": "3795089|COMPLETED|01:09:12|0:0",
+      "recovery_solves": 12,
+      "zero_shortcut_exports": 12,
+      "evidence": [
+        {
+          "physical_links_unchanged": 483599,
+          "virtual_links_unrestricted": 3795,
+          "virtual_exposure_records": 0,
+          "new": "harvey15_connector_test2g_control_virtual_exempt"
+        },
+        {
+          "physical_damage_unchanged": true,
+          "new_damage_usd": [
+            1468883828.539848
+          ]
+        }
+      ],
+      "solver_checks": [
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 9.564869722073808e-11
+        },
+        {
+          "initial_supply": 10635.11004725291,
+          "remain": 0.0,
+          "relative_accounting_error": 2.5830374267239814e-10
+        },
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 6.546177492011251e-11
+        },
+        {
+          "initial_supply": 54114.60975628938,
+          "remain": 0.0,
+          "relative_accounting_error": 6.856968912134601e-11
+        },
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 5.5285694643696914e-11
+        },
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 5.5285694643696914e-11
+        },
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 5.5285694643696914e-11
+        },
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 5.5285694643696914e-11
+        },
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 5.5285694643696914e-11
+        },
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 5.5285694643696914e-11
+        },
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 5.5285694643696914e-11
+        },
+        {
+          "initial_supply": 66253.8783236629,
+          "remain": 0.0,
+          "relative_accounting_error": 5.5285694643696914e-11
+        }
+      ]
+    },
+    {
+      "variant": "harvey15_connector_test2g_gateway_virtual_exempt",
+      "job_id": "3795090",
+      "state": "3795090|COMPLETED|01:26:31|0:0",
+      "recovery_solves": 12,
+      "zero_shortcut_exports": 12,
+      "evidence": [
+        {
+          "physical_links_unchanged": 483599,
+          "virtual_links_unrestricted": 3795,
+          "virtual_exposure_records": 0,
+          "new": "harvey15_connector_test2g_gateway_virtual_exempt"
+        },
+        {
+          "physical_damage_unchanged": true,
+          "new_damage_usd": [
+            1468883828.539848
+          ]
+        }
+      ],
+      "solver_checks": [
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 5.2154827255826727e-11
+        },
+        {
+          "initial_supply": 10712.701737882724,
+          "remain": 0.0,
+          "relative_accounting_error": 1.976416811269111e-10
+        },
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 2.198691425994037e-11
+        },
+        {
+          "initial_supply": 54222.74647836488,
+          "remain": 0.0,
+          "relative_accounting_error": 3.015558570664153e-11
+        },
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 5.2154827255826727e-11
+        },
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 5.2154827255826727e-11
+        },
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 5.2154827255826727e-11
+        },
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 5.2154827255826727e-11
+        },
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 5.2154827255826727e-11
+        },
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 5.2154827255826727e-11
+        },
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 5.2154827255826727e-11
+        },
+        {
+          "initial_supply": 66295.62599654237,
+          "remain": 0.0,
+          "relative_accounting_error": 5.2154827255826727e-11
+        }
+      ]
+    },
+    {
+      "variant": "conus_connector_test2g_control_virtual_exempt",
+      "job_id": "3795091",
+      "state": "3795091|COMPLETED|02:18:52|0:0",
+      "recovery_solves": 12,
+      "zero_shortcut_exports": 12,
+      "evidence": [
+        {
+          "physical_links_unchanged": 483599,
+          "virtual_links_unrestricted": 3795,
+          "virtual_exposure_records": 0,
+          "new": "conus_connector_test2g_control_virtual_exempt"
+        },
+        {
+          "physical_damage_unchanged": true,
+          "new_damage_usd": [
+            1468883828.539848
+          ]
+        }
+      ],
+      "solver_checks": [
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 7.71428057489871e-11
+        },
+        {
+          "initial_supply": 12609.497433699795,
+          "remain": 0.0,
+          "relative_accounting_error": 2.934133864125183e-10
+        },
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 6.389459357651696e-11
+        },
+        {
+          "initial_supply": 56405.93358523199,
+          "remain": 0.0,
+          "relative_accounting_error": 8.453025206906395e-11
+        },
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 6.389459357651696e-11
+        },
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 6.389459357651696e-11
+        },
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 6.389459357651696e-11
+        },
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 6.389459357651696e-11
+        },
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 6.389459357651696e-11
+        },
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 6.389459357651696e-11
+        },
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 6.389459357651696e-11
+        },
+        {
+          "initial_supply": 70903.20321546966,
+          "remain": 0.0,
+          "relative_accounting_error": 6.389459357651696e-11
+        }
+      ]
+    },
+    {
+      "variant": "conus_connector_test2g_gateway_virtual_exempt",
+      "job_id": "3795092",
+      "state": "3795092|COMPLETED|02:48:26|0:0",
+      "recovery_solves": 12,
+      "zero_shortcut_exports": 12,
+      "evidence": [
+        {
+          "physical_links_unchanged": 483599,
+          "virtual_links_unrestricted": 3795,
+          "virtual_exposure_records": 0,
+          "new": "conus_connector_test2g_gateway_virtual_exempt"
+        },
+        {
+          "physical_damage_unchanged": true,
+          "new_damage_usd": [
+            1468883828.539848
+          ]
+        }
+      ],
+      "solver_checks": [
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 3.0366689486329774e-11
+        },
+        {
+          "initial_supply": 12746.377757437971,
+          "remain": 0.0,
+          "relative_accounting_error": 2.0100050647763577e-10
+        },
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 5.853449519546858e-11
+        },
+        {
+          "initial_supply": 56569.895236136,
+          "remain": 0.0,
+          "relative_accounting_error": 6.830486671911746e-11
+        },
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 3.0366689486329774e-11
+        },
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 3.0366689486329774e-11
+        },
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 3.0366689486329774e-11
+        },
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 3.0366689486329774e-11
+        },
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 3.0366689486329774e-11
+        },
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 3.0366689486329774e-11
+        },
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 3.0366689486329774e-11
+        },
+        {
+          "initial_supply": 71003.06987784387,
+          "remain": 0.0,
+          "relative_accounting_error": 3.0366689486329774e-11
+        }
+      ]
+    }
+  ]
+}

@@ -12,7 +12,7 @@ Nine connector-split tests passed locally. The real saved physical network/cross
 
 ## Exemption and pilot
 
-The isolated code/test patch and clean-701062a qualification are in `virtual_exemption_review/README.md`. It remains pending full matched recovery qualification; 3795089 and 3795090 completed successfully, with the two CONUS jobs still running at this status snapshot.
+The isolated code/test patch and clean-701062a qualification are in `virtual_exemption_review/README.md`. **All four recovery jobs 3795089–3795092 passed.** Physical states and $1,468,883,828.539848 damage were unchanged; all 3,795 virtual links remained unrestricted with zero exposure; all 48 recovery solves and all 48 shortcut audits passed. The code/test-only patch is ready for owner review, with the small qualification JSON attached. No integration merge was performed.
 
 The fixed decision rule, five named counties, assumptions and resource cap are in `AB_CONNECTOR_PILOT_PREREG_20261118.md`. Materiality is at least 5% in either isolation or incremental rerouting cost, separately by county, OD end, six snapshots and freight/combined case. Denominator floors of 100 isolation units/day and $10,000/day produce near-zero absolute guards of 5 units/day and $500/day. Baseline isolation is included; solver residual fails the gate. Origin and destination are never added as unique trips.
 
@@ -21,5 +21,7 @@ Eight analysis jobs at most: preparation; three matched-arm baselines and three 
 Arm B adds credible exits at existing units only. Geometry and access-time diagnostics will be reviewed before primary assignment submissions. Any county without a credible positive-demand modification fails coverage; no observed impact in an unchanged county cannot justify freezing A. Candidate geometry encodes a local-access cost proxy, not proof of a new physical road. Arm C and demand-weight changes remain deferred.
 
 The canonical integration AGENTS.md has the pilot ledger row; it is intentionally uncommitted there pending owner coordination. The experiment copy was synchronized and committed. Only the experimental remote branch is updated.
+
+Current pilot state after prerequisite completion: preparation **3797277 is RUNNING**. Core/model snapshot df4bcb0; comparison tool 092e295 adds pair-by-pair matched-cohort checks and valid-versus-nominal connector counts. Nine split, five generator and three comparison accounting tests passed locally; the clean exemption patch independently passed 14 tests on 701062a. Primary assignment scripts remain gated until preparation, coverage and geometry screening pass.
 
 Preflight corrections before any pilot compute: 3796589, 3796741 and 3797107 were cancelled while pending (zero allocated CPU). Final source df4bcb0 uses the ordinary parquet reader, recognizes label-only/numeric structure flags, and makes passenger aliases nonbinding computational endpoints in both arms. Five generator tests passed, including the new bridge/tunnel case. Native freight virtual capacity is 528,000/day; maximum reused-control V/C is 0.0237165680. No physical road capacity changes. Two county-accounting regression tests also passed. The final pilot remains eight executing analysis jobs within 296 CPU-hours; cancelled setup requests are listed separately.

@@ -1,6 +1,6 @@
 # Virtual-link hazard exemption: isolated review change set
 
-Status: code/test qualification passed; matched recovery qualification PENDING until all four jobs below pass. This is not merged or approved for the envelope.
+Status: **READY for owner review.** Code/test qualification and all four matched recovery qualifications passed. This is not merged or approved for the envelope.
 
 `virtual_exemption.patch` applies to integration 701062a. SHA256: `33ed86b22e6412d7cdccad3ccc0a4b16a93c6418b3db64cea7a70c88ab1671f4`. Seven code/test files only; no GIS exports or inventory CSVs. `git apply --check` passed against the integration worktree without changing it. The clean archived copy on Hopper needed `git apply --ignore-space-change` because the archive retained CRLF contexts.
 
@@ -13,3 +13,5 @@ The tests use the integration worker's public initialization interface. Endpoint
 Matched recovery qualification: 3795089 (Harvey-15 control), 3795090 (Harvey-15 G), 3795091 (CONUS control), 3795092 (CONUS G). All use isolated pre-rebase revision 4409abf. Required gates: unchanged physical hazard/capacity/speed states; unchanged direct physical damage within 1e-9 relative; all 3,795 virtual links retained/unrestricted; zero virtual exposure; zero shortcuts in all twelve recovery path exports per run. No baseline rebuild or loading-point move is part of this qualification.
 
 Owner confirmation is required before an integration merge. No integration push/merge has been performed.
+
+Completed recovery evidence is in `recovery_qualification.json`: all four jobs exited 0, all 483,599 physical hazard records were unchanged, all 3,795 virtual links were retained/unrestricted with zero exposure, and damage remained $1,468,883,828.539848. All 48 recovery solves passed 1e-9 relative accounting and residual checks; all 48 path exports had zero shortcuts, including each matched intact cohort. No invariant failure was logged. Elapsed times: 3795089 1:09:12; 3795090 1:26:31; 3795091 2:18:52; 3795092 2:48:26. These are the pre-existing qualification reruns, separate from the bounded A/B pilot budget.
