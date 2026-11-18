@@ -20,6 +20,7 @@ from resiflow.fragility.earthquake_operational import apply_max_speed_to_links a
 from resiflow.fragility.flood_operational import apply_max_speed_to_links
 from resiflow.fragility.landslide_operational import apply_max_speed_to_links as apply_ls_max_speed
 from resiflow.fragility.winter_storm_speed import apply_max_speed_to_links as apply_winter_max_speed
+from resiflow.networks.hazard_eligibility import assert_physical_exposure
 from resiflow.hazards.base import HazardEvent
 from resiflow.hazards.scenario_registry import HazardScenario
 
@@ -72,6 +73,7 @@ def build_flood_link_disruption(
         if depth_key is not None
         else scenario_param
     )
+    assert_physical_exposure(road_links, intersections)
     links = features_with_damage(
         road_links,
         intersections,

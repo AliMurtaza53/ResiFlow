@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from resiflow.parameters import get_parameter
+from resiflow.networks.hazard_eligibility import centroid_connector_mask
 
 _FLOOD_CLOSURE_THRESHOLD_DEFAULT = get_parameter(
     "hazard_disruption", "flood_closure_threshold_cm", 30
@@ -154,6 +155,13 @@ def apply_max_speed_to_links(
     if depth_col not in out.columns:
         out[depth_col] = 0.0
     out[depth_col] = out[depth_col].fillna(0.0)
+    virtual = centroid_connector_mask(out)
+    # Zero is the legacy no-exposure sentinel, not an observed water depth.
+    # Keep the explicit applicability flag so downstream consumers can tell.
+    out["hazard_exposure_applicable"] = ~virtual
+    out.loc[virtual, depth_col] = 0.0
+    if "damage_level_max" in out:
+        out.loc[virtual, "damage_level_max"] = "no"
     if free_flow_col not in out.columns:
         out[free_flow_col] = 50.0
     out[free_flow_col] = out[free_flow_col].fillna(50.0)

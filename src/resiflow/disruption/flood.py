@@ -10,6 +10,8 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 
+from resiflow.networks.hazard_eligibility import centroid_connector_mask
+
 from resiflow.exposure.raster_line import (
     clip_features,
     intersect_features_with_raster,
@@ -57,7 +59,10 @@ def intersections_with_damage(
 
     # First restrict to the raster footprint so national-scale networks do not
     # enter the expensive line-splitting/intersection path for a local hazard.
-    candidate_links = subset_features_to_raster_extent(road_links, flood_path)
+    physical_links = road_links.loc[~centroid_connector_mask(road_links)].copy()
+    if physical_links.empty:
+        return None
+    candidate_links = subset_features_to_raster_extent(physical_links, flood_path)
 
     # Clip road links with features in the provided vector file/boundary.
     clipped_features = clip_features(candidate_links, clip_path, flood_key, boundary_gdf)
