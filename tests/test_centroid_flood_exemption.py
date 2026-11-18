@@ -1,6 +1,7 @@
 """Virtual flood geometry must not bypass or disable real physical access."""
 import geopandas as gpd
 import igraph
+import pickle
 import pandas as pd
 import pytest
 from shapely.geometry import LineString
@@ -75,7 +76,10 @@ def test_contaminated_exposure_and_legacy_recovery_state_fail():
 @pytest.mark.parametrize("exits,closed,reachable", [(1, False, True), (1, True, False), (2, True, True), (2, "both", False)])
 def test_physical_access_closures_remain_effective(exits, closed, reachable, monkeypatch):
     # A nearby open B road is not usable unless the origin has a real second exit.
-    # Third centroid 902 must not provide a shortcut between A and B.
+    # The endpoint-only suite separately tests third-centroid shortcuts.
+    # Remove non-endpoint centroid 902 from THIS operational fixture so it
+    # also tests the standalone exemption against integration's public worker
+    # API, without importing the unmerged endpoint-routing implementation.
     pairs = [("900", "1"), ("3", "901"), ("1", "3"), ("2", "3"), ("902", "1"), ("902", "2")]
     classes = [50, 50, 14, 14, 50, 50]
     depths = [2.5, 2.5, .8 if closed else 0., .8 if closed == "both" else 0., 2.5, 2.5]
@@ -87,11 +91,12 @@ def test_physical_access_closures_remain_effective(exits, closed, reachable, mon
     pd.testing.assert_series_equal(state.current_capacity, f.current_capacity)
     valid = [i for i, s in enumerate(state.max_speed) if s > 0]
     graph = igraph.Graph.TupleList((pairs[i] for i in valid), directed=False)
+    graph.delete_vertices([v.index for v in graph.vs if v["name"]=="902"])
     graph.vs["faf_centroid"] = [n in {"900", "901", "902"} for n in graph.vs["name"]]
     graph.es["weight"] = [1.] * graph.ecount()
     for attr, value in [("shared_network", None), ("_name_to_idx", {}), ("_arrival_by_departure", {}), ("_routing_arc_to_edge", [])]:
-        monkeypatch.setattr(road, attr, value)
-    road._set_worker_network(graph)
+        monkeypatch.setattr(road, attr, value, raising=False)
+    road.worker_init_path(pickle.dumps(graph))
     if reachable:
         paths = road.find_least_cost_path((900, [901], [10.]))[2]
         assert paths[0]
