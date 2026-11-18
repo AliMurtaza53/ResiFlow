@@ -1,7 +1,7 @@
 """Compare saved, gated A/B outputs; never tune exits or launch assignments."""
 from pathlib import Path
 import argparse,json
-import duckdb,numpy as np,pandas as pd
+import numpy as np,pandas as pd,duckdb
 
 COUNTIES=['06037','48201','53011','48039','48071']
 DAYS=[0,7,14,30,60,90]
@@ -12,10 +12,37 @@ def compare(root,ops):
     db=duckdb.connect();db.execute('SET threads=4');db.execute("SET memory_limit='40GB'")
     registry=pd.read_csv(inputs/'node_registry.csv',dtype={'node_id':str,'county_fips':str})
     assert registry.node_id.is_unique
+    units=registry[registry.county_fips.isin(COUNTIES)&registry.kind.isin(['C','S','G','P_alias'])].copy()
+    for arm,label in [('A','A'),('B','B4')]:
+        mapping=pd.read_csv(inputs/f'connectors_{label}.csv',dtype=str)
+        units=units.merge(mapping.groupby('centroid_node').size().rename(f'nominal_exits_{arm}'),left_on='node_id',right_index=True,how='left')
+    coverage=pd.read_csv(inputs/'unit_coverage.csv',dtype={'unit_node':str})
+    units=units.merge(coverage[['unit_node','native_valid_exits','added_exits','total_valid_exits','reason']],left_on='node_id',right_on='unit_node',how='left',validate='one_to_one')
+    units['retained_invalid_original_exits']=units.nominal_exits_A-units.native_valid_exits
+    units['reason']=units.reason.fillna('not_selected_by_positive_control_loading; connectivity_not_reaudited')
+    units.to_csv(ops/'connector_counts_and_exceptions.csv',index=False)
     db.register('registry',registry[['node_id','county_fips','kind']])
+    def paired_cohort(post,intact):
+        # County totals alone could hide swapped OD quantities within a county.
+        q='''WITH a AS (
+               SELECT CAST(origin_node AS VARCHAR) o,CAST(destination_node AS VARCHAR) d,sum(flow) f
+               FROM read_parquet(?) WHERE flow>0 GROUP BY o,d),
+             b AS (
+               SELECT CAST(origin_node AS VARCHAR) o,CAST(destination_node AS VARCHAR) d,sum(flow) f
+               FROM read_parquet(?) WHERE flow>0 GROUP BY o,d)
+             SELECT count(*) FROM a FULL JOIN b USING(o,d)
+             WHERE abs(coalesce(a.f,0)-coalesce(b.f,0))>
+                   greatest(abs(coalesce(a.f,0)),abs(coalesce(b.f,0)),1.)*1e-9'''
+        bad=db.execute(q,[str(post),str(intact)]).fetchone()[0]
+        assert bad==0,f'paired cohort mismatch: {bad} OD pairs differ in {post}'
     def sums(path,metric):
         assert path.is_file(),path
         schema=dict(row[:2] for row in db.execute('DESCRIBE SELECT * FROM read_parquet(?)',[str(path)]).fetchall())
+        if metric=='cost':
+            costs=['operating_cost_per_flow','time_cost_per_flow','toll_cost_per_flow']
+            assert set(costs)<=set(schema),f'Missing road cost components in {path}'
+            invalid=' OR '.join(f'{c} IS NULL OR NOT isfinite({c})' for c in costs)
+            assert db.execute(f'SELECT count(*) FROM read_parquet(?) WHERE flow>0 AND ({invalid})',[str(path)]).fetchone()[0]==0,f'Invalid road costs in {path}'
         flow='flow' if 'flow' in schema else 'Car21'
         amount=flow if metric=='isolation' else flow+' * ('+' + '.join('COALESCE('+c+',0)' for c in ['operating_cost_per_flow','time_cost_per_flow','toll_cost_per_flow','fare_cost_per_flow'] if c in schema)+')'
         data={}
@@ -46,6 +73,7 @@ def compare(root,ops):
             out=root/'results/rerouting_analysis'/recovery/'304/1'
             for day in DAYS:
                 iso=sums(out/f'trip_isolations_{case}_s1_day{day}.pq','isolation')
+                paired_cohort(out/f'odpfc_{case}_s1_day{day}.pq',out/f'odpfc_{case}_s1_day{day}_baseline.pq')
                 post=sums(out/f'odpfc_{case}_s1_day{day}.pq','cost')
                 intact=sums(out/f'odpfc_{case}_s1_day{day}_baseline.pq','cost')
                 for end in ['origin','destination']:

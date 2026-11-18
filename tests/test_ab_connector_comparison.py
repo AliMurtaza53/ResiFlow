@@ -13,6 +13,7 @@ def setup_case(tmp_path,cohort_mismatch=False):
     pd.DataFrame({'link_id':['r'],'official':[80.],'CTFIPS':[6037]}).to_parquet(ref/'official_roads.pq')
     (inp/'preflight.json').write_text(json.dumps({'coverage_pass':True,'same_OD_between_arms':True}))
     pd.DataFrame({'node_id':['1','2'],'county_fips':['06037','48201'],'kind':['C','C']}).to_csv(inp/'node_registry.csv',index=False)
+    pd.DataFrame({'unit_node':['1'],'native_valid_exits':[1],'added_exits':[0],'total_valid_exits':[1],'reason':['no_additional_credible_candidate']}).to_csv(inp/'unit_coverage.csv',index=False)
     for arm in ['A','B4']:
         pd.DataFrame({'e_id':['v'],'centroid_node':['1'],'road_node':['3']}).to_csv(inp/f'connectors_{arm}.csv',index=False)
         pd.DataFrame({'e_id':['r'],'from_id':['3'],'to_id':['4'],'faf5_class':[14]}).to_parquet(inp/f'network_{arm}.gpq')
@@ -53,4 +54,16 @@ def test_baseline_failures_count_and_boundary_is_material(tmp_path):
 
 def test_different_paired_served_cohort_fails_gate(tmp_path):
     root,ops=setup_case(tmp_path,cohort_mismatch=True)
+    with pytest.raises(AssertionError,match='paired cohort mismatch'):mod.compare(root,ops)
+
+
+def test_equal_county_totals_cannot_hide_different_od_cohorts(tmp_path):
+    root,ops=setup_case(tmp_path)
+    pd.DataFrame({'node_id':['1','2','3'],'county_fips':['06037','48201','48201'],'kind':['C']*3}).to_csv(ops/'inputs/node_registry.csv',index=False)
+    out=root/'results/rerouting_analysis/ab_connector_freight_B_20261118/304/1'
+    path=out/'odpfc_freight_s1_day0.pq'
+    post=pd.read_parquet(path)
+    post=pd.concat([post.assign(flow=6.),post.assign(destination_node='3',flow=4.)],ignore_index=True)
+    post.to_parquet(path)
+    post.assign(flow=[4.,6.]).to_parquet(out/'odpfc_freight_s1_day0_baseline.pq')
     with pytest.raises(AssertionError,match='paired cohort mismatch'):mod.compare(root,ops)
