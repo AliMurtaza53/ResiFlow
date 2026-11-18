@@ -132,6 +132,11 @@ class RealEarthquakeShakeMapSource(SiouxFallsMultihazardSource):
 class RealEarthquakeNewMadridScenarioSource(SiouxFallsMultihazardSource):
     """USGS Earthquake Scenarios M7.5 New Madrid central fault (BSSC2014).
 
+    Event id bssc2014newmadrid_32_m7p5_se (hypocenter 36.455N -89.622W, depth 15.6 km;
+    pixel-verified 2026-11-12). https://earthquake.usgs.gov/scenarios/eventpage/bssc2014newmadrid_32_m7p5_se/executive
+    Not the _33_ M7.5 (35.83N) variant and not the FEMA M7.7 southern-fault scenario
+    (nm19fema_m7p7_mt_se); those raster packs are local but unused.
+
     A physically-modeled SCENARIO on a real, well-characterized fault --
     not an instrumentally-recorded historical event (the actual 1811-1812
     New Madrid earthquakes predate ShakeMap-quality instrumentation). Added
@@ -242,7 +247,7 @@ class RealLandslideNewMadridSource(SiouxFallsMultihazardSource):
 
     Same HAZUS Newmark method and national USGS n10 susceptibility
     (--susceptibility-max-count=81) as Mineral (501) and Cascadia (502), computed
-    against New Madrid's own PGA grid at magnitude 7.5. Susceptibility is n10
+    against New Madrid's own PGA grid (scenario bssc2014newmadrid_32_m7p5_se) at magnitude 7.5. Susceptibility is n10
     realigned onto that PGA grid (--reference), because PGA and susceptibility
     must share one grid. Recipe: docs/handoffs/FINAL_HAZARD_ENVELOPE.md.
     """

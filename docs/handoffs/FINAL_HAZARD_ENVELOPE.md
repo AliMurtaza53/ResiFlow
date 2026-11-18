@@ -23,7 +23,8 @@ Built locally 2026-11-18, same recipe as Cascadia (502):
 2. `scripts/compute_landslide_pgd.py --susceptibility <above> --pga inputs/multihazard_aligned/earthquake_new_madrid_m75_scenario/event_1.tif --output inputs/multihazard_aligned/landslide_new_madrid_m75/event_1.tif --magnitude 7.5 --susceptibility-max-count 81`
 
 Result: 30,484 x 29,855 grid at 50 m (EPSG:9311), 734M valid pixels, 2.70M nonzero (0.37% of valid), PGD 0.29 mm to 4,990 mm (about 5 m). Plausible next to Cascadia (up to 10.9 m at M9).
-Caveats: magnitude 7.5 follows the registry label; the raw folder holds three BSSC2014 variants (one M7.3, two M7.5), and the PGA raster's exact variant is not recorded here. The susceptibility class mapping uses the project's existing 0-81 equal-width binning, not re-verified against USGS n10 documentation. Output is local only; it must be copied to Hopper before 503 can run there.
+Scenario identity (confirmed 2026-11-18 against the USGS scenario API and by pixel comparison): the New Madrid PGA (403) is **bssc2014newmadrid_32_m7p5_se**, "M 7.5 Scenario Earthquake - New Madrid central fault", hypocenter 36.455N -89.622W, depth 15.6 km, PGA max 1.309 g; https://earthquake.usgs.gov/scenarios/eventpage/bssc2014newmadrid_32_m7p5_se/executive. Magnitude 7.5 is therefore right for the PGD. The owner's downloads (2026-11-18) are the `_33_` M7.5 central-fault variant (hypocenter 35.83N, PGA max 1.192 g) and the FEMA M7.7 southern-fault scenario `nm19fema_m7p7_mt_se`; both are byte-identical to packs already under `inputs/multihazard_raw/earthquake/new_madrid_scenario/` and are unused (optional sensitivities; the M7.7 pack is in ln g).
+Other caveat: susceptibility classes use the project's existing 0-81 equal-width binning, not re-verified against USGS n10 documentation. The raster is copied to Hopper at `/scratch/akothaw/multimodal_hazard_data/soge_clusters/inputs/multihazard_aligned/landslide_new_madrid_m75/event_1.tif` (50,017,694 bytes, size verified); Hopper's code checkout does not yet know scenario 503 until the frozen commit is synced.
 
 ## Run order and gates
 1. Baselines F, P, F+P on the frozen commit and final network (gate: Codex C+S/C+S+G close-out).
@@ -33,4 +34,3 @@ Caveats: magnitude 7.5 follows the registry label; the raw folder holds three BS
 
 ## Open
 - The Cascadia, Sandy and Elliott code paths live on `perf/hopper-realize-paths-streaming-fix` (ledger: deferred) and must be merged or rebased onto the frozen commit.
-- Copy the 503 raster to Hopper (needs owner go-ahead).
