@@ -19,7 +19,7 @@ def main():
     raw=gpd.read_parquet(inputdir/"faf5_road_links.gpq")
     raw.e_id=raw.e_id.astype(str)
     raw[["from_id","to_id"]]=raw[["from_id","to_id"]].astype(str)
-    baseline=gpd.read_parquet(root/"results/conus_connector_test2g_gateway/edge_flows.gpq",
+    baseline=pd.read_parquet(root/"results/conus_connector_test2g_gateway/edge_flows.gpq",
         columns=["e_id","faf5_class","from_id","acc_flow","current_capacity","time_hr"])
     baseline.e_id=baseline.e_id.astype(str);baseline.from_id=baseline.from_id.astype(str)
     native_mask=centroid_connector_mask(raw)
@@ -98,6 +98,12 @@ def main():
     for key in ["origin_node","destination_node"]:pax[key]=pax[key].replace(aliases)
     np.testing.assert_allclose(pax.Car21.sum(),oldtotal,rtol=1e-12,atol=0)
     pax.to_parquet(out/"passenger_fixed_od.pq",index=False)
+    freight_path=root/"stage2_scripts/connector_test2_gateway_full/conus/harvey15_gateway_od.pq"
+    freight_input=pd.read_parquet(freight_path,columns=["origin_node","destination_node","Car21"])
+    freight_total=float(freight_input.Car21.sum())
+    np.testing.assert_allclose(freight_total,1510749.5566692068,rtol=1e-9)
+    freight_self=float(freight_input.loc[freight_input.origin_node.astype(str).eq(freight_input.destination_node.astype(str)),"Car21"].sum())
+    pax_self=float(pax.loc[pax.origin_node.eq(pax.destination_node),"Car21"].sum())
     pd.DataFrame([{"original_node":k,"alias_node":v} for k,v in aliases.items()]).to_csv(out/"passenger_aliases.csv",index=False)
     registry=gpd.GeoDataFrame(records+alias_registry,geometry="geometry",crs=raw.crs).drop_duplicates("node_id")
     A=gpd.GeoDataFrame(pd.concat([raw,pd.DataFrame(alias_rows)],ignore_index=True),geometry="geometry",crs=raw.crs)
@@ -161,6 +167,9 @@ def main():
     coverage=stats.groupby("county_fips").agg(positive_units=("unit_node","size"),modified_units=("added_exits",lambda x:int(x.gt(0).sum())),added_exits=("added_exits","sum")).reindex(sorted(target_counties)).fillna(0)
     coverage.to_csv(out/"county_coverage.csv")
     report={"passenger_trips":oldtotal,"freight_trips":1510749.5566692068,"physical_links_unchanged":len(physicalA),
+            "freight_intrazonal_trips":freight_self,"passenger_intrazonal_trips":pax_self,
+            "freight_assignment_trips":freight_total-freight_self,
+            "combined_assignment_pce":2*(freight_total-freight_self)+oldtotal-pax_self,
             "new_aliases":len(alias_rows),"added_exits":len(added),"eligible_counties":sorted(target_counties),
             "coverage_pass":bool(coverage.modified_units.gt(0).all()),"same_OD_between_arms":True,
             "geometry_cost_assumption":"Added virtual geometry encodes native access plus a local routing-distance cost proxy; it does not claim a newly observed physical road. Physical cut edges and bridge/tunnel traversals cannot be bypassed."}

@@ -61,3 +61,9 @@ Budget: at most EIGHT new compute submissions: one input/candidate preparation+s
 Baseline/recovery jobs use eight CPUs, up to 600 GB and a six-hour wall cap, fixed equally within each matched demand case. Freight uses the original 15-iteration cap to match reused A; combined uses 40 in both arms. Hitting a cap with residual solver demand is an unresolved convergence case, not successful assignment or physical isolation. Preparation/comparison use at most four CPUs, 64 GB and one hour each. Hard maximum requested CPU envelope: 296 CPU-hours (6*6*8 + 2*1*4); actual time should be lower. No automatic budget extension or national rollout.
 
 Outputs use isolated pilot variants and a manifest. Original baselines, original recovery artifacts and the GIS review package remain untouched. Stop on a failed gate, do not manufacture a successful comparison, and do not freeze either network before reporting.
+
+### Preflight implementation corrections, before assignment
+
+Pending preparation job 3796589 was held before it ran: code review found a geometry-only reader being used for a non-geometry column projection. Use the ordinary parquet reader instead. Its replacement is a setup retry, with zero compute consumed by 3796589; the eight analysis-job slots and 296 CPU-hour cap remain unchanged. Source snapshots are preserved rather than edited under a queued/running job.
+
+Input totals above include same-node trips. The existing shared assignment deliberately excludes these from road routing. The preflight now records these quantities explicitly and checks solver conservation against inter-node demand; this does not delete or redistribute any input OD. Combined costs remain the existing single-cost, PCE-weighted approximation, not separately estimated passenger and truck welfare costs.
