@@ -22,7 +22,9 @@ INPUT=$OPS/inputs
 VARIANT={v}
 RUN=$OPS/$VARIANT
 source /home/akothaw/miniforge/bin/activate /scratch/akothaw/conda_envs/nird
-unset RESIFLOW_VEHICLE_CLASS NIRD_VEHICLE_CLASS NIRD_LEGACY_FREEFLOW_BASELINE
+unset RESIFLOW_VEHICLE_CLASS NIRD_VEHICLE_CLASS NIRD_LEGACY_FREEFLOW_BASELINE RESIFLOW_SAMPLE_OD_N NIRD_SAMPLE_OD_N
+export RESIFLOW_INVARIANT_REL_TOL=1e-9 RESIFLOW_INVARIANT_RAISE=1
+export RESIFLOW_EXCLUDE_INTRAZONAL_OD=1 NIRD_EXCLUDE_INTRAZONAL_OD=1
 export PYTHONPATH=$CODE/src:$DATA/pytest_pkgs
 export PROJ_DATA=/scratch/akothaw/conda_envs/nird/lib/python3.10/site-packages/rasterio/proj_data PROJ_LIB=/scratch/akothaw/conda_envs/nird/lib/python3.10/site-packages/rasterio/proj_data
 export RESIFLOW_CONFIG_PATH=$HOME/multimodal_hazard_project/config_hopper.json
