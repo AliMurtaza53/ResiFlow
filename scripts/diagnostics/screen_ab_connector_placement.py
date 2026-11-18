@@ -49,7 +49,7 @@ def main():
     units=','.join("'"+str(n)+"'" for n in coverage.unit_node if not str(n).startswith('1900'))
     freight=root/'stage2_scripts/connector_test2_gateway_full/conus/harvey15_gateway_od.pq'
     db=duckdb.connect();db.execute('SET threads=4')
-    pairs=db.execute("SELECT origin_node,destination_node,Car21 FROM read_parquet(?) WHERE CAST(origin_node AS VARCHAR) IN ("+units+") OR CAST(destination_node AS VARCHAR) IN ("+units+") ORDER BY Car21 DESC,origin_node,destination_node LIMIT 250",[str(freight)]).df()
+    pairs=db.execute("SELECT origin_node,destination_node,Car21 FROM read_parquet(?) WHERE (CAST(origin_node AS VARCHAR) IN ("+units+") OR CAST(destination_node AS VARCHAR) IN ("+units+")) AND CAST(origin_node AS VARCHAR) <> CAST(destination_node AS VARCHAR) ORDER BY Car21 DESC,origin_node,destination_node LIMIT 250",[str(freight)]).df()
     total=0.;trips=0.
     for origin,rows in pairs.groupby('origin_node'):
         _,_,paths,flows=road.find_least_cost_path((int(origin),rows.destination_node.tolist(),rows.Car21.tolist()))

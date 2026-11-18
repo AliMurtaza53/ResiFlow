@@ -182,7 +182,7 @@ def main():
     db=duckdb.connect();db.execute("SET threads=4")
     freight=root/"stage2_scripts/connector_test2_gateway_full/conus/harvey15_gateway_od.pq"
     unitids=",".join("'"+str(n)+"'" for n in units.node_id if not str(n).startswith("1900"))
-    pairs=db.execute("SELECT origin_node,destination_node,Car21 FROM read_parquet('"+str(freight)+"') WHERE CAST(origin_node AS VARCHAR) IN ("+unitids+") OR CAST(destination_node AS VARCHAR) IN ("+unitids+") ORDER BY Car21 DESC,origin_node,destination_node LIMIT 250").df()
+    pairs=db.execute("SELECT origin_node,destination_node,Car21 FROM read_parquet('"+str(freight)+"') WHERE (CAST(origin_node AS VARCHAR) IN ("+unitids+") OR CAST(destination_node AS VARCHAR) IN ("+unitids+")) AND CAST(origin_node AS VARCHAR) <> CAST(destination_node AS VARCHAR) ORDER BY Car21 DESC,origin_node,destination_node LIMIT 250").df()
     diagnostic=[]
     base_time=baseline.set_index("e_id").time_hr
     for k,speed in [(0,25),(2,25),(3,25),(4,25),(4,15)]:
