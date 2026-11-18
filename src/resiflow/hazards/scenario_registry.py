@@ -120,6 +120,15 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(
         502, "landslide", hazard_subtype="landslide_cascadia_m9", closure_threshold=100, label="landslide_cascadia_m9"
     ),
+    # Co-seismic Newmark PGD paired with the New Madrid M7.5 scenario (403);
+    # the final-envelope landslide pair is 503 (New Madrid) + 502 (Cascadia).
+    HazardScenario(
+        503,
+        "landslide",
+        hazard_subtype="landslide_new_madrid_m75",
+        closure_threshold=100,
+        label="landslide_new_madrid_m75",
+    ),
     HazardScenario(601, "winter_storm", closure_threshold=100, label="winter_storm"),
     # Additional real SNODAS days for winter-storm severity/regional
     # diversity beyond the single 2016-01-23 (Jonas) default -- see

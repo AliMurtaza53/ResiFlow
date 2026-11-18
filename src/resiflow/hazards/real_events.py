@@ -237,6 +237,23 @@ class RealLandslideCascadiaSource(SiouxFallsMultihazardSource):
     multihazard_dir = MULTIHAZARD_ALIGNED_DIR
 
 
+class RealLandslideNewMadridSource(SiouxFallsMultihazardSource):
+    """Co-seismic Newmark PGD paired with the New Madrid M7.5 scenario (403).
+
+    Same HAZUS Newmark method and national USGS n10 susceptibility
+    (--susceptibility-max-count=81) as Mineral (501) and Cascadia (502), computed
+    against New Madrid's own PGA grid at magnitude 7.5. Susceptibility is n10
+    realigned onto that PGA grid (--reference), because PGA and susceptibility
+    must share one grid. Recipe: docs/handoffs/FINAL_HAZARD_ENVELOPE.md.
+    """
+
+    hazard_type = "landslide"
+    hazard_subtype = "landslide_new_madrid_m75"
+    intensity_unit = "mm_displacement"
+    raster_field = "landslide"
+    multihazard_dir = MULTIHAZARD_ALIGNED_DIR
+
+
 class RealWinterStormSource(SiouxFallsMultihazardSource):
     hazard_type = "winter_storm"
     hazard_subtype = "winter_storm"
@@ -350,6 +367,7 @@ def resolve_real_source(
         "winter_storm_snowmageddon": RealWinterStormSnowmageddonSource,
         "landslide": RealLandslideSource,
         "landslide_cascadia_m9": RealLandslideCascadiaSource,
+        "landslide_new_madrid_m75": RealLandslideNewMadridSource,
     }
     if hazard_type == "flood" and flood_subtype:
         key = flood_subtype
