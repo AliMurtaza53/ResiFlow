@@ -16,6 +16,8 @@ Freight-only primary runs use the full saved CONUS G OD, 1,510,749.556669 trips/
 
 For county i, snapshot d in {0,7,14,30,60,90}, demand case m in {freight,combined}, and OD end e in {origin,destination}, compute isolation I and incremental rerouting cost C separately. Never sum origin and destination figures as unique trips.
 
+I is total undelivered input demand: baseline isolation PLUS additional post-hazard isolation among baseline-delivered trips. These sets must be disjoint. Report the two components separately as well. Using hazard-only isolation would otherwise reward a network that failed to serve more demand before the event. Residual solver demand at an iteration cap is not silently added to physical isolation; it fails the convergence/accounting gate. Rerouting cost C remains incremental cost for successfully routed disrupted demand, with the served-cohort difference disclosed.
+
 An isolation effect is material iff:
   abs(I_B-I_A) / max(abs(I_A), 100 units/day) >= 0.05.
 
