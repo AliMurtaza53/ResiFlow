@@ -1,0 +1,40 @@
+import geopandas as gpd
+import pandas as pd
+from shapely.geometry import Point,LineString,box
+from resiflow.networks.connector_pilot import AccessIndex
+
+def fixture():
+    xy={0:(0,0),1:(500,0),2:(500,500),3:(0,500),4:(1000,0),5:(500,-500)}
+    pairs=[(0,1),(1,2),(2,3),(3,0),(1,4),(1,5)]
+    roads=gpd.GeoDataFrame({"e_id":[str(i) for i in range(6)],"from_id":[a for a,b in pairs],"to_id":[b for a,b in pairs],
+        "assignment_tier":"arterial","road_classification":"primary","bridge_fraction":[0,0,0,0,0,1],"tunnel_fraction":0,
+        "road_bridge":["no"]*5+["yes"],"current_capacity":1000},
+        geometry=[LineString([xy[a],xy[b]]) for a,b in pairs],crs=9311)
+    nodes=gpd.GeoDataFrame({"node_id":list(xy)},geometry=[Point(v) for v in xy.values()],crs=9311)
+    return roads,nodes
+
+def test_nested_exits_are_deterministic_and_do_not_bypass_cut_edges():
+    r,n=fixture();idx=AccessIndex(r,n);before=r.copy()
+    allcounts=[]
+    for k in [2,3,4]:
+        selected,audit=idx.select(["0"],box(-1000,-1000,2000,2000),total=k)
+        allcounts.append([x["road_node"] for x in selected])
+        assert {x["road_node"]:x["reason"] for x in audit}["4"]=="would_bypass_static_cut_edge"
+        assert "5" not in [x["road_node"] for x in selected]
+        assert len(selected)==k-1
+    assert allcounts[0]==allcounts[2][:1]
+    assert allcounts[1]==allcounts[2][:2]
+    pd.testing.assert_frame_equal(r,before)
+
+def test_facility_evidence_is_required_and_county_boundary_is_binding():
+    r,n=fixture();idx=AccessIndex(r,n)
+    assert idx.select(["0"],box(-1000,-1000,2000,2000),facility_points=[])[0]==[]
+    selected,_=idx.select(["0"],box(-1000,-1000,2000,2000),facility_points=[Point(500,500)])
+    assert [x["road_node"] for x in selected]==["2"]
+    assert idx.select(["0"],box(-10,-10,10,10))[0]==[]
+
+def test_original_stub_cannot_acquire_fictitious_redundancy():
+    r,n=fixture();idx=AccessIndex(r,n)
+    selected,audit=idx.select(["4"],box(-1000,-1000,2000,2000))
+    assert selected==[]
+    assert idx.main
