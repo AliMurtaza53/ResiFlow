@@ -66,6 +66,7 @@ def test_other_hazard_aggregation_rejects_legacy_virtual_records():
     ('winter_storm','winter_storm_mm','damage_level_winter_storm',build_winter_storm_link_disruption,'mm_snow')])
 def test_nonflood_builders_leave_virtual_open_and_physical_unchanged(hazard,field,damage,builder,unit):
     links=gpd.GeoDataFrame({'e_id':['c','r'],'faf5_class':[50,14],
+        'from_id':['900','1'],'to_id':['1','2'],
         'road_classification':['centroid_connector','primary'],'road_label':['road','road'],'road_bridge':['no','no']},
         geometry=[LineString([(0,0),(1,0)]),LineString([(1,0),(2,0)])],crs=4326)
     baseline=pd.DataFrame({'e_id':['c','r'],'free_flow_speeds':[25.,40.],'current_capacity':[10000.,1000.]})
