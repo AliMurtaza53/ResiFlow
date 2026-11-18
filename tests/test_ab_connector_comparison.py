@@ -9,6 +9,8 @@ mod=importlib.util.module_from_spec(spec);spec.loader.exec_module(mod)
 
 def setup_case(tmp_path,cohort_mismatch=False):
     root=tmp_path/'root';ops=tmp_path/'ops';inp=ops/'inputs';inp.mkdir(parents=True)
+    ref=root/'stage2_scripts/connector_test2_conus';ref.mkdir(parents=True)
+    pd.DataFrame({'link_id':['r'],'official':[80.],'CTFIPS':[6037]}).to_parquet(ref/'official_roads.pq')
     (inp/'preflight.json').write_text(json.dumps({'coverage_pass':True,'same_OD_between_arms':True}))
     pd.DataFrame({'node_id':['1','2'],'county_fips':['06037','48201'],'kind':['C','C']}).to_csv(inp/'node_registry.csv',index=False)
     for arm in ['A','B4']:

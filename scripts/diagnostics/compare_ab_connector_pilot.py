@@ -27,7 +27,7 @@ def compare(root,ops):
             rows=db.execute(q,[str(path)]).fetchall()
             for fips,value,trips in rows:data[(end,fips or 'UNRESOLVED')]=(float(value or 0),float(trips or 0))
         return data
-    records=[];unresolved=[];diagnostics=[]
+    records=[];unresolved=[];diagnostics=[];freight_edges={}
     for case in ['freight','combined']:
         for arm in ['A','B']:
             reused=case=='freight' and arm=='A'
@@ -67,11 +67,13 @@ def compare(root,ops):
             # Road saturation near loading is joined using physical endpoints,
             # never virtual connector capacity as an additional physical lane.
             raw=pd.read_parquet(inputs/f"network_{'A' if arm=='A' else 'B4'}.gpq",columns=['e_id','from_id','to_id','faf5_class'])
-            near=raw[(pd.to_numeric(raw.faf5_class,errors='coerce')!=50)&(raw.from_id.astype(str).isin(endpoints)|raw.to_id.astype(str).isin(endpoints))]
+            physical_mask=~pd.to_numeric(raw.faf5_class,errors='coerce').eq(50).fillna(False)
+            near=raw[physical_mask&(raw.from_id.astype(str).isin(endpoints)|raw.to_id.astype(str).isin(endpoints))]
             local=edge.merge(near[['e_id']],on='e_id',validate='one_to_one')
             vc=local.acc_flow/local.current_capacity.replace(0,np.nan)
-            physical_ids=set(raw.loc[pd.to_numeric(raw.faf5_class,errors='coerce').ne(50),'e_id'])
+            physical_ids=set(raw.loc[physical_mask,'e_id'])
             physical=edge[edge.e_id.isin(physical_ids)]
+            if case=='freight':freight_edges[arm]=physical[['e_id','acc_flow']].rename(columns={'acc_flow':f'flow_{arm}'})
             diagnostics.append(dict(case=case,arm=arm,loading_adjacent_physical_links=len(local),
                 binding_links=int(vc.ge(1-1e-9).sum()),vc_p95=float(vc.quantile(.95)),vc_max=float(vc.max()),
                 baseline_physical_flow_miles=float((physical.acc_flow*physical.length_mile).sum()),
@@ -88,6 +90,27 @@ def compare(root,ops):
     wide.to_csv(ops/'county_AB_comparison.csv',index=False)
     pd.DataFrame(unresolved).to_csv(ops/'unresolved_county_metrics.csv',index=False)
     pd.DataFrame(diagnostics).to_csv(ops/'loading_saturation.csv',index=False)
+    official=pd.read_parquet(root/'stage2_scripts/connector_test2_conus/official_roads.pq')
+    assert official.official.dropna().ge(0).all(),'Invalid published-flow sentinel must not be reported as zero'
+    official['e_id']=official.link_id.astype(str)
+    scores=freight_edges['A'].merge(freight_edges['B'],on='e_id',validate='one_to_one')
+    scores=scores.merge(official[['e_id','official','CTFIPS']],on='e_id',how='left',validate='one_to_one')
+    scores['county_fips']=scores.CTFIPS.map(lambda x:f'{int(x):05}' if pd.notna(x) else None)
+    scores['official_status']=np.where(scores.official.isna(),'missing_record',np.where(scores.official.gt(0),'positive','zero'))
+    scores['absolute_error_change']=(scores.flow_B-scores.official).abs()-(scores.flow_A-scores.official).abs()
+    scores.to_csv(ops/'physical_baseline_FAF22_link_comparison.csv',index=False)
+    faf_metrics=[]
+    for scope in ['CONUS']+COUNTIES:
+        group=scores if scope=='CONUS' else scores[scores.county_fips.eq(scope)]
+        matched=group[group.official.notna()]
+        for arm in ['A','B']:
+            modeled=matched[f'flow_{arm}'];den=float(matched.official.sum())
+            faf_metrics.append(dict(scope=scope,arm=arm,links_compared=len(matched),missing_official_records=int(group.official.isna().sum()),
+                explicit_official_zeros=int(matched.official.eq(0).sum()),pearson=modeled.corr(matched.official) if len(matched)>1 and modeled.nunique()>1 and matched.official.nunique()>1 else None,
+                wape=float((modeled-matched.official).abs().sum())/den if den else None,
+                modeled_link_traversals_day=float(modeled.sum()),official_link_traversals_day=den,
+                scope_note='Freight baseline only; combined PCE is not compared with official trucks. Link traversals are not generated trips.'))
+    pd.DataFrame(faf_metrics).to_csv(ops/'FAF22_baseline_diagnostics.csv',index=False)
     decision=dict(recommendation='B' if wide.material.any() else 'A',frozen=False,
         material_cells=int(wide.material.sum()),total_cells=len(wide),mechanical_gates='passed',
         interpretation='B is an access-cost screening experiment, not verified new physical access. Owner review precedes any freeze.',
