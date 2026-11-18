@@ -1,0 +1,145 @@
+........F..................................s...s..............           [100%]
+=================================== FAILURES ===================================
+_ test_nonflood_builders_leave_virtual_open_and_physical_unchanged[winter_storm-winter_storm_mm-damage_level_winter_storm-build_winter_storm_link_disruption-mm_snow] _
+
+self = Index(['e_id', 'faf5_class', 'road_classification', 'road_label',
+       'road_bridge', 'geometry', 'winter_storm_mm',...eed', 'hazard_type', 'event_id',
+       'scenario_param', 'intensity_primary', 'intensity_unit'],
+      dtype='object')
+key = 'from_id'
+
+    def get_loc(self, key):
+        """
+        Get integer location, slice or boolean mask for requested label.
+    
+        Parameters
+        ----------
+        key : label
+    
+        Returns
+        -------
+        int if unique index, slice if monotonic index, else mask
+    
+        Examples
+        --------
+        >>> unique_index = pd.Index(list('abc'))
+        >>> unique_index.get_loc('b')
+        1
+    
+        >>> monotonic_index = pd.Index(list('abbc'))
+        >>> monotonic_index.get_loc('b')
+        slice(1, 3, None)
+    
+        >>> non_monotonic_index = pd.Index(list('abcb'))
+        >>> non_monotonic_index.get_loc('b')
+        array([False,  True, False,  True])
+        """
+        casted_key = self._maybe_cast_indexer(key)
+        try:
+>           return self._engine.get_loc(casted_key)
+
+../../../conda_envs/nird/lib/python3.10/site-packages/pandas/core/indexes/base.py:3812: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+pandas/_libs/index.pyx:167: in pandas._libs.index.IndexEngine.get_loc
+    ???
+pandas/_libs/index.pyx:196: in pandas._libs.index.IndexEngine.get_loc
+    ???
+pandas/_libs/hashtable_class_helper.pxi:7088: in pandas._libs.hashtable.PyObjectHashTable.get_item
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+>   ???
+E   KeyError: 'from_id'
+
+pandas/_libs/hashtable_class_helper.pxi:7096: KeyError
+
+The above exception was the direct cause of the following exception:
+
+hazard = 'winter_storm', field = 'winter_storm_mm'
+damage = 'damage_level_winter_storm'
+builder = <function build_winter_storm_link_disruption at 0x7f06097f12d0>
+unit = 'mm_snow'
+
+    @pytest.mark.parametrize('hazard,field,damage,builder,unit',[
+        ('earthquake','pga_g','damage_level_earthquake',build_earthquake_link_disruption,'g_pga'),
+        ('landslide','landslide_mm','damage_level_landslide',build_landslide_link_disruption,'mm_displacement'),
+        ('winter_storm','winter_storm_mm','damage_level_winter_storm',build_winter_storm_link_disruption,'mm_snow')])
+    def test_nonflood_builders_leave_virtual_open_and_physical_unchanged(hazard,field,damage,builder,unit):
+        links=gpd.GeoDataFrame({'e_id':['c','r'],'faf5_class':[50,14],
+            'road_classification':['centroid_connector','primary'],'road_label':['road','road'],'road_bridge':['no','no']},
+            geometry=[LineString([(0,0),(1,0)]),LineString([(1,0),(2,0)])],crs=4326)
+        baseline=pd.DataFrame({'e_id':['c','r'],'free_flow_speeds':[25.,40.],'current_capacity':[10000.,1000.]})
+        exposure=pd.DataFrame({'e_id':['r'],field:[.8],damage:['minor']})
+        event=HazardEvent(hazard,'1',unit)
+>       all_links=builder(links,exposure.copy(),baseline,hazard_event=event,scenario_param=1)
+
+tests/test_centroid_flood_exemption.py:74: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+src/resiflow/disruption/build.py:236: in build_winter_storm_link_disruption
+    out = add_clearance_columns(out, depth_col="winter_storm_max_mm")
+src/resiflow/hazards/winter_storm_clearance.py:304: in add_clearance_columns
+    ranks = assign_clearance_rank(out)
+src/resiflow/hazards/winter_storm_clearance.py:139: in assign_clearance_rank
+    frm = links[from_col].astype(str).to_numpy()
+../../../conda_envs/nird/lib/python3.10/site-packages/geopandas/geodataframe.py:1891: in __getitem__
+    result = super().__getitem__(key)
+../../../conda_envs/nird/lib/python3.10/site-packages/pandas/core/frame.py:4113: in __getitem__
+    indexer = self.columns.get_loc(key)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Index(['e_id', 'faf5_class', 'road_classification', 'road_label',
+       'road_bridge', 'geometry', 'winter_storm_mm',...eed', 'hazard_type', 'event_id',
+       'scenario_param', 'intensity_primary', 'intensity_unit'],
+      dtype='object')
+key = 'from_id'
+
+    def get_loc(self, key):
+        """
+        Get integer location, slice or boolean mask for requested label.
+    
+        Parameters
+        ----------
+        key : label
+    
+        Returns
+        -------
+        int if unique index, slice if monotonic index, else mask
+    
+        Examples
+        --------
+        >>> unique_index = pd.Index(list('abc'))
+        >>> unique_index.get_loc('b')
+        1
+    
+        >>> monotonic_index = pd.Index(list('abbc'))
+        >>> monotonic_index.get_loc('b')
+        slice(1, 3, None)
+    
+        >>> non_monotonic_index = pd.Index(list('abcb'))
+        >>> non_monotonic_index.get_loc('b')
+        array([False,  True, False,  True])
+        """
+        casted_key = self._maybe_cast_indexer(key)
+        try:
+            return self._engine.get_loc(casted_key)
+        except KeyError as err:
+            if isinstance(casted_key, slice) or (
+                isinstance(casted_key, abc.Iterable)
+                and any(isinstance(x, slice) for x in casted_key)
+            ):
+                raise InvalidIndexError(key)
+>           raise KeyError(key) from err
+E           KeyError: 'from_id'
+
+../../../conda_envs/nird/lib/python3.10/site-packages/pandas/core/indexes/base.py:3819: KeyError
+=============================== warnings summary ===============================
+tests/test_disruption_flood_parity.py::test_sioux_falls_disruption_link_metrics
+tests/test_stage4_passenger_mode.py::test_passenger_only_stage4_outputs
+tests/test_multihazard_pipeline_sioux_falls.py::test_multihazard_pipeline_event_bridge[flood-flood_surface]
+  /scratch/akothaw/conda_envs/nird/lib/python3.10/site-packages/rasterio/transform.py:178: PendingDeprecationWarning: Use `@` matmul instead of `*` mul operator for matrix multiplication
+    return Affine.translation(west, north) * Affine.scale(xsize, -ysize)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED tests/test_centroid_flood_exemption.py::test_nonflood_builders_leave_virtual_open_and_physical_unchanged[winter_storm-winter_storm_mm-damage_level_winter_storm-build_winter_storm_link_disruption-mm_snow]
+1 failed, 59 passed, 2 skipped, 3 warnings in 358.49s (0:05:58)

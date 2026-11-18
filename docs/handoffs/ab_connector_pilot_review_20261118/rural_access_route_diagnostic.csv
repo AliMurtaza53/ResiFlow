@@ -1,0 +1,3 @@
+check,from_node,to_node,structure_free_route_m,within_original_3km_cap,scope,physical_edge_ids
+Brazoria opposite carriageway,88897,88898,48.20489464464198,True,"five-county physical-road subset; diagnostic, not OD path or new connector",491527
+Chambers alternative,111060,111057,3393.798439781219,False,"five-county physical-road subset; diagnostic, not OD path or new connector",614677;614678

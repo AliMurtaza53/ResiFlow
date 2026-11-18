@@ -1,44 +1,40 @@
 diff --git a/scripts/3_damage_analysis.py b/scripts/3_damage_analysis.py
-index 5ac570f..6cf5c43 100644
+index 782c249..5341080 100644
 --- a/scripts/3_damage_analysis.py
 +++ b/scripts/3_damage_analysis.py
-@@ -827,6 +827,9 @@ def main():
-                 intersections_with_damage["direct_damage_mean_musd"] > 0
-             ].reset_index(drop=True)
-         elif hazard_type == "flood":
-+            from resiflow.networks.hazard_eligibility import assert_physical_exposure
+@@ -707,6 +707,9 @@ def main():
+         print(f"Calculate damages for scenario={scenario_param} event={flood_key}...")
+         # format intersections
+         intersections = pd.read_parquet(intersections_path)
++        from resiflow.networks.hazard_eligibility import assert_physical_exposure
 +
-+            assert_physical_exposure(road_links, intersections)
-             # Sourced unit costs only (T24 CP25 roads, T30 bridges, Rostami tunnels); the legacy cost-workbook
-             # path was retired 2026-11-12 (see docs/testbed_suite/SPEC.md). damage_ratio_road_flood (T22) is unchanged.
-             if not use_sourced_asset_costs:
++        assert_physical_exposure(road_links, intersections)
+         intersections = format_intersections(intersections, road_links)
+ 
+         if intersections.empty:
 diff --git a/scripts/4_rerouting_and_recovery_scenario_loop.py b/scripts/4_rerouting_and_recovery_scenario_loop.py
-index 1822569..06c16f1 100644
+index 1822569..be326cc 100644
 --- a/scripts/4_rerouting_and_recovery_scenario_loop.py
 +++ b/scripts/4_rerouting_and_recovery_scenario_loop.py
-@@ -863,6 +863,15 @@ def main(
+@@ -863,6 +863,12 @@ def main(
          / f"road_links_{flood_key}.gpq"
      )
      road_links["e_id"] = road_links["e_id"].astype(str)
 +    from resiflow.networks.hazard_eligibility import (
-+        assert_centroid_flood_state,
++        assert_centroid_hazard_state,
 +        centroid_connector_mask,
 +    )
 +
-+    hazard_types = road_links.get("hazard_type", pd.Series(["flood"])).dropna()
-+    is_flood_input = hazard_types.empty or hazard_types.eq("flood").all()
-+    if is_flood_input:
-+        assert_centroid_flood_state(road_links)
++    assert_centroid_hazard_state(road_links)
      if "assignment_tier" not in road_links.columns:
          road_links = normalize_network_links(road_links, params_root=str(params_root))
  
-@@ -910,8 +919,14 @@ def main(
+@@ -910,8 +916,13 @@ def main(
              * _breakpoint_scale
          )
      initial_road_links_cols = road_links.columns
-+    if is_flood_input:
-+        # Check again after overlaying script-3 damage, before selecting OD.
-+        assert_centroid_flood_state(road_links)
++    # Check again after overlaying script-3 damage, before selecting OD.
++    assert_centroid_hazard_state(road_links)
      flooded_edges = set(
 -        road_links.loc[road_links["damage_level_max"] != "no", "e_id"].astype(str)
 +        road_links.loc[
@@ -100,6 +96,42 @@ index 8d7cea7..253c414 100644
 -    return features
 \ No newline at end of file
 +    return features
+diff --git a/src/resiflow/disruption/intensity_hazard.py b/src/resiflow/disruption/intensity_hazard.py
+index 37c17b5..0d37d72 100644
+--- a/src/resiflow/disruption/intensity_hazard.py
++++ b/src/resiflow/disruption/intensity_hazard.py
+@@ -8,6 +8,7 @@ from typing import Callable, Dict, Optional
+ import geopandas as gpd
+ import numpy as np
+ import pandas as pd
++from resiflow.networks.hazard_eligibility import centroid_connector_mask, assert_physical_exposure
+ 
+ from resiflow.exposure.raster_line import (
+     clip_features,
+@@ -40,7 +41,8 @@ def intersections_with_intensity(
+     fillna_value: float = 0.0,
+ ) -> gpd.GeoDataFrame | None:
+     """Sample raster along links and attach intensity + categorical damage."""
+-    candidate_links = subset_features_to_raster_extent(road_links, raster_path)
++    physical_links = road_links.loc[~centroid_connector_mask(road_links)].copy()
++    candidate_links = subset_features_to_raster_extent(physical_links, raster_path)
+     clipped_features = clip_features(candidate_links, clip_path, event_key, boundary_gdf)
+     if clipped_features.empty:
+         logging.info("Intensity hazard clip produced no features")
+@@ -88,6 +90,7 @@ def features_with_intensity(
+     script3_depth_scale: float = 1.0,
+ ) -> gpd.GeoDataFrame:
+     """Aggregate segment intensities to link-level fields."""
++    assert_physical_exposure(features, intersections)
+     intersections = intersections.copy()
+     intersections[damage_level_col] = intersections[damage_level_col].map(DAMAGE_LEVEL_DICT)
+     grouped = intersections.groupby("e_id", as_index=False).agg(
+@@ -108,4 +111,5 @@ def features_with_intensity(
+     features[intensity_max_col] = features[intensity_col].fillna(0.0)
+     features["damage_level_max"] = features[damage_level_col].fillna("no")
+     features["flood_depth_max"] = features[intensity_max_col] * script3_depth_scale
++    features["hazard_exposure_applicable"] = ~centroid_connector_mask(features)
+     return features
 diff --git a/src/resiflow/fragility/flood_operational.py b/src/resiflow/fragility/flood_operational.py
 index c063f13..3c4006e 100644
 --- a/src/resiflow/fragility/flood_operational.py
@@ -128,10 +160,10 @@ index c063f13..3c4006e 100644
      out[free_flow_col] = out[free_flow_col].fillna(50.0)
 diff --git a/src/resiflow/networks/hazard_eligibility.py b/src/resiflow/networks/hazard_eligibility.py
 new file mode 100644
-index 0000000..91b0800
+index 0000000..4a3cad1
 --- /dev/null
 +++ b/src/resiflow/networks/hazard_eligibility.py
-@@ -0,0 +1,54 @@
+@@ -0,0 +1,61 @@
 +"""Physical-hazard eligibility of explicitly identified centroid access links."""
 +from __future__ import annotations
 +
@@ -155,6 +187,8 @@ index 0000000..91b0800
 +
 +def assert_physical_exposure(links: pd.DataFrame, exposure: pd.DataFrame) -> None:
 +    """Reject stale virtual-link intersections rather than silently pricing them."""
++    if exposure.empty:
++        return
 +    ids = set(links.loc[centroid_connector_mask(links), "e_id"].astype(str))
 +    found = sorted(ids & set(exposure["e_id"].astype(str)))
 +    if found:
@@ -164,7 +198,7 @@ index 0000000..91b0800
 +        )
 +
 +
-+def assert_centroid_flood_state(links: pd.DataFrame) -> None:
++def assert_centroid_hazard_state(links: pd.DataFrame) -> None:
 +    """Require clean stage-2 state before recovery can use a legacy artifact."""
 +    virtual = links.loc[centroid_connector_mask(links)]
 +    if virtual.empty:
@@ -184,14 +218,19 @@ index 0000000..91b0800
 +        raise ValueError(
 +            "Hazard-restricted centroid connectors in recovery input: "
 +            f"{virtual.loc[bad, 'e_id'].astype(str).head(10).tolist()}. "
-+            "Rerun stages 2 and 3; do not reuse contaminated flood artifacts."
++            "Rerun stages 2 and 3; do not reuse contaminated hazard artifacts."
 +        )
++
++
++def assert_centroid_flood_state(links: pd.DataFrame) -> None:
++    """Backward-compatible name for the shared hazard-state guard."""
++    assert_centroid_hazard_state(links)
 diff --git a/tests/test_centroid_flood_exemption.py b/tests/test_centroid_flood_exemption.py
 new file mode 100644
-index 0000000..4b9113a
+index 0000000..baf37c5
 --- /dev/null
 +++ b/tests/test_centroid_flood_exemption.py
-@@ -0,0 +1,106 @@
+@@ -0,0 +1,148 @@
 +"""Virtual flood geometry must not bypass or disable real physical access."""
 +import geopandas as gpd
 +import igraph
@@ -201,7 +240,9 @@ index 0000000..4b9113a
 +from shapely.geometry import LineString
 +from resiflow import road_revised as road
 +from resiflow.disruption import flood
-+from resiflow.disruption.build import build_flood_link_disruption
++from resiflow.disruption import intensity_hazard
++from resiflow.disruption.build import (build_flood_link_disruption,
++    build_earthquake_link_disruption,build_landslide_link_disruption,build_winter_storm_link_disruption)
 +from resiflow.fragility.flood_operational import apply_max_speed_to_links
 +from resiflow.hazards.base import HazardEvent
 +from resiflow.networks.hazard_eligibility import (
@@ -229,6 +270,46 @@ index 0000000..4b9113a
 +    seen.clear()
 +    assert flood.intersections_with_damage(f.iloc[:1], "1", "surface", "unused", None) is None
 +    assert seen == []
++
++
++@pytest.mark.parametrize('field',['pga_g','landslide_mm','winter_storm_mm'])
++def test_other_hazards_exclude_virtual_before_sampling(monkeypatch,field):
++    links=gpd.GeoDataFrame({'e_id':['c','r','unknown'],'faf5_class':[50,14,None]},
++        geometry=[LineString([(0,0),(1,1)])]*3,crs=4326)
++    seen=[]
++    def footprint(frame,path):seen.extend(frame.e_id);return frame
++    monkeypatch.setattr(intensity_hazard,'subset_features_to_raster_extent',footprint)
++    monkeypatch.setattr(intensity_hazard,'clip_features',lambda frame,*args:frame.iloc[:0])
++    result=intensity_hazard.intersections_with_intensity(links,'1','unused',None,
++        field_name=field,intensity_col=field,damage_level_col='level',categorical_fn=lambda *x:None)
++    assert result is None and seen==['r','unknown']
++
++
++def test_other_hazard_aggregation_rejects_legacy_virtual_records():
++    links=gpd.GeoDataFrame({'e_id':['c'],'faf5_class':[50]},geometry=[LineString([(0,0),(1,1)])],crs=4326)
++    exposure=pd.DataFrame({'e_id':['c'],'im':[1.],'level':['minor']})
++    assert_physical_exposure(links,pd.DataFrame())
++    with pytest.raises(ValueError,match='Rerun stage 2'):
++        intensity_hazard.features_with_intensity(links,exposure,intensity_col='im',intensity_max_col='im_max',damage_level_col='level')
++
++
++@pytest.mark.parametrize('hazard,field,damage,builder,unit',[
++    ('earthquake','pga_g','damage_level_earthquake',build_earthquake_link_disruption,'g_pga'),
++    ('landslide','landslide_mm','damage_level_landslide',build_landslide_link_disruption,'mm_displacement'),
++    ('winter_storm','winter_storm_mm','damage_level_winter_storm',build_winter_storm_link_disruption,'mm_snow')])
++def test_nonflood_builders_leave_virtual_open_and_physical_unchanged(hazard,field,damage,builder,unit):
++    links=gpd.GeoDataFrame({'e_id':['c','r'],'faf5_class':[50,14],
++        'from_id':['900','1'],'to_id':['1','2'],
++        'road_classification':['centroid_connector','primary'],'road_label':['road','road'],'road_bridge':['no','no']},
++        geometry=[LineString([(0,0),(1,0)]),LineString([(1,0),(2,0)])],crs=4326)
++    baseline=pd.DataFrame({'e_id':['c','r'],'free_flow_speeds':[25.,40.],'current_capacity':[10000.,1000.]})
++    exposure=pd.DataFrame({'e_id':['r'],field:[.8],damage:['minor']})
++    event=HazardEvent(hazard,'1',unit)
++    all_links=builder(links,exposure.copy(),baseline,hazard_event=event,scenario_param=1)
++    physical=builder(links.iloc[1:],exposure.copy(),baseline.iloc[1:],hazard_event=event,scenario_param=1)
++    pd.testing.assert_frame_equal(all_links[all_links.e_id.eq('r')].reset_index(drop=True),physical.reset_index(drop=True))
++    assert_centroid_flood_state(all_links)
++    assert not all_links.loc[all_links.e_id.eq('c'),'hazard_exposure_applicable'].iloc[0]
 +
 +
 +def test_stage2_preserves_physical_state_and_all_routing_links():

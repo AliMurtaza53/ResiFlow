@@ -1,0 +1,15 @@
+{
+  "recommendation": "NEITHER",
+  "network_frozen": false,
+  "assignment_jobs_submitted": 0,
+  "status": "stopped at preregistered county coverage gate",
+  "preparation_job": 3797277,
+  "regression_tests_passed": 44,
+  "positive_units": 26,
+  "modified_units": 15,
+  "added_virtual_exits": 41,
+  "failed_counties": [
+    "48039",
+    "48071"
+  ]
+}

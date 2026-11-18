@@ -1,0 +1,17 @@
+{
+  "job_id": "3798972",
+  "base": "701062a",
+  "runtime": "/scratch/akothaw/multimodal_hazard_data/code/ResiFlow_virtual_review_allhazards_fixturefix_701062a",
+  "patch_sha256": "3abb35379c6d2c04c6e12e2ea3d9490e135350f645c19037e47a8fba1c2520cb",
+  "broad_regression_job_id": "3798915",
+  "production_files_identical": true,
+  "prior_result": "59 passed, 2 optional skipped, 1 new winter fixture missing from_id/to_id",
+  "scope": "focused rerun after fixture-only correction",
+  "ready_for_owner_review": true,
+  "final_focused_result": "15 passed in 17.18s",
+  "final_state": "3798972|COMPLETED|00:00:28|0:0",
+  "validated_unique_executed_tests": 60,
+  "broad_checks_previously_passed": 59,
+  "broad_optional_skips": 2,
+  "note": "Broad run had one incomplete new winter fixture; endpoint fields corrected. Production files byte-identical between broad and focused copies. No full-CONUS non-flood result qualification is claimed."
+}

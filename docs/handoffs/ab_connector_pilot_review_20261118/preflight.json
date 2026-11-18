@@ -1,0 +1,25 @@
+{
+  "passenger_trips": 51718653.89409999,
+  "freight_trips": 1510749.5566692068,
+  "physical_links_unchanged": 483599,
+  "freight_intrazonal_trips": 0.0,
+  "passenger_intrazonal_trips": 0.0,
+  "freight_assignment_trips": 1510749.5566692068,
+  "combined_assignment_pce": 54740153.0074384,
+  "passenger_alias_lane_multiplier": 209,
+  "native_virtual_reference_capacity": 528000.0,
+  "passenger_alias_capacity_bound": 110352000.0,
+  "passenger_alias_capacity_requirement": 109480306.0148768,
+  "new_aliases": 5,
+  "added_exits": 41,
+  "eligible_counties": [
+    "06037",
+    "48039",
+    "48071",
+    "48201",
+    "53011"
+  ],
+  "coverage_pass": false,
+  "same_OD_between_arms": true,
+  "geometry_cost_assumption": "Added virtual geometry encodes native access plus a local routing-distance cost proxy; it does not claim a newly observed physical road. Physical cut edges and bridge/tunnel traversals cannot be bypassed."
+}
