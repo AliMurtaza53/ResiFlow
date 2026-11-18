@@ -29,6 +29,7 @@ from resiflow.combined_od import resolve_passenger_od_path
 from resiflow.demand.vehicle_class import truck_pce, vehicle_class_for_mode
 from resiflow.demand import (
     load_assignment_demand,
+    demand_case,
     demand_spec_from_env,
     apply_sample_od_n,
     restrict_od_to_pairs,
@@ -1024,11 +1025,28 @@ def main(
     # afterwards -- see overlay_combined_flows() for why two independent
     # per-mode solves double-count shared capacity, and what is/isn't exact
     # about the post-hoc split.
-    if passenger_reroute_enabled and passenger_od_df is not None and freight_od_df is not None:
+    _case = demand_case()  # explicit RESIFLOW_DEMAND_CASE: freight | passenger | combined
+    if _case == "passenger":
+        if passenger_od_df is None:
+            raise RuntimeError("RESIFLOW_DEMAND_CASE=passenger but no passenger OD was loaded")
+        reroute_modes: list[tuple[str, pd.DataFrame]] = [
+            ("passenger", overlay_passenger_flows(base_disrupted_candidates, passenger_od_df))
+        ]
+    elif _case == "combined":
+        if passenger_od_df is None or freight_od_df is None:
+            raise RuntimeError("RESIFLOW_DEMAND_CASE=combined needs both freight and passenger OD")
+        reroute_modes = [
+            ("combined", overlay_combined_flows(base_disrupted_candidates, freight_od_df, passenger_od_df))
+        ]
+    elif _case == "freight":
+        if freight_od_df is None:
+            raise RuntimeError("RESIFLOW_DEMAND_CASE=freight but no freight OD was loaded")
+        reroute_modes = [("freight", freight_candidates)]
+    elif passenger_reroute_enabled and passenger_od_df is not None and freight_od_df is not None:
         combined_candidates = overlay_combined_flows(
             base_disrupted_candidates, freight_od_df, passenger_od_df
         )
-        reroute_modes: list[tuple[str, pd.DataFrame]] = [("combined", combined_candidates)]
+        reroute_modes = [("combined", combined_candidates)]
     else:
         if passenger_reroute_enabled:
             logging.warning(
@@ -1888,7 +1906,7 @@ def main(
                 + cost_df["direct_damage_total"]
             )
             cost_df.to_csv(out_path / f"cost_matrix_{out_mode}_by_scenario.csv", index=False)
-            if out_mode == "freight":
+            if out_mode == "freight" or mode_name == "passenger":
                 cost_df.to_csv(out_path / "cost_matrix_by_scenario.csv", index=False)
 
 

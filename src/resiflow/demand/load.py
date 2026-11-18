@@ -43,6 +43,20 @@ def resolve_freight_od_path(base_path: Path) -> Path:
     return found
 
 
+def demand_case() -> str | None:
+    """Explicit demand case from ``RESIFLOW_DEMAND_CASE``: freight, passenger or combined.
+
+    Unset returns None and keeps the legacy behaviour (freight file always loaded;
+    passenger merged if found; Script 4 decides its mode from what it loaded).
+    """
+    raw = (get_env("RESIFLOW_DEMAND_CASE", "NIRD_DEMAND_CASE", "") or "").strip().lower()
+    if not raw:
+        return None
+    if raw not in {"freight", "passenger", "combined"}:
+        raise ValueError(f"RESIFLOW_DEMAND_CASE must be freight, passenger or combined; got {raw!r}")
+    return raw
+
+
 def demand_spec_from_env(base_path: Path) -> DemandSpec:
     source = get_env("RESIFLOW_DEMAND_SOURCE", "NIRD_DEMAND_SOURCE", "faf5_parquet") or "faf5_parquet"
     passenger_path = None if passenger_od_disabled() else resolve_passenger_od_path(base_path)
@@ -98,6 +112,28 @@ def load_assignment_demand(
             stats=stats,
         )
 
+    case = demand_case()
+    if case == "passenger":
+        # Passenger-only: no freight file is read or required.
+        passenger_path = resolved.passenger_path or resolve_passenger_od_path(base_path)
+        if passenger_path is None:
+            raise FileNotFoundError(
+                "RESIFLOW_DEMAND_CASE=passenger needs a passenger OD: set "
+                "RESIFLOW_PASSENGER_OD_PATH (and do not set RESIFLOW_DISABLE_PASSENGER_OD)"
+            )
+        passenger_od = normalize_assignment_od(
+            pd.read_parquet(passenger_path), DEFAULT_FLOW_COL, source="passenger"
+        )
+        if resolved.demand_scale != 1.0:
+            passenger_od = passenger_od.copy()
+            passenger_od[DEFAULT_FLOW_COL] = passenger_od[DEFAULT_FLOW_COL] * resolved.demand_scale
+        total = float(passenger_od[DEFAULT_FLOW_COL].sum())
+        return DemandLoadResult(
+            assignment_od=passenger_od,
+            passenger_od=passenger_od,
+            stats={"freight_flow": 0.0, "passenger_flow": total, "combined_flow": total},
+        )
+
     freight_path = resolved.freight_path or resolve_freight_od_path(base_path)
     freight_od = pd.read_parquet(freight_path)
     flow_col = resolved.flow_col
@@ -107,8 +143,15 @@ def load_assignment_demand(
         freight_od[flow_col] *= resolved.demand_scale
 
     passenger_path = resolved.passenger_path
-    if passenger_path is None and not passenger_od_disabled():
+    if case == "freight":
+        passenger_path = None  # freight-only: ignore any passenger OD
+    elif passenger_path is None and not passenger_od_disabled():
         passenger_path = resolve_passenger_od_path(base_path)
+    if case == "combined" and passenger_path is None:
+        raise FileNotFoundError(
+            "RESIFLOW_DEMAND_CASE=combined needs both freight and passenger OD "
+            "(set RESIFLOW_PASSENGER_OD_PATH, do not set RESIFLOW_DISABLE_PASSENGER_OD)"
+        )
 
     assignment, stats = load_combined_assignment_od(
         freight_od,
