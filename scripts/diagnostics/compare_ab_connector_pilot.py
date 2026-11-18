@@ -61,7 +61,7 @@ def compare(root,ops):
                     for name,data in [('baseline_isolation',base),('hazard_isolation',iso),('post_cost',post),('intact_cost',intact)]:
                         value,trips=data.get((end,'UNRESOLVED'),(0,0))
                         unresolved.append(dict(case=case,arm=arm,day=day,end=end,metric=name,value=value,flow=trips))
-            edge=pd.read_parquet(root/'results'/v/'edge_flows.gpq',columns=['e_id','acc_flow','current_capacity'])
+            edge=pd.read_parquet(root/'results'/v/'edge_flows.gpq',columns=['e_id','acc_flow','current_capacity','length_mile'])
             links=pd.read_csv(inputs/f"connectors_{'A' if arm=='A' else 'B4'}.csv",dtype=str)
             endpoints=set(links.road_node)
             # Road saturation near loading is joined using physical endpoints,
@@ -70,8 +70,12 @@ def compare(root,ops):
             near=raw[(pd.to_numeric(raw.faf5_class,errors='coerce')!=50)&(raw.from_id.astype(str).isin(endpoints)|raw.to_id.astype(str).isin(endpoints))]
             local=edge.merge(near[['e_id']],on='e_id',validate='one_to_one')
             vc=local.acc_flow/local.current_capacity.replace(0,np.nan)
+            physical_ids=set(raw.loc[pd.to_numeric(raw.faf5_class,errors='coerce').ne(50),'e_id'])
+            physical=edge[edge.e_id.isin(physical_ids)]
             diagnostics.append(dict(case=case,arm=arm,loading_adjacent_physical_links=len(local),
-                binding_links=int(vc.ge(1-1e-9).sum()),vc_p95=float(vc.quantile(.95)),vc_max=float(vc.max())))
+                binding_links=int(vc.ge(1-1e-9).sum()),vc_p95=float(vc.quantile(.95)),vc_max=float(vc.max()),
+                baseline_physical_flow_miles=float((physical.acc_flow*physical.length_mile).sum()),
+                flow_mile_units='truck-miles/day' if case=='freight' else 'PCE-miles/day'))
     df=pd.DataFrame(records);df.to_csv(ops/'county_primary_metrics.csv',index=False)
     keys=['case','county_fips','day','end','isolation_units']
     wide=df[df.arm.eq('A')].drop(columns='arm').merge(df[df.arm.eq('B')].drop(columns='arm'),on=keys,suffixes=('_A','_B'),validate='one_to_one')

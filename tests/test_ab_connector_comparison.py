@@ -26,7 +26,7 @@ def setup_case(tmp_path,cohort_mismatch=False):
             audit.mkdir(parents=True,exist_ok=True)
             (audit/'recovery_shortcuts.log').write_text(('shortcuts=0, share=0.0\n')*12)
             base=root/'results'/v;base.mkdir(parents=True)
-            pd.DataFrame({'e_id':['r'],'acc_flow':[100.],'current_capacity':[100.]}).to_parquet(base/'edge_flows.gpq')
+            pd.DataFrame({'e_id':['r'],'acc_flow':[100.],'current_capacity':[100.],'length_mile':[2.]}).to_parquet(base/'edge_flows.gpq')
             iso=pd.DataFrame({'origin_node':['1'],'destination_node':['2'],'flow':[2.]})
             iso.to_parquet(base/'trip_isolations.pq')
             out=root/'results/rerouting_analysis'/recovery/'304/1';out.mkdir(parents=True)
