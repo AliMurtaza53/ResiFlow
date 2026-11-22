@@ -8,6 +8,7 @@ from typing import Callable, Dict, Optional
 import geopandas as gpd
 import numpy as np
 import pandas as pd
+from resiflow.networks.hazard_eligibility import centroid_connector_mask, assert_physical_exposure
 
 from resiflow.exposure.raster_line import (
     clip_features,
@@ -40,7 +41,8 @@ def intersections_with_intensity(
     fillna_value: float = 0.0,
 ) -> gpd.GeoDataFrame | None:
     """Sample raster along links and attach intensity + categorical damage."""
-    candidate_links = subset_features_to_raster_extent(road_links, raster_path)
+    physical_links = road_links.loc[~centroid_connector_mask(road_links)].copy()
+    candidate_links = subset_features_to_raster_extent(physical_links, raster_path)
     clipped_features = clip_features(candidate_links, clip_path, event_key, boundary_gdf)
     if clipped_features.empty:
         logging.info("Intensity hazard clip produced no features")
@@ -88,6 +90,7 @@ def features_with_intensity(
     script3_depth_scale: float = 1.0,
 ) -> gpd.GeoDataFrame:
     """Aggregate segment intensities to link-level fields."""
+    assert_physical_exposure(features, intersections)
     intersections = intersections.copy()
     intersections[damage_level_col] = intersections[damage_level_col].map(DAMAGE_LEVEL_DICT)
     grouped = intersections.groupby("e_id", as_index=False).agg(
@@ -108,4 +111,5 @@ def features_with_intensity(
     features[intensity_max_col] = features[intensity_col].fillna(0.0)
     features["damage_level_max"] = features[damage_level_col].fillna("no")
     features["flood_depth_max"] = features[intensity_max_col] * script3_depth_scale
+    features["hazard_exposure_applicable"] = ~centroid_connector_mask(features)
     return features

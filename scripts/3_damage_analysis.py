@@ -707,6 +707,9 @@ def main():
         print(f"Calculate damages for scenario={scenario_param} event={flood_key}...")
         # format intersections
         intersections = pd.read_parquet(intersections_path)
+        from resiflow.networks.hazard_eligibility import assert_physical_exposure
+
+        assert_physical_exposure(road_links, intersections)
         intersections = format_intersections(intersections, road_links)
 
         if intersections.empty:

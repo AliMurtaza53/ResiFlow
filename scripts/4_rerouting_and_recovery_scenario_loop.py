@@ -863,6 +863,12 @@ def main(
         / f"road_links_{flood_key}.gpq"
     )
     road_links["e_id"] = road_links["e_id"].astype(str)
+    from resiflow.networks.hazard_eligibility import (
+        assert_centroid_hazard_state,
+        centroid_connector_mask,
+    )
+
+    assert_centroid_hazard_state(road_links)
     if "assignment_tier" not in road_links.columns:
         road_links = normalize_network_links(road_links, params_root=str(params_root))
 
@@ -910,8 +916,13 @@ def main(
             * _breakpoint_scale
         )
     initial_road_links_cols = road_links.columns
+    # Check again after overlaying script-3 damage, before selecting OD.
+    assert_centroid_hazard_state(road_links)
     flooded_edges = set(
-        road_links.loc[road_links["damage_level_max"] != "no", "e_id"].astype(str)
+        road_links.loc[
+            (road_links["damage_level_max"] != "no") & ~centroid_connector_mask(road_links),
+            "e_id",
+        ].astype(str)
     )
     if candidate_source_mode == "path_index":
         disrupted_candidates = load_path_index_disrupted_candidates(
