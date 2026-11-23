@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import time
+import os
 from pathlib import Path
 from typing import Callable
 
@@ -70,6 +71,8 @@ def run_intensity_disruption(
             base_path / "inputs" / "networks" / "faf5" / "faf5_road_links.gpq",
         ]
     )
+    if connector_network := os.environ.get("RESIFLOW_FAF5_CONNECTOR_NETWORK"):
+        road_links_path = Path(connector_network)
     if road_links_path is None:
         raise FileNotFoundError("Could not find faf5_road_links.gpq")
 
