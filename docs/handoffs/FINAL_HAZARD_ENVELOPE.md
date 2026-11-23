@@ -76,20 +76,35 @@ Hopper dir `stage2_scripts/payload_rebuild_20261122/` (`SHA256SUMS` there). Reci
 - **Baselines on network A (T29 freight OD, 15 iterations max):** freight 1:17 wall, 100% delivered in one pass, 0 isolated, travel cost $484.1M. Passenger 0:56 wall, 87.4% delivered, 0 structural and 12.6% congestion isolation at iteration 15, remain 0.70%, conservation and capacity invariants held. Combined (PCE 54,911,252.9/day) is the acceptance run: still iterating at the time of writing (remain 35.6%, 28.5%, 23.6% after iterations 1 to 3, about 70 minutes each).
 - **Stage 2 + 3 smoke on all eight events** (freight baseline, final OD and network; `experiments/final_envelope/`). 3,795 virtual links in every event, none exposed.
 
-| Event | Stage 2 wall | Damage rows | Direct damage (M USD) | Note |
-|---|---|---|---|---|
-| 304 Harvey | 7 min | 89,439 | 11,291 | identical to the earlier virtual-exempt run |
-| 305 Sandy | 12 min | 23,360 | 3,880 | |
-| 403 New Madrid M7.7 | 112 min | 2,232,707 | 134,041 | PGA max 1.398 g; needed the aligned liquefaction raster |
-| 404 Cascadia M9 | 43 min | 913,063 | 158,685 | |
-| 503 New Madrid M7.7 landslide | 42 min | 24,402 | 29,109 | |
-| 502 Cascadia landslide | 22 min | 103,571 | 348,453 | **review**: exceeds the Cascadia shaking damage |
-| 601 Jonas | 66 min | 617,582 | 20.6 | |
-| 603 Elliott | not logged | 805,831 | 168.7 | |
+| Event | Stage 2 wall | Damage rows | Direct damage, once per link (M USD) | Raw row sum (do not use) | Note |
+|---|---|---|---|---|---|
+| 304 Harvey | 7 min | 89,439 | **1,468.9** | 11,291 | matches the validated earlier run ($1,468,883,828.54) |
+| 305 Sandy | 12 min | 23,360 | **824.6** | 3,880 | |
+| 403 New Madrid M7.7 | 112 min | 2,232,707 | **1,080.1** | 134,041 | PGA max 1.398 g; bridges only (road liquefaction costing is off); needed the aligned liquefaction raster |
+| 404 Cascadia M9 | 43 min | 913,063 | **1,968.6** | 158,685 | bridges only, same reason |
+| 503 New Madrid M7.7 landslide | 42 min | 24,402 | **2,018.0** | 29,109 | bridges 1,925, roads 92 |
+| 502 Cascadia landslide | 22 min | 103,571 | **5,572.7** | 348,453 | bridges 4,921, roads 649; see the piece-rule note below |
+| 601 Jonas | 66 min | 617,582 | **8.2** | 21 | |
+| 603 Elliott | not logged | 805,831 | **80.8** | 169 | |
+
+**Correction (2026-11-23, same day):** the first version of this table summed the raw damage rows. Bridge and tunnel damage is a whole-structure value repeated on every raster-cell piece, so the raw sum overcounts it 2x to 124x (ASSUMPTIONS_REGISTER C2; the project's `damage_aggregation.total_direct_damage_musd` counts each structure once per link). `smoke_summary.py` and `event_summary.py` both had the raw sum; `event_summary.py` is fixed. Always report `total_direct_damage_musd`.
+
+**502 versus 404, in perspective.** The earthquake rows are bridges only; the landslide rows include roads, so they are not like for like. The larger issue is the piece rule: a bridge's whole-structure damage is the maximum over all pieces of its FAF link, but the median bridge is only 2.6% (502) of its link, so one bad cell on an approach slope prices the whole deck. Sensitivity of bridge damage to that rule (M USD; script `scripts/diagnostics/bridge_piece_sensitivity.py`):
+
+| Event | max over link pieces (current) | length-weighted mean | median piece |
+|---|---|---|---|
+| 502 Cascadia landslide | 4,921 | 2,185 | 1,956 |
+| 404 Cascadia shaking | 1,969 | 1,740 | 1,732 |
+| 503 New Madrid landslide | 1,925 | 556 | 399 |
+| 403 New Madrid shaking | 1,080 | 944 | 940 |
+| 304 Harvey | 331 | 243 | 227 |
+| 305 Sandy | 254 | 254 | 254 |
+
+Smooth hazards (shaking, surge) move 1.0 to 1.4x under the rule; local hazards (landslide) move 2.3 to 3.5x. That, not the hazard, is why landslide exceeds shaking here. Rule change not made; owner decision. Scripts: `scripts/diagnostics/{profile_event_damage,inspect_top_links,bridge_row_multiplicity,recompute_event_damage,bridge_piece_sensitivity}.py`.
 
 - **FAF22 agreement, freight baseline (matched road links, 483,442, all with a published value):** flat-20 t gateway baseline modeled/FAF22 trips = 1.298 (Pearson 0.584); final T29 baseline = **1.407 (Pearson 0.587)**. The excess over FAF22 rises about 11 points (+5.66% trucks, +3.0% haul, as expected) while the pattern correlation is unchanged. T29 is therefore the more defensible payload but moves the volume level further from FAF22 on this network; FHWA's disaggregation, empty-mile treatment and path choice differ, so this is reported, not tuned. Script: `scripts` copy in `stage2_scripts/faf22_cmp.py` on Hopper.
 - **First envelope job end to end (freight, Harvey 304, job 3864873):** Stages 2 to 4 completed in 2:45 wall (Stage 4 2:33, 82 GB peak RSS), exit 0. Day 0 isolates 59,426 trucks/day ($53.1M), day 7 15,504 ($13.8M), none from day 14 on. Centroid pass-through audit: **0 shortcuts** over all 11,204,877 baseline paths and the Harvey day-0 and day-7 path exports.
-- **Open for review:** 502 (landslide damage 2.2 times the Cascadia shaking damage on a quarter of the damage rows); Stage 2 is single-threaded and slow for the large earthquake grids (403 takes under two hours), so run events as separate jobs in parallel.
+- **Open for review:** 502 (now 2.8 times the Cascadia shaking damage after the correction above; driven by the max-over-link piece rule); Stage 2 is single-threaded and slow for the large earthquake grids (403 takes under two hours), so run events as separate jobs in parallel.
 - **Anvil:** conda env `nird_v4` rebuilt (the old ones were purged; first attempt failed on a corrupted package cache, retried with a fresh one), code `ResiFlow_final_8a0cbba` synced (needs a refresh to `a9ce7b3`, jobs override with `PYTHONPATH`), frozen inputs on scratch and on `/anvil/projects/x-civ260045/frozen_inputs_networkA_20261123/`. Not yet on Anvil: hazard rasters (about 9 GB), baseline result folders.
 - **Launching:** `experiments/final_envelope/baseline.slurm` (CASE=freight|passenger|combined) and `event.slurm` (CASE, EV, CODE_SHA) reproduce these runs; `event_summary.py` produces the table above.
 

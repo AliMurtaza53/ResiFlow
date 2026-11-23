@@ -21,6 +21,11 @@ for ev in sys.argv[1:]:
     r["zero_capacity"]=int((pd.to_numeric(d["current_capacity"],errors="coerce")<=0).sum())
     dm=glob.glob(f"{R}/damage_analysis/{var}/{ev}/*with_damage_values.csv")
     if dm:
-        x=pd.read_csv(dm[0],low_memory=False); r["damage_rows"]=len(x); r["direct_damage_musd"]=float(x["direct_damage_mean_musd"].sum())
+        # Bridges/tunnels are whole-structure values repeated on every raster-cell piece; the raw row sum
+        # overcounts them 2x-124x (ASSUMPTIONS_REGISTER C2). Use the project's own once-per-link collapse.
+        from resiflow.damage_aggregation import total_direct_damage_musd
+        x=pd.read_csv(dm[0],low_memory=False); r["damage_rows"]=len(x)
+        r["raw_row_sum_musd_DO_NOT_REPORT"]=float(x["direct_damage_mean_musd"].sum())
+        r["direct_damage_musd"]=float(total_direct_damage_musd(x))
     out[ev]=r
 print(json.dumps(out,indent=1,default=str))
