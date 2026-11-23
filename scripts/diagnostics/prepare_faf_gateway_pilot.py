@@ -66,7 +66,12 @@ def main():
     parser.add_argument("--control-od", type=Path)
     parser.add_argument("--control-weights", type=Path)
     parser.add_argument("--road-nodes", type=Path)
+    parser.add_argument("--payload-table", type=Path, help="T29 csv (sctgG5,payload_tons); default is the legacy flat 20 t/truck")
     a = parser.parse_args()
+    payload = None
+    if a.payload_table:
+        t = pd.read_csv(a.payload_table, comment="#")
+        payload = {k: float(v) for k, v in zip(t.sctgG5, t.payload_tons) if k != "all"}
     counties = pd.read_csv(a.county_crosswalk or a.inputs / "county_node_crosswalk_subset.csv")
     keys = pd.read_csv(a.inputs / "connector_crosswalk.csv")[["centroid_id", "centroid_node"]].drop_duplicates()
     directional = pd.read_csv(a.refs / "directional_centroid_totals.csv").merge(
@@ -100,7 +105,10 @@ def main():
             cells = selected.merge(origins, on=["dms_orig", "sctgG5"]).merge(
                 dests, on=["dms_dest", "sctgG5"])
             cells = cells.loc[cells.origin_node.ne(cells.destination_node)].copy()
-            cells["Car21"] = cells.tons_2022 * cells.f_orig * cells.f_dest * 1000 / (365 * 20)
+            per_truck = 20.0 if payload is None else cells.sctgG5.astype(str).map(payload)
+            if payload is not None and per_truck.isna().any():
+                raise ValueError("sctgG5 without a payload factor")
+            cells["Car21"] = cells.tons_2022 * cells.f_orig * cells.f_dest * 1000 / (365 * per_truck)
             if cells.Car21.lt(0).any():
                 raise ValueError(f"Negative reconstructed market flow for {market} {zone}")
             cells = cells[cells.Car21.gt(0)]

@@ -62,6 +62,14 @@ Finding: the freight OD lineage uses a **flat 20.0 t per truck**. The by-commodi
 
 T29 per commodity gives **+5.03% trucks** and shifts the mix, so a single scale factor is not equivalent.
 
+### Rebuilt on T29 (2026-11-22, owner chose the more defensible basis)
+Hopper dir `stage2_scripts/payload_rebuild_20261122/` (`SHA256SUMS` there). Recipe: `scripts/diagnostics/rebuild_faf_od_payload.py` (by-commodity matrix, scale each row by 20/T29, sum by node pair, drop AK/HI and remap with `make_conterminous_od.transform_od`), then `prepare_faf_conus_subcounty_od.py` (mean weights) and `prepare_faf_gateway_pilot.py --payload-table` (the port reconstruction used a hard-coded 20 t; it now takes T29).
+- **Reproduction gate:** the flat-20 path reproduces `faf5_od_matrix.pq` and `inputs_corrected/faf5_od_matrix_conterminous.pq` exactly (0 differing rows, max abs diff 0.0; job 3862714).
+- **Result (jobs 3862787, 3862870):** node flow 1,822,654.59 (+5.03%); conterminous 1,816,952.04; after intrazonal removal and gateway step **1,596,299.49 trucks/day (+5.66% vs 1,510,749.56)**, 11,204,877 rows (old 11,204,772; 105 new rows, 0.006 trucks/day), zero same-node rows, no negatives.
+- **Gates:** conservation 1e-9 passed in every arm; mean/zero/parent_only haul within +-2% of control (control 198.87 mi, mean 198.88). Haul versus the old OD is +3.0% (193.12 to 198.88 mi) because the commodity mix shifted toward lighter-payload, longer-haul groups; expected, not tuned.
+- **Not payload-dependent, unchanged:** FAF published directional centroid totals (used for split weights and port targets). Port budgets use a published target against a 5% larger reconstructed supply, so zone fractions fall slightly.
+- **Frozen freight OD for network A is now** `t29/conus/harvey15_gateway_od.pq` (sha256 af5daa34...). The old flat-20 file stays as the reference. Harvey-15 subset was not rebuilt.
+
 ## Run order and gates
 1. Baselines F, P, F+P on the frozen commit and final network (gate: Codex C+S/C+S+G close-out).
 2. Stage 2-4 per event per case; P uses `RESIFLOW_DEMAND_CASE=passenger`, F `freight`, F+P `combined`.
