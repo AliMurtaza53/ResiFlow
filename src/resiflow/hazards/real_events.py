@@ -176,6 +176,23 @@ class RealEarthquakeNewMadridScenarioSource(SiouxFallsMultihazardSource):
     liquefaction_companion = True
 
 
+class RealEarthquakeNewMadridM77ScenarioSource(RealEarthquakeNewMadridScenarioSource):
+    """FEMA/USGS M7.7 New Madrid southern-fault scenario, event nm19fema_m7p7_mt_se.
+
+    Final-envelope earthquake 403 (owner decision 2026-11-22: of two valid New
+    Madrid scenarios, use the more intense). Mean grids from the scenario's
+    ``raster.zip`` (``pga_mean``, ``psa1p0_mean``), stored as ln(g), converted
+    with ``prepare_shakemap_pga.py --units ln_g``: PGA max 1.420 g, SA(1.0 s)
+    max 1.286 g, against 1.309 / 1.037 g for the M7.5 central-fault scenario
+    ``bssc2014newmadrid_32_m7p5_se``, which stays available as subtype
+    ``earthquake_new_madrid_m75_scenario``. Aligned with ``--own-bounds`` at
+    50 m. The CUSEC liquefaction companion is the same native-CRS raster as for
+    M7.5 (its grid is independent of the PGA grid).
+    """
+
+    hazard_subtype = "earthquake_new_madrid_m77_scenario"
+
+
 class RealEarthquakeCascadiaScenarioSource(SiouxFallsMultihazardSource):
     """USGS M9.0 Cascadia Subduction Zone scenario, event cszm9ensemble_se.
 
@@ -257,6 +274,17 @@ class RealLandslideNewMadridSource(SiouxFallsMultihazardSource):
     intensity_unit = "mm_displacement"
     raster_field = "landslide"
     multihazard_dir = MULTIHAZARD_ALIGNED_DIR
+
+
+class RealLandslideNewMadridM77Source(RealLandslideNewMadridSource):
+    """Co-seismic Newmark PGD paired with the New Madrid M7.7 scenario (403).
+
+    Same recipe as the M7.5 source, computed against the M7.7 PGA grid at
+    magnitude 7.7 (``compute_landslide_pgd.py --magnitude 7.7
+    --susceptibility-max-count 81``). Docs: docs/handoffs/FINAL_HAZARD_ENVELOPE.md.
+    """
+
+    hazard_subtype = "landslide_new_madrid_m77"
 
 
 class RealWinterStormSource(SiouxFallsMultihazardSource):
@@ -365,6 +393,7 @@ def resolve_real_source(
         "earthquake_shakemap_mineral": RealEarthquakeShakeMapSource,
         "earthquake_nshm": RealEarthquakeSource,
         "earthquake_new_madrid_m75_scenario": RealEarthquakeNewMadridScenarioSource,
+        "earthquake_new_madrid_m77_scenario": RealEarthquakeNewMadridM77ScenarioSource,
         "earthquake_cascadia_m9_scenario": RealEarthquakeCascadiaScenarioSource,
         "winter_storm": RealWinterStormSource,
         "winter_storm_uri": RealWinterStormUriSource,
@@ -373,6 +402,7 @@ def resolve_real_source(
         "landslide": RealLandslideSource,
         "landslide_cascadia_m9": RealLandslideCascadiaSource,
         "landslide_new_madrid_m75": RealLandslideNewMadridSource,
+        "landslide_new_madrid_m77": RealLandslideNewMadridM77Source,
     }
     if hazard_type == "flood" and flood_subtype:
         key = flood_subtype

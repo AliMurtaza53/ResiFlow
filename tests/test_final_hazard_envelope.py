@@ -28,3 +28,20 @@ def test_manifest_matches_builtin_registry():
         b = lookup_scenario_by_param(s.scenario_param)
         assert b is not None and b.hazard_type == s.hazard_type
         assert b.hazard_subtype == s.hazard_subtype or (b.hazard_subtype is None and s.hazard_subtype is None)
+
+
+def test_new_madrid_is_m77_with_companions_and_m75_stays_available():
+    from resiflow.hazards.liquefaction import SCENARIO_MAGNITUDE_MW
+    from resiflow.hazards.real_events import (
+        RealEarthquakeNewMadridM77ScenarioSource as Eq77,
+        RealEarthquakeNewMadridScenarioSource as Eq75,
+        RealLandslideNewMadridM77Source as Ls77,
+    )
+
+    by_param = {s.scenario_param: s for s in load_hazard_manifest(MANIFEST)}
+    assert by_param[403].hazard_subtype == "earthquake_new_madrid_m77_scenario"
+    assert by_param[503].hazard_subtype == "landslide_new_madrid_m77"
+    assert Eq77.hazard_subtype == by_param[403].hazard_subtype and Eq77.sa1p0_companion and Eq77.liquefaction_companion
+    assert Ls77.hazard_subtype == by_param[503].hazard_subtype
+    assert Eq75.hazard_subtype == "earthquake_new_madrid_m75_scenario"
+    assert SCENARIO_MAGNITUDE_MW["earthquake_new_madrid_m77_scenario"] == 7.7

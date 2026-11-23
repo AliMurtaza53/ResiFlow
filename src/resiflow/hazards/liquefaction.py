@@ -60,6 +60,8 @@ _MAGNITUDE_GRID = (5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0)
 # falls through to $0 in road_liquefaction_direct_cost_usd_per_km below.
 SCENARIO_MAGNITUDE_MW: dict[str, float] = {
     "earthquake_new_madrid_m75_scenario": 7.5,
+    # M7.7 snaps to the T31 grid's nearest 0.5 step (7.5) via _nearest_magnitude.
+    "earthquake_new_madrid_m77_scenario": 7.7,
 }
 
 

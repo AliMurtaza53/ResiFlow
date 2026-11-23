@@ -3,9 +3,9 @@
   "events": [
     {"hazard_type": "flood", "hazard_subtype": "flood_harvey_houston", "event_id": "1", "scenario_param": 304, "closure_threshold": 30, "source": "raster", "label": "flood_harvey_houston"},
     {"hazard_type": "flood", "hazard_subtype": "flood_sandy_northeast", "event_id": "1", "scenario_param": 305, "closure_threshold": 30, "source": "raster", "label": "flood_sandy_northeast"},
-    {"hazard_type": "earthquake", "hazard_subtype": "earthquake_new_madrid_m75_scenario", "event_id": "1", "scenario_param": 403, "closure_threshold": 25, "source": "raster", "label": "earthquake_new_madrid_m75_scenario"},
+    {"hazard_type": "earthquake", "hazard_subtype": "earthquake_new_madrid_m77_scenario", "event_id": "1", "scenario_param": 403, "closure_threshold": 25, "source": "raster", "label": "earthquake_new_madrid_m77_scenario"},
     {"hazard_type": "earthquake", "hazard_subtype": "earthquake_cascadia_m9_scenario", "event_id": "1", "scenario_param": 404, "closure_threshold": 25, "source": "raster", "label": "earthquake_cascadia_m9_scenario"},
-    {"hazard_type": "landslide", "hazard_subtype": "landslide_new_madrid_m75", "event_id": "1", "scenario_param": 503, "closure_threshold": 100, "source": "raster", "label": "landslide_new_madrid_m75"},
+    {"hazard_type": "landslide", "hazard_subtype": "landslide_new_madrid_m77", "event_id": "1", "scenario_param": 503, "closure_threshold": 100, "source": "raster", "label": "landslide_new_madrid_m77"},
     {"hazard_type": "landslide", "hazard_subtype": "landslide_cascadia_m9", "event_id": "1", "scenario_param": 502, "closure_threshold": 100, "source": "raster", "label": "landslide_cascadia_m9"},
     {"hazard_type": "winter_storm", "event_id": "1", "scenario_param": 601, "closure_threshold": 100, "source": "raster", "label": "winter_storm_jonas"},
     {"hazard_type": "winter_storm", "hazard_subtype": "winter_storm_elliott", "event_id": "1", "scenario_param": 603, "closure_threshold": 100, "source": "raster", "label": "winter_storm_elliott"}

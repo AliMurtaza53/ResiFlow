@@ -89,6 +89,10 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(
         402, "earthquake", hazard_subtype="earthquake_nshm", closure_threshold=25, label="earthquake_nshm"
     ),
+    # Final envelope: FEMA/USGS M7.7 New Madrid southern fault (nm19fema_m7p7_mt_se),
+    # the more intense of two valid New Madrid scenarios (PGA 1.42 g vs 1.31 g).
+    # The M7.5 central-fault BSSC2014 scenario (bssc2014newmadrid_32_m7p5_se)
+    # stays reachable via subtype earthquake_new_madrid_m75_scenario. Earlier note:
     # USGS Earthquake Scenarios M7.5 New Madrid central fault (BSSC2014) --
     # a genuinely regional/sub-national earthquake footprint (8 states),
     # unlike Mineral's single-state reach. See
@@ -96,9 +100,9 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(
         403,
         "earthquake",
-        hazard_subtype="earthquake_new_madrid_m75_scenario",
+        hazard_subtype="earthquake_new_madrid_m77_scenario",
         closure_threshold=25,
-        label="earthquake_new_madrid_m75_scenario",
+        label="earthquake_new_madrid_m77_scenario",
     ),
     # USGS M9.0 Cascadia Subduction Zone scenario, event cszm9ensemble_se,
     # median of 30 M9 rupture realizations (Frankel et al. 2018) -- a
@@ -120,14 +124,14 @@ _BUILTIN_SCENARIOS: tuple[HazardScenario, ...] = (
     HazardScenario(
         502, "landslide", hazard_subtype="landslide_cascadia_m9", closure_threshold=100, label="landslide_cascadia_m9"
     ),
-    # Co-seismic Newmark PGD paired with the New Madrid M7.5 scenario (403);
+    # Co-seismic Newmark PGD paired with the New Madrid M7.7 scenario (403);
     # the final-envelope landslide pair is 503 (New Madrid) + 502 (Cascadia).
     HazardScenario(
         503,
         "landslide",
-        hazard_subtype="landslide_new_madrid_m75",
+        hazard_subtype="landslide_new_madrid_m77",
         closure_threshold=100,
-        label="landslide_new_madrid_m75",
+        label="landslide_new_madrid_m77",
     ),
     HazardScenario(601, "winter_storm", closure_threshold=100, label="winter_storm"),
     # Additional real SNODAS days for winter-storm severity/regional
