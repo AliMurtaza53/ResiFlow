@@ -27,13 +27,16 @@ def main():
     p.add_argument("--od", type=Path, required=True, help="lodes_passenger_od_matrix_conterminous.pq")
     p.add_argument("--county-crosswalk", type=Path, required=True)
     p.add_argument("--connector-crosswalk", type=Path, required=True)
+    p.add_argument("--network-links", "--road-links", dest="network_links", type=Path, required=True,
+                   help="Matching initialized edge_flows.gpq; validates physical roads before the weak-component guard")
+    p.add_argument("--preconverted-od", action="store_true", help="Input already contains converted vehicle trips; preserve them exactly")
     p.add_argument("--scenario", default="central_with_round_trip", choices=sorted(SENSITIVITY_SCENARIOS))
     p.add_argument("--county-factors", type=Path, help="commute_params.json: per-home-county vehicles per job (one direction); overrides --scenario")
     p.add_argument("--keep-intrazonal", action="store_true", help="keep origin==destination rows (default: dropped; scope is inter-zonal commute only)")
-    p.add_argument("--network-links", type=Path, help="road links parquet (from_id,to_id): drop split ends outside the main weakly connected component")
     p.add_argument("--output-dir", type=Path, required=True)
     a = p.parse_args()
-    a.output_dir.mkdir(parents=True, exist_ok=True)
+    if a.preconverted_od and a.county_factors:
+        p.error("--preconverted-od cannot be combined with --county-factors")
 
     od = pd.read_parquet(a.od)
     od["origin_node"] = od["origin_node"].astype(str)
@@ -41,7 +44,9 @@ def main():
     jobs = float(od["Car21"].sum())
     cw = pd.read_csv(a.county_crosswalk, dtype=str)
     conv = {}
-    if a.county_factors:
+    if a.preconverted_od:
+        a.scenario = "preconverted_vehicle_trips"
+    elif a.county_factors:
         factors = load_county_factors(a.county_factors)
         fallback = sum(factors.values()) / len(factors)
         n2c = cw.drop_duplicates("node_id").set_index("node_id")["county_fips"].to_dict()
@@ -55,20 +60,23 @@ def main():
     if not a.keep_intrazonal:
         od = od[~intra].reset_index(drop=True)
     conn = pd.read_csv(a.connector_crosswalk)
-    valid = None
-    if a.network_links:
-        lk = pd.read_parquet(a.network_links, columns=["from_id", "to_id"])
-        valid = main_component_nodes(lk["from_id"], lk["to_id"])
-        dropped = sorted(set(conn["road_node"].astype(str)) - valid)
-        print(f"connector road ends outside main component (dropped): {len(dropped)} {dropped[:20]}")
-    targets = build_node_targets(cw, conn, valid)
+    initialized = pd.read_parquet(a.network_links)
+    valid_nodes = main_component_nodes(initialized)
+    targets = build_node_targets(cw, conn, valid_nodes=valid_nodes)
     node_state = cw.drop_duplicates("node_id").assign(node_id=lambda d: d.node_id.astype(str)).set_index("node_id")["state_fips"]
     in15 = od["origin_node"].map(node_state).isin(HARVEY_STATES) & od["destination_node"].map(node_state).isin(HARVEY_STATES)
     sets = {"conus": od, "harvey15": od[in15]}
 
-    report = {"scenario": a.scenario, "jobs_in": jobs, "conversion": conv, "intrazonal_dropped_vehicle_trips": 0.0 if a.keep_intrazonal else intra_trips, "split_nodes": int(targets.groupby("node").size().gt(1).sum())}
+    report = {"scenario": a.scenario, "input_flow": jobs, "conversion": conv, "intrazonal_dropped_vehicle_trips": 0.0 if a.keep_intrazonal else intra_trips, "split_nodes": int(targets.groupby("node").size().gt(1).sum()),
+              "connectivity_links": str(a.network_links), "main_component_nodes": len(valid_nodes),
+              "dropped_connector_ends": targets.attrs["dropped_connector_ends"]}
+    a.output_dir.mkdir(parents=True, exist_ok=False)
+    targets.to_csv(a.output_dir / "node_targets.csv", index=False)
     for name, frame in sets.items():
         split = split_od(frame, targets)
+        loaded = set(split.loc[split.Car21.gt(0), "origin_node"]) | set(split.loc[split.Car21.gt(0), "destination_node"])
+        if not loaded <= valid_nodes:
+            raise ValueError(f"{name}: disconnected demand endpoints {sorted(loaded - valid_nodes)}")
         assert abs(split["Car21"].sum() - frame["Car21"].sum()) < 1e-6 * frame["Car21"].sum()
         frame.to_parquet(a.output_dir / f"passenger_{name}_od.pq", index=False)
         split.to_parquet(a.output_dir / f"passenger_{name}_split_od.pq", index=False)

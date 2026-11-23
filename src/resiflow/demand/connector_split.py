@@ -11,24 +11,40 @@ from __future__ import annotations
 import pandas as pd
 
 
-def main_component_nodes(from_ids, to_ids) -> set[str]:
-    """Node ids in the largest WEAKLY connected component of the road network.
+def main_component_nodes(from_ids, to_ids=None) -> set[str]:
+    """Largest WEAK component, with optional initialized-physical-link validation.
 
-    Weak, not strong: link direction flags make strong components over-reject
-    (56 of 57 split ends outside the largest strong component loaded fine in the
-    pax_cty1 runs); a node outside the weak component is a true island.
+    The two-array API from 35f2e8f remains available. A dataframe is checked
+    for Class-50 masking and initially unusable capacity before entering the
+    SAME weak-component calculation. A strong-component filter is incorrect
+    for the solver's undirected physical graph.
     """
     import numpy as np
     from scipy.sparse import coo_matrix
     from scipy.sparse.csgraph import connected_components
 
-    f = pd.Series(from_ids).astype(str)
-    t = pd.Series(to_ids).astype(str)
+    if isinstance(from_ids, pd.DataFrame):
+        if to_ids is not None:
+            raise ValueError("Pass a link dataframe or two endpoint arrays")
+        links = from_ids
+        if "faf5_class" in links:
+            links = links[~links["faf5_class"].eq(50).fillna(False)]
+        if "current_capacity" not in links:
+            raise ValueError("Connectivity check requires initialized current_capacity")
+        capacity = pd.to_numeric(links["current_capacity"], errors="raise")
+        if capacity.isna().any():
+            raise ValueError("Initialized physical roads have missing capacity")
+        links = links[capacity > 0.5]
+        from_ids, to_ids = links["from_id"], links["to_id"]
+    f, t = pd.Series(from_ids).reset_index(drop=True), pd.Series(to_ids).reset_index(drop=True)
+    if f.empty or len(f) != len(t) or f.isna().any() or t.isna().any():
+        raise ValueError("Connectivity check requires valid physical road endpoints")
+    f, t = f.astype(str), t.astype(str)
     ids = pd.Index(pd.unique(pd.concat([f, t])))
     a, b = ids.get_indexer(f), ids.get_indexer(t)
-    g = coo_matrix((np.ones(len(a)), (a, b)), shape=(len(ids), len(ids))).tocsr()
-    _, lab = connected_components(g, directed=False)
-    return set(ids[lab == np.bincount(lab).argmax()])
+    graph = coo_matrix((np.ones(len(a)), (a, b)), shape=(len(ids), len(ids))).tocsr()
+    _, labels = connected_components(graph, directed=False)
+    return set(ids[labels == np.bincount(labels).argmax()])
 
 
 def build_node_targets(
@@ -52,18 +68,22 @@ def build_node_targets(
     conn = connectors.loc[connectors["centroid_id"].astype(int) < 100000].copy()
     conn["county_int"] = conn["centroid_id"].astype(int)
     conn["target"] = conn["road_node"].astype(str)
-    if valid_nodes is not None:
-        # Drop connector ends that are not in the road network's main component
-        # (stub islands); their share goes to the remaining ends. A county with
-        # no valid end keeps all of its ends (and its current single node).
-        ok = conn["target"].isin(valid_nodes)
-        has_ok = ok.groupby(conn["county_int"]).transform("any")
-        conn = conn[ok | ~has_ok]
     k = conn.groupby("county_int").size().rename("k")
     per = conn.groupby(["county_int", "target"]).size().rename("n").reset_index().merge(k, on="county_int")
     per["weight"] = per["n"] / per["k"]
 
     split = cn.loc[~shared].merge(per[per["k"] >= 2], on="county_int")
+    dropped = []
+    if valid_nodes is not None:
+        valid_nodes = {str(node) for node in valid_nodes}
+        eligible = set(split["node_id"])
+        valid = split["target"].isin(valid_nodes)
+        dropped = split.loc[~valid, ["county_fips", "node_id", "target", "weight"]].to_dict("records")
+        split = split.loc[valid].copy()
+        missing = eligible - set(split["node_id"])
+        if missing:
+            raise ValueError(f"No connected connector exit for source nodes {sorted(missing)}")
+        split["weight"] /= split.groupby("node_id")["weight"].transform("sum")
     split_nodes = set(split["node_id"])
     out = split[["node_id", "target", "weight"]].rename(columns={"node_id": "node"})
 
@@ -71,7 +91,13 @@ def build_node_targets(
     keep = keep.rename(columns={"node_id": "node"})
     keep["target"] = keep["node"]
     keep["weight"] = 1.0
-    return pd.concat([out, keep], ignore_index=True)
+    result = pd.concat([out, keep], ignore_index=True)
+    if valid_nodes is not None:
+        invalid = result.loc[~result["target"].isin(valid_nodes), "target"]
+        if not invalid.empty:
+            raise ValueError(f"Unsplit loading nodes outside the main component: {invalid.tolist()}")
+    result.attrs["dropped_connector_ends"] = dropped
+    return result
 
 
 def split_od(
