@@ -24,7 +24,7 @@ M7.7 build (local, 2026-11-22), source `Downloads/New Madrid/M7.7-Southernfault/
 1. `prepare_shakemap_pga.py --zip raster.zip --layer pga_mean --units ln_g` and `--layer psa1p0_mean --units ln_g` (ln g, not percent g as in the M7.5 pack).
 2. `align_hazard_rasters.py --own-bounds --resolution 50` for both: 22,018 x 20,148 cells (EPSG:9311), 363M valid pixels, PGA 0.0093 to 1.416 g.
 3. Landslide: n10 susceptibility aligned with `--reference` to the M7.7 PGA, then `compute_landslide_pgd.py --magnitude 7.7 --susceptibility-max-count 81`: 4.65M nonzero pixels, PGD 0.32 mm to 7.34 m (M7.5 variant: 2.70M, 5.0 m).
-4. Liquefaction companion: the same CUSEC raster as M7.5 (native EPSG:4269, independent of the PGA grid), copied to `earthquake_new_madrid_m77_scenario_liquefaction`. T31 snaps magnitude to its nearest 0.5 step, so M7.7 uses the M7.5 table row; this is a documented approximation.
+4. Liquefaction companion: the same CUSEC raster as M7.5 (native EPSG:4269, independent of the PGA grid), aligned (nearest neighbour, `align_hazard_rasters.py --nearest`) onto the M7.7 PGA grid as `earthquake_new_madrid_m77_scenario_liquefaction` (the raw EPSG:4269 raster makes the sampler fail with an empty window; native copies are in `inputs_raw/earthquake/liquefaction_cusec_native/`). T31 snaps magnitude to its nearest 0.5 step, so M7.7 uses the M7.5 table row; this is a documented approximation.
 Footprint note: the M7.7 grid spans lon -95 to -85, lat 31 to 40, narrower than the M7.5 grid (lon -96.5 to -81.5, lat 30.1 to 42.4); outside it, the hazard is zero.
 
 ## Hopper raster inventory (checked 2026-11-22)
@@ -69,6 +69,27 @@ Hopper dir `stage2_scripts/payload_rebuild_20261122/` (`SHA256SUMS` there). Reci
 - **Gates:** conservation 1e-9 passed in every arm; mean/zero/parent_only haul within +-2% of control (control 198.87 mi, mean 198.88). Haul versus the old OD is +3.0% (193.12 to 198.88 mi) because the commodity mix shifted toward lighter-payload, longer-haul groups; expected, not tuned.
 - **Not payload-dependent, unchanged:** FAF published directional centroid totals (used for split weights and port targets). Port budgets use a published target against a 5% larger reconstructed supply, so zone fractions fall slightly.
 - **Frozen freight OD for network A is now** `t29/conus/harvey15_gateway_od.pq` (sha256 af5daa34...). The old flat-20 file stays as the reference. Harvey-15 subset was not rebuilt.
+
+## Final-code qualification (2026-11-23, code `a9ce7b3`, Hopper `code/ResiFlow_final_a9ce7b3`)
+- **Tests on Hopper:** 28 passed (Toy, Sioux Falls, phase-0 and flood parity, multihazard pipeline, passenger Stage 4, UE correlation, connector-network switch). Run with no `RESIFLOW_CONFIG_PATH`: with the cluster config the toy tests load the real OD and fail. The stale legacy-costing test was removed (`55cfed9`).
+- **Bug found and fixed:** the endpoint cherry-pick missed `RESIFLOW_FAF5_CONNECTOR_NETWORK` in Stage 1, Stage 3 and the intensity pipeline. A first baseline without the connectors isolated 99.6% of demand. Fixed in `a9ce7b3` with `tests/test_connector_network_switch.py`. Every run must log `initial number of edges in the network: 487237` and `Initial isolated flows: 0.0`.
+- **Baselines on network A (T29 freight OD, 15 iterations max):** freight 1:17 wall, 100% delivered in one pass, 0 isolated, travel cost $484.1M. Passenger 0:56 wall, 87.4% delivered, 0 structural and 12.6% congestion isolation at iteration 15, remain 0.70%, conservation and capacity invariants held. Combined (PCE 54,911,252.9/day) is the acceptance run: still iterating at the time of writing (remain 35.6%, 28.5%, 23.6% after iterations 1 to 3, about 70 minutes each).
+- **Stage 2 + 3 smoke on all eight events** (freight baseline, final OD and network; `experiments/final_envelope/`). 3,795 virtual links in every event, none exposed.
+
+| Event | Stage 2 wall | Damage rows | Direct damage (M USD) | Note |
+|---|---|---|---|---|
+| 304 Harvey | 7 min | 89,439 | 11,291 | identical to the earlier virtual-exempt run |
+| 305 Sandy | 12 min | 23,360 | 3,880 | |
+| 403 New Madrid M7.7 | 112 min | 2,232,707 | 134,041 | PGA max 1.398 g; needed the aligned liquefaction raster |
+| 404 Cascadia M9 | 43 min | 913,063 | 158,685 | |
+| 503 New Madrid M7.7 landslide | 42 min | 24,402 | 29,109 | |
+| 502 Cascadia landslide | 22 min | 103,571 | 348,453 | **review**: exceeds the Cascadia shaking damage |
+| 601 Jonas | 66 min | 617,582 | 20.6 | |
+| 603 Elliott | not logged | 805,831 | 168.7 | |
+
+- **Open for review:** 502 (landslide damage 2.2 times the Cascadia shaking damage on a quarter of the damage rows); Stage 2 is single-threaded and slow for the large earthquake grids (403 takes under two hours), so run events as separate jobs in parallel.
+- **Anvil:** conda env `nird_v4` rebuilt (the old ones were purged; first attempt failed on a corrupted package cache, retried with a fresh one), code `ResiFlow_final_8a0cbba` synced (needs a refresh to `a9ce7b3`, jobs override with `PYTHONPATH`), frozen inputs on scratch and on `/anvil/projects/x-civ260045/frozen_inputs_networkA_20261123/`. Not yet on Anvil: hazard rasters (about 9 GB), baseline result folders.
+- **Launching:** `experiments/final_envelope/baseline.slurm` (CASE=freight|passenger|combined) and `event.slurm` (CASE, EV, CODE_SHA) reproduce these runs; `event_summary.py` produces the table above.
 
 ## Run order and gates
 1. Baselines F, P, F+P on the frozen commit and final network (gate: Codex C+S/C+S+G close-out).
