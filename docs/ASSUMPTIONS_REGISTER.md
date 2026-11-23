@@ -39,6 +39,7 @@ Status: **owner** = decided by the owner (date); **default** = inherited from th
 | C5 | Winter storm direct cost uses the T32 DOT regression | on | `param` `vulnerability.use_table_winter_storm_cost` | default |
 | C6 | Earthquake road damage is zero by design; earthquake and landslide bridges use HAZUS | n/a | `scripts/3_damage_analysis.py` | default |
 | C7 | The legacy `snow` hazard (scenarios 150 and 701, its pipeline, source and Sioux Falls test) is removed. Winter storms run only as `winter_storm` (T32 cost, T33 to T35 response). Generic helpers `snow_band` and `snow_categorical` remain | n/a | removed 2026-11-12 | owner |
+| C8 | OPEN. The whole-structure bridge value is the MAXIMUM over all raster-cell pieces of the FAF link, although the median bridge is 2.6% to 7% of its link, so one bad cell on an approach can price the whole deck. Bridge damage under max / length-weighted mean (M USD): 502 4,921 / 2,185; 503 1,925 / 556; 404 1,969 / 1,740; 403 1,080 / 944; 304 331 / 243; 305 254 / 254. Shaking and surge move 1.0-1.4x, landslide 2.3-3.5x | max over pieces | `src/resiflow/damage_aggregation.py` `collapse_to_edges`; `scripts/diagnostics/bridge_piece_sensitivity.py` | owner 2026-11-23: leave as a documented assumption for now; revisit after the envelope |
 
 ## Freight and demand
 | # | Assumption | Value | Where | Status |
