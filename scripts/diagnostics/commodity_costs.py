@@ -59,13 +59,37 @@ def split(weights: pd.DataFrame, wcol: str, total: float):
     return (total * per_group / denom if denom == denom else np.zeros(len(GROUPS))), unalloc, raw
 
 
+def node_states(links: Path) -> pd.Series:
+    """Node id -> state: the STATE of any link touching the node (connectors carry a STATE too)."""
+    d = pq.read_table(links, columns=["from_id", "to_id", "STATE"]).to_pandas()
+    a = d[["from_id", "STATE"]].rename(columns={"from_id": "node"})
+    b = d[["to_id", "STATE"]].rename(columns={"to_id": "node"})
+    m = pd.concat([a, b]).dropna().drop_duplicates("node")
+    return pd.Series(m.STATE.astype(str).to_numpy(), index=m.node.astype("int64").to_numpy())
+
+
+def split_state(weights: pd.DataFrame, wcol: str, total: float, state_col: str):
+    """Per-state, per-commodity values; same scaling as split() so everything adds up to the class total."""
+    w = weights[wcol].to_numpy()
+    raw = float(w.sum())
+    if raw == 0:
+        return {}
+    s = np.nan_to_num(weights[[f"s_{g}" for g in GROUPS]].to_numpy()) * w[:, None]
+    df = pd.DataFrame(s, columns=GROUPS)
+    df["state"] = weights[state_col].fillna("NA").to_numpy()
+    g = df.groupby("state").sum() * (total / raw)
+    return g
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--shares", type=Path, required=True, help="commodity_od.pq from commodity_sum_gate.py")
     ap.add_argument("--runs", nargs="+", required=True, help="e.g. freight_304 combined_304")
     ap.add_argument("--out", type=Path, required=True)
+    ap.add_argument("--links", type=Path, default=Path("/home/akothaw/frozen_inputs_networkA_20261123/faf5_road_links.gpq"))
     a = ap.parse_args()
     sh = share_table(a.shares)
+    ns = node_states(a.links)
     rows = []
     for run in a.runs:
         case, ev = run.split("_")
@@ -86,6 +110,13 @@ def main():
             if ip.exists() and iso_total != 0:
                 iso = attach(pd.read_csv(ip, usecols=KEYS + ["Car21"]), sh).rename(columns={"Car21": "w"})
                 vals, unalloc, raw = split(iso, "w", iso_total)
+                iso["so"] = iso.origin_node.map(ns); iso["sd"] = iso.destination_node.map(ns)
+                for tagn, col in (("origin", "so"), ("dest", "sd")):
+                    gs = split_state(iso, "w", iso_total, col)
+                    for st, r in (gs.iterrows() if len(gs) else []):
+                        for g, v in r.items():
+                            if v != 0:
+                                rows.append((run_id, ev, day, "freight", g, f"isolation_cost_day_state_{tagn}:{st}", v, "USD/day", np.nan))
                 for g, v in zip(GROUPS, vals):
                     rows.append((run_id, ev, day, "freight", g, "isolation_cost_day", v, "USD/day", 1.0 if raw else np.nan))
                 rows.append((run_id, ev, day, "freight", "unallocated", "isolation_unallocated_flow", unalloc, "trucks/day", np.nan))
@@ -104,6 +135,13 @@ def main():
                 if case == "combined":  # mixed passenger+freight file: keep the freight pairs only
                     jj = jj[jj[f"s_{GROUPS[0]}"].notna()]
                 vals, unalloc, raw = split(jj, "w", rer_total)
+                jj = jj.assign(so=jj.origin_node.map(ns), sd=jj.destination_node.map(ns))
+                for tagn, col in (("origin", "so"), ("dest", "sd")):
+                    gs = split_state(jj, "w", rer_total, col)
+                    for st, r in (gs.iterrows() if len(gs) else []):
+                        for g, v in r.items():
+                            if v != 0:
+                                rows.append((run_id, ev, day, "freight", g, f"rerouting_cost_day_state_{tagn}:{st}", v, "USD/day", np.nan))
                 for g, v in zip(GROUPS, vals):
                     rows.append((run_id, ev, day, "freight", g, "rerouting_cost_day", v, "USD/day", raw / rer_total if rer_total else np.nan))
             else:
