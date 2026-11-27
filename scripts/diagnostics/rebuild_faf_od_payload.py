@@ -27,6 +27,7 @@ def main() -> int:
     ap.add_argument("--reference-node", type=Path, help="faf5_od_matrix.pq to compare (flat20)")
     ap.add_argument("--reference-conterminous", type=Path, help="faf5_od_matrix_conterminous.pq to compare (flat20)")
     ap.add_argument("--out-dir", type=Path, required=True)
+    ap.add_argument("--commodity", help="optional sctgG5 group (e.g. sctg0109): keep only that group, for the commodity split")
     a = ap.parse_args()
     a.out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -35,6 +36,9 @@ def main() -> int:
     t29 = pd.read_csv(a.t29, comment="#")
     pay = {str(k).lower().replace("sctg", ""): float(v) for k, v in zip(t29.sctgG5, t29.payload_tons) if k != "all"}
     keys = df.sctgG5.astype(str).str.lower().str.replace("sctg", "", regex=False)
+    if a.commodity:
+        keep = (keys == a.commodity.lower().replace("sctg", "")).to_numpy()
+        df = df[keep].reset_index(drop=True); keys = keys[keep].reset_index(drop=True); rep["commodity"] = a.commodity
     rep["sctg_values"] = sorted(keys.unique().tolist()); rep["t29_payload"] = pay
     if set(rep["sctg_values"]) - set(pay):
         raise SystemExit(f"sctg without T29 payload: {set(rep['sctg_values']) - set(pay)}")

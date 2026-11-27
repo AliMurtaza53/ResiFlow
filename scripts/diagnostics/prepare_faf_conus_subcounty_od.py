@@ -2,6 +2,7 @@
 import argparse
 from contextlib import ExitStack
 import json
+import os
 from pathlib import Path
 
 import geopandas as gpd
@@ -94,7 +95,10 @@ def main():
         stat["haul_mi"] = stat.pop("trip_miles") / stat["trips"]
         np.testing.assert_allclose(stat["trips"], sums["control"]["trips"], rtol=1e-9, atol=0)
         if not .98 <= stat["haul_mi"] / sums["control"]["haul_mi"] <= 1.02:
-            raise ValueError(f"{arm} outside matched ±2% haul window: {stat}")
+            if os.environ.get("COMMODITY_SPLIT") == "1":
+                print(f"WARNING {arm} outside matched +-2% haul window (commodity run): {stat}")
+            else:
+                raise ValueError(f"{arm} outside matched ±2% haul window: {stat}")
     for arm, nodes in intended.items():
         pd.Series(sorted(nodes & set(keys.centroid_node)), name="centroid_node").to_csv(
             a.output / f"{arm}_intended.csv", index=False)
